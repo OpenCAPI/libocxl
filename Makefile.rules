@@ -1,0 +1,29 @@
+# Basic makefile rules
+-include $(OBJS:.o=.d)
+
+PREFIX ?= /usr/local
+
+ifdef V
+  VERBOSE:= $(V)
+else
+  VERBOSE:= 0
+endif
+
+ifeq ($(VERBOSE),1)
+define Q
+  $(2)
+endef
+else
+define Q
+  @/bin/echo -e "	[$1]\t$(3)"
+  @$(2)
+endef
+endif
+
+obj/%.o : src/%.c
+	$(call Q,CC, $(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<, $@)
+
+datadir    = $(PREFIX)/share
+includedir = $(PREFIX)/include
+mandir     = $(datadir)/man
+libdir = $(PREFIX)/lib64

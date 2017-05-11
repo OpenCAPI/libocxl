@@ -1,0 +1,44 @@
+LIBOCXL_0 {
+	global:
+		ocxl_set_sys_path;
+		ocxl_set_dev_path;
+		ocxl_set_irq_path;
+		ocxl_want_verbose_errors;
+		ocxl_set_errmsg_filehandle;
+		ocxl_afu_get_fd;
+		ocxl_afu_get_global_mmio_size;
+		ocxl_afu_get_mmio_size;
+		ocxl_afu_get_errbuf_fd;
+		ocxl_afu_open_from_dev;
+		ocxl_afu_close;
+		ocxl_afu_free;
+		ocxl_afu_open;
+		ocxl_afu_open_errbuf;
+		ocxl_afu_attach;
+		ocxl_afu_use;
+		ocxl_afu_irq_alloc;
+		ocxl_afu_irq_free;
+		ocxl_afu_irq_set_info;
+		ocxl_afu_irq_get_info;
+		ocxl_afu_irq_check;
+		ocxl_afu_irq_attach_callback;
+		ocxl_afu_irq_detach_callback;
+		ocxl_afu_irq_handle_callbacks;
+		ocxl_afu_set_ppc64_amr;
+		ocxl_global_mmio_map;
+		ocxl_mmio_map;
+		ocxl_global_mmio_read32;
+		ocxl_global_mmio_read64;
+		ocxl_global_mmio_write32;
+		ocxl_global_mmio_write64;
+		ocxl_mmio_read32;
+		ocxl_mmio_read64;
+		ocxl_mmio_write32;
+		ocxl_mmio_write64;
+		ocxl_global_mmio_unmap;
+		ocxl_mmio_unmap;
+
+
+	local:
+		*;
+};
