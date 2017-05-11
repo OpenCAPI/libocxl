@@ -1,0 +1,8 @@
+*~
+*.orig
+.*.swp
+obj/*
+testobj/*
+docs/html
+cppcheck.xml
+

@@ -1,0 +1,20 @@
+var searchData=
+[
+  ['ocxl_5falready_5fdone',['OCXL_ALREADY_DONE',['../libocxl_8h.html#a0a18f33ce24edf75b02184395bb6ea55a9523eef30982edc443b0d69c62f79ee0',1,'libocxl.h']]],
+  ['ocxl_5fevent_5firq',['OCXL_EVENT_IRQ',['../libocxl_8h.html#a8c4680beca9b9461f160b59d5c569d0ca8edf0d6e698e3f969d86de1e4e65da37',1,'libocxl.h']]],
+  ['ocxl_5fevent_5ftranslation_5ffault',['OCXL_EVENT_TRANSLATION_FAULT',['../libocxl_8h.html#a8c4680beca9b9461f160b59d5c569d0ca37ec3315dded8aa8aa261cd21db8f884',1,'libocxl.h']]],
+  ['ocxl_5fglobal_5fmmio',['OCXL_GLOBAL_MMIO',['../libocxl_8h.html#a1eebb9cf864a4fa0a8f4e54c56494b1aa210e50856c4496fd67654463194e920c',1,'libocxl.h']]],
+  ['ocxl_5finternal_5ferror',['OCXL_INTERNAL_ERROR',['../libocxl_8h.html#a0a18f33ce24edf75b02184395bb6ea55a8c32987b1df69bd8ca871c96ac46173e',1,'libocxl.h']]],
+  ['ocxl_5finvalid_5fargs',['OCXL_INVALID_ARGS',['../libocxl_8h.html#a0a18f33ce24edf75b02184395bb6ea55a5d28a4985b0f835347ab485f8dff4027',1,'libocxl.h']]],
+  ['ocxl_5fmmio_5fbig_5fendian',['OCXL_MMIO_BIG_ENDIAN',['../libocxl_8h.html#a99182fe49c19594a04b05aae43342d4faf26b9835386fc094a2a80ef0db0420d0',1,'libocxl.h']]],
+  ['ocxl_5fmmio_5fhost_5fendian',['OCXL_MMIO_HOST_ENDIAN',['../libocxl_8h.html#a99182fe49c19594a04b05aae43342d4fa743bb6db4c183870b64398fef987b1ae',1,'libocxl.h']]],
+  ['ocxl_5fmmio_5flittle_5fendian',['OCXL_MMIO_LITTLE_ENDIAN',['../libocxl_8h.html#a99182fe49c19594a04b05aae43342d4fa81848a592d284a3748e4b0bbdfc41e7a',1,'libocxl.h']]],
+  ['ocxl_5fno_5fcontext',['OCXL_NO_CONTEXT',['../libocxl_8h.html#a0a18f33ce24edf75b02184395bb6ea55aebae4f709b4cec413eb80fe352b0ed2f',1,'libocxl.h']]],
+  ['ocxl_5fno_5fdev',['OCXL_NO_DEV',['../libocxl_8h.html#a0a18f33ce24edf75b02184395bb6ea55a51dc724fea99e37994795e968943e518',1,'libocxl.h']]],
+  ['ocxl_5fno_5firq',['OCXL_NO_IRQ',['../libocxl_8h.html#a0a18f33ce24edf75b02184395bb6ea55a501a80161a5a7cbf5e6673f9851d6be8',1,'libocxl.h']]],
+  ['ocxl_5fno_5fmem',['OCXL_NO_MEM',['../libocxl_8h.html#a0a18f33ce24edf75b02184395bb6ea55ae2fc51a7852a492c708367fd1464656e',1,'libocxl.h']]],
+  ['ocxl_5fno_5fmore_5fcontexts',['OCXL_NO_MORE_CONTEXTS',['../libocxl_8h.html#a0a18f33ce24edf75b02184395bb6ea55a3cedd7ec562cdf3e58fc2c63c68bf70e',1,'libocxl.h']]],
+  ['ocxl_5fok',['OCXL_OK',['../libocxl_8h.html#a0a18f33ce24edf75b02184395bb6ea55a8ea34d4c707e63a7a138f87da7626164',1,'libocxl.h']]],
+  ['ocxl_5fout_5fof_5fbounds',['OCXL_OUT_OF_BOUNDS',['../libocxl_8h.html#a0a18f33ce24edf75b02184395bb6ea55a870c2c76a38c5004fb29e1a49043b434',1,'libocxl.h']]],
+  ['ocxl_5fper_5fpasid_5fmmio',['OCXL_PER_PASID_MMIO',['../libocxl_8h.html#a1eebb9cf864a4fa0a8f4e54c56494b1aae2c4457be901dfbcdae1d0cea01feb2c',1,'libocxl.h']]]
+];
