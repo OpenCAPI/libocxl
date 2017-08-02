@@ -225,9 +225,9 @@ inline static uint32_t read32(ocxl_mmio_area * mmio, size_t offset)
 {
 	uint32_t val;
 
-	__asm__ __volatile__("lwz%U1%X1 %0,%1; sync"
-	                     : "=r"(val)
-	                     : "m"(*(__u64 *)(mmio->start + offset)));
+	__sync_synchronize();
+	val = *(volatile uint32_t *)(mmio->start + offset);
+	__sync_synchronize();
 
 	switch (mmio->endianess) {
 	case OCXL_MMIO_HOST_ENDIAN:
@@ -252,9 +252,9 @@ inline static uint64_t read64(ocxl_mmio_area * mmio, size_t offset)
 {
 	uint64_t val;
 
-	__asm__ __volatile__("ld%U1%X1 %0,%1; sync"
-	                     : "=r"(val)
-	                     : "m"(*(__u64 *)(mmio->start + offset)));
+	__sync_synchronize();
+	val = *(volatile uint64_t *)(mmio->start + offset);
+	__sync_synchronize();
 
 	switch (mmio->endianess) {
 	case OCXL_MMIO_HOST_ENDIAN:
@@ -289,9 +289,11 @@ inline static void write32(ocxl_mmio_area * mmio, size_t offset, uint32_t value)
 		break;
 	}
 
-	__asm__ __volatile__("sync ; stw%U0%X0 %1,%0"
-	                     : "=m"(*(__u64 *)(mmio->start + offset))
-	                     : "r"(value));
+	volatile uint32_t * addr = (uint32_t *)(mmio->start + offset);
+
+	__sync_synchronize();
+	*addr = value;
+	__sync_synchronize();
 }
 
 /**
@@ -313,9 +315,11 @@ inline static void write64(ocxl_mmio_area * mmio, size_t offset, uint64_t value)
 		break;
 	}
 
-	__asm__ __volatile__("sync ; std%U0%X0 %1,%0"
-	                     : "=m"(*(__u64 *)(mmio->start + offset))
-	                     : "r"(value));
+	volatile uint64_t * addr = (uint64_t *)(mmio->start + offset);
+
+	__sync_synchronize();
+	*addr = value;
+	__sync_synchronize();
 }
 
 /**
