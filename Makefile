@@ -2,6 +2,7 @@ srcdir = $(PWD)
 include Makefile.vars
 
 OBJS = obj/afu.o obj/internal.o obj/irq.o obj/mmio.o obj/setup.o
+TEST_OBJS = testobj/afu.o testobj/internal.o testobj/irq.o testobj/mmio.o testobj/setup.o
 CFLAGS += -I src/include -I uthash/src -I kernel/include -fPIC
 
 # change VERS_LIB if new git tag
@@ -15,7 +16,7 @@ SONAMEOPT = -Wl,-soname,$(LIBSONAME)
 
 DOCDIR = docs
 
-all: docs obj/$(LIBSONAME) obj/libocxl.so obj/libocxl.a
+all: docs obj/$(LIBSONAME) obj/libocxl.so obj/libocxl.a testobj/libocxl.a
 
 HAS_WGET = $(shell /bin/which wget > /dev/null 2>&1 && echo y || echo n)
 HAS_CURL = $(shell /bin/which curl > /dev/null 2>&1 && echo y || echo n)
@@ -49,7 +50,16 @@ obj/$(LIBNAME): obj $(OBJS) symver.map
 	$(call Q,CC, $(CC) $(CFLAGS) $(LDFLAGS) -shared $(OBJS) -o obj/$(LIBNAME), obj/$(LIBNAME)) -Wl,--version-script symver.map $(SONAMEOPT)
 
 obj/libocxl.a: $(OBJS)
-	$(call Q,AR, ar rcs obj/libcxl.a $(OBJS), obj/libcxl.a)
+	$(call Q,AR, $(AR) rcs obj/libcxl.a $(OBJS), obj/libcxl.a)
+
+testobj:
+	mkdir testobj
+
+testobj/libocxl.a: $(TEST_OBJS)
+	$(call Q,AR, $(AR) rcs testobj/libocxl-temp.a $(TEST_OBJS), testobj/libocxl-temp.a)
+	$(call Q,STATIC_SYMS, $(NM) testobj/libocxl-temp.a | grep ' t ' | grep -v __ | cut -d ' ' -f 3 > testobj/static-syms)
+	$(call Q,STATIC_PROTOTYPES, grep -h static src/*.c | sed -e '{s/$$/;/; s/^inline //; s/^static //;}' >testobj/static.h)
+	$(call Q,OBJCOPY, $(OBJCOPY) --globalize-symbols=testobj/static-syms testobj/libocxl-temp.a testobj/libocxl.a, obj/libocxl.a)
 
 include Makefile.rules
 
@@ -68,7 +78,7 @@ docs:
 	$(call Q,DOCS-HTML, doxygen Doxyfile-html,)
 
 clean:
-	rm -rf obj docs
+	rm -rf obj testobj docs
 
 install: all
 	mkdir -p $(libdir)

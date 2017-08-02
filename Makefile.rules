@@ -20,8 +20,11 @@ define Q
 endef
 endif
 
-obj/%.o : src/%.c
+obj/%.o : src/%.c obj
 	$(call Q,CC, $(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<, $@)
+
+testobj/%.o : src/%.c testobj
+	$(call Q,CC, $(CC) $(CPPFLAGS) $(TESTCFLAGS) -c -o $@ $<, $@)
 
 datadir    = $(PREFIX)/share
 includedir = $(PREFIX)/include
