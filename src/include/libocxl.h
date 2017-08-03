@@ -73,9 +73,6 @@ typedef enum {
 } ocxl_err;
 
 /* setup.c */
-void ocxl_set_sys_path(const char *path);
-void ocxl_set_dev_path(const char *path);
-void ocxl_set_irq_path(const char *path);
 void ocxl_want_verbose_errors(int verbose);
 void ocxl_set_errmsg_filehandle(FILE * handle);
 

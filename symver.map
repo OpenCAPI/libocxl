@@ -1,8 +1,5 @@
 LIBOCXL_0 {
 	global:
-		ocxl_set_sys_path;
-		ocxl_set_dev_path;
-		ocxl_set_irq_path;
 		ocxl_want_verbose_errors;
 		ocxl_set_errmsg_filehandle;
 		ocxl_afu_get_fd;

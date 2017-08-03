@@ -22,6 +22,7 @@
  * @{
  */
 
+#ifdef TEST_ENVIRONMENT
 /**
  * Set the directory used for the ocxl sysfs dir
  *
@@ -29,7 +30,7 @@
  *
  * @param path the new path to use for sysfs
  */
-void ocxl_set_sys_path(const char *path)
+__attribute__ ((used)) static void ocxl_set_sys_path(const char *path)
 {
 	strncpy(sys_path, path, sizeof(sys_path));
 	sys_path[sizeof(sys_path) - 1] = '\0';
@@ -42,7 +43,7 @@ void ocxl_set_sys_path(const char *path)
  *
  * @param path the new path to use for sysfs
  */
-void ocxl_set_dev_path(const char *path)
+__attribute__ ((used)) static void ocxl_set_dev_path(const char *path)
 {
 	strncpy(dev_path, path, sizeof(dev_path));
 	dev_path[sizeof(dev_path) - 1] = '\0';
@@ -55,11 +56,13 @@ void ocxl_set_dev_path(const char *path)
  *
  * @param path the new path to use for the IRQ device
  */
-void ocxl_set_irq_path(const char *path)
+__attribute__ ((used)) static void ocxl_set_irq_path(const char *path)
 {
 	strncpy(irq_path, path, sizeof(irq_path));
 	irq_path[sizeof(irq_path) - 1] = '\0';
 }
+#endif // TEST_ENVIRONMENT
+
 
 /**
  * Indicate that we want verbose error messages
