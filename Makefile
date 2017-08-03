@@ -75,6 +75,8 @@ precommit: clean all cppcheck
 docs:
 	rm -rf $(DOCDIR)
 	$(call Q,DOCS-MAN, doxygen Doxyfile-man,)
+	cd docs/man/man3 && \
+		ls | grep -vi ocxl | xargs rm
 	$(call Q,DOCS-HTML, doxygen Doxyfile-html,)
 
 clean:
