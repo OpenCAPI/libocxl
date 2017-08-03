@@ -73,8 +73,6 @@ typedef struct ocxl_afu {
 	ocxl_mmio_area per_pasid_mmio;
 	size_t page_size;
 	ocxl_irq *irqs;
-	uint16_t triggered_irq_count;
-	ocxl_irq_h *triggered_irq_ids; /**< Return buffer for ocxl_afu_irq_check */
 
 #ifdef _ARCH_PPC64
 	uint64_t ppc64_amr;

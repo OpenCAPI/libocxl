@@ -69,8 +69,46 @@ typedef enum {
 	OCXL_NO_IRQ = -4,			/**< no further interrupts are available, or the interrupt is invalid */
 	OCXL_INTERNAL_ERROR = -5,	/**< an internal error has occurred */
 	OCXL_ALREADY_DONE = -6,		/**< The action requested has already been performed */
-	OCXL_OUT_OF_BOUNDS = -7,		/**< The action requested falls outside the permitted area */
+	OCXL_OUT_OF_BOUNDS = -7,	/**< The action requested falls outside the permitted area */
 } ocxl_err;
+
+/**
+ * OCXL Event types
+ */
+typedef enum {
+	OCXL_EVENT_IRQ = 0,					/**< An AFU IRQ */
+	OCXL_EVENT_TRANSLATION_ERROR = 1,	/**< A memory translation error occurred on the AFU */
+} ocxl_event_type;
+
+
+/**
+ * The data for a triggered IRQ event
+ */
+typedef struct {
+	ocxl_irq_h handle; /**< The IRQ handle of the triggered IRQ */
+	void *info; /**< An opaque pointer associated with the IRQ */
+} ocxl_event_irq;
+
+/**
+ * The data for a triggered translation error event
+ */
+typedef struct {
+	uint64_t count; /**< The number of times a translation error has occurred since last reported */
+} ocxl_event_translation_error;
+
+/**
+ * An OCXL event
+ *
+ * This may be an AFU interrupt, or a translation error
+ */
+typedef struct ocxl_event {
+	ocxl_event_type type;
+	union {
+		ocxl_event_irq irq; /**< Usable only when the type is OCXL_EVENT_IRQ */
+		ocxl_event_translation_error translation_error; /**< Usable only when the type is OCXL_OCXL_EVENT_TRANSLATION_ERROR */
+	};
+} ocxl_event;
+
 
 /* setup.c */
 void ocxl_want_verbose_errors(int verbose);
@@ -104,10 +142,7 @@ ocxl_err ocxl_afu_use_from_dev(const char *path, ocxl_afu_h * afu, uint64_t amr,
 /* AFU IRQ functions */
 ocxl_err ocxl_afu_irq_alloc(ocxl_afu_h afu, void *info, ocxl_irq_h * irq_handle);
 ocxl_err ocxl_afu_irq_free(ocxl_afu_h afu, ocxl_irq_h * irq);
-ocxl_err ocxl_afu_irq_set_info(ocxl_afu_h afu, ocxl_irq_h irq, void *info);
-ocxl_err ocxl_afu_irq_get_info(ocxl_afu_h afu, ocxl_irq_h irq, void **info);
-uint16_t ocxl_afu_irq_check(ocxl_afu_h afu, struct timeval *timeout,
-                            const ocxl_irq_h ** triggered_irqs);
+uint16_t ocxl_afu_event_check(ocxl_afu_h afu, struct timeval * timeout, ocxl_event *events, uint16_t event_count);
 
 /* Platform specific: PPC64 */
 #ifdef _ARCH_PPC64

@@ -146,25 +146,6 @@ static ocxl_err irq_allocate(ocxl_afu * afu, ocxl_irq * irq, void *info)
 
 	HASH_ADD_INT(afu->irqs, handle, irq);
 
-	int irq_count = HASH_COUNT(my_afu->irqs);
-
-	// Resize the return value array if required
-	if (irq_count != my_afu->triggered_irq_count) {
-		irq_count += 8;	// Some extra so we're not constantly freeing/allocing space
-
-		if (my_afu->triggered_irq_ids) {
-			free(my_afu->triggered_irq_ids);
-		}
-
-		my_afu->triggered_irq_ids = malloc(irq_count * sizeof(*my_afu->triggered_irq_ids));
-		if (my_afu->triggered_irq_ids == NULL) {
-			ret = OCXL_NO_MEM;
-			goto errend;
-		}
-
-		my_afu->triggered_irq_count = irq_count;
-	}
-
 	return OCXL_OK;
 
 errend:
@@ -229,60 +210,15 @@ ocxl_err ocxl_afu_irq_free(ocxl_afu_h afu, ocxl_irq_h * irq)
 }
 
 /**
- * Associate user data with an IRQ handle
- *
- * @param afu the AFU the IRQ belongs to
- * @param irq the IRQ handle
- * @param info a pointer to the user data
- * @retval OCXL_OK if the information was associated
- * @retval OCXL_NO_IRQ if the IRQ handle is invalid
- */
-ocxl_err ocxl_afu_irq_set_info(ocxl_afu_h afu, ocxl_irq_h irq, void *info)
-{
-	ocxl_afu *my_afu = (ocxl_afu *) afu;
-	ocxl_irq *my_irq = get_irq(my_afu, irq);
-
-	if (my_irq == NULL) {
-		return OCXL_NO_IRQ;
-	}
-
-	my_irq->info = info;
-
-	return OCXL_OK;
-}
-
-/**
- * Retrieve associated user data from an IRQ handle
- *
- * @param afu the AFU the IRQ belongs to
- * @param irq the IRQ handle
- * @param[out] info a pointer to the user data
- * @retval OCXL_OK if the information was associated
- * @retval OCXL_NO_IRQ if the IRQ handle is invalid
- */
-ocxl_err ocxl_afu_irq_get_info(ocxl_afu_h afu, ocxl_irq_h irq, void **info)
-{
-	ocxl_afu *my_afu = (ocxl_afu *) afu;
-	ocxl_irq *my_irq = get_irq(my_afu, irq);
-
-	if (my_irq == NULL) {
-		return OCXL_NO_IRQ;
-	}
-
-	*info = my_irq->info;
-
-	return OCXL_OK;
-}
-
-/**
  * Check for pending IRQs
  *
  * @param afu the AFU holding the interrupts
  * @param timeout how long to wait for interrupts to arrive
- * @param[out] triggered_irqs a list of the tirggered IRQ handles
- * @return the number of IRQs triggered
+ * @param[out] events the triggered events (caller allocated)
+ * @param event_count the number of triggered events
+ * @return the number of events triggered, if this is the same as event_count, you should call ocxl_afu_event_check again
  */
-uint16_t ocxl_afu_irq_check(ocxl_afu_h afu, struct timeval * timeout, const ocxl_irq_h ** triggered_irqs)
+uint16_t ocxl_afu_event_check(ocxl_afu_h afu, struct timeval * timeout, ocxl_event *events, uint16_t event_count)
 {
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 
@@ -304,7 +240,7 @@ uint16_t ocxl_afu_irq_check(ocxl_afu_h afu, struct timeval * timeout, const ocxl
 	int ready = select(maxfd + 1, &irqs, NULL, NULL, timeout);
 	uint16_t triggered = 0;
 	if (ready) {
-		for (ocxl_irq * irq = my_afu->irqs; irq != NULL; irq = irq->hh.next) {
+		for (ocxl_irq * irq = my_afu->irqs; irq != NULL && triggered < event_count; irq = irq->hh.next) {
 			if (irq->event.eventfd >= 0) {
 				if (FD_ISSET(irq->event.eventfd, &irqs)) {
 					if (read(irq->event.eventfd, &count, sizeof(count)) < 0) {
@@ -312,13 +248,15 @@ uint16_t ocxl_afu_irq_check(ocxl_afu_h afu, struct timeval * timeout, const ocxl
 						       irq->event.eventfd, my_afu->identifier.afu_name,
 						       errno, strerror(errno));
 					}
-					my_afu->triggered_irq_ids[triggered++] = irq->handle;
+					events[triggered].type = OCXL_EVENT_IRQ;
+					events[triggered].irq.handle = irq->handle;
+					events[triggered++].irq.info = irq->info;
 				}
 			}
 		}
 	}
 
-	*triggered_irqs = my_afu->triggered_irq_ids;
+	// Fixme: Need to implement Translation errors
 
 	return triggered;
 }

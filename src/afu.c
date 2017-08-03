@@ -170,8 +170,6 @@ static void afu_init(ocxl_afu * afu)
 	afu->page_size = sysconf(_SC_PAGESIZE);
 
 	afu->irqs = NULL;
-	afu->triggered_irq_count = 0;
-	afu->triggered_irq_ids = NULL;
 
 #ifdef _ARCH_PPC64
 	afu->ppc64_amr = 0;
@@ -552,9 +550,6 @@ ocxl_err ocxl_afu_close(ocxl_afu_h afu)
 	}
 
 	close(my_afu->fd);
-
-	free(my_afu->triggered_irq_ids);
-	my_afu->triggered_irq_count = 0;
 
 	return OCXL_OK;
 }
