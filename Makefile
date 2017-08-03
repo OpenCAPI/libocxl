@@ -16,7 +16,7 @@ SONAMEOPT = -Wl,-soname,$(LIBSONAME)
 
 DOCDIR = docs
 
-all: docs obj/$(LIBSONAME) obj/libocxl.so obj/libocxl.a testobj/libocxl.a
+all: obj/$(LIBSONAME) obj/libocxl.so obj/libocxl.a testobj/libocxl.a
 
 HAS_WGET = $(shell /bin/which wget > /dev/null 2>&1 && echo y || echo n)
 HAS_CURL = $(shell /bin/which curl > /dev/null 2>&1 && echo y || echo n)
@@ -69,7 +69,7 @@ cppcheck:
 cppcheck-xml:
 	cppcheck --enable=all -j 4 -q  src/*.c src/include/libocxl.h --xml-version=2 2>cppcheck.xml
 
-precommit: clean all cppcheck
+precommit: clean all docs cppcheck
 	astyle --style=linux --indent=tab=8 --max-code-length=120 src/*.c src/*.h src/include/*.h
 
 docs:
@@ -82,7 +82,7 @@ docs:
 clean:
 	rm -rf obj testobj docs
 
-install: all
+install: all docs
 	mkdir -p $(libdir)
 	mkdir -p $(includedir)
 	mkdir -p $(mandir)/man3
