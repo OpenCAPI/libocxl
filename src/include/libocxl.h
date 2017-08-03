@@ -63,13 +63,13 @@ typedef uint64_t ocxl_irq_h;
  */
 typedef enum {
 	OCXL_OK = 0,				/**< The call succeeded */
-	OCXL_NO_MEM = 1,			/**< An out of memory error occurred */
-	OCXL_NO_DEV = 2,			/**< The OpenCAPI device is not available */
-	OCXL_NO_CONTEXT = 3,		/**< The call requires an open context on the AFU */
-	OCXL_NO_IRQ = 4,			/**< no further interrupts are available, or the interrupt is invalid */
-	OCXL_INTERNAL_ERROR = 5,	/**< an internal error has occurred */
-	OCXL_ALREADY_DONE = 6,		/**< The action requested has already been performed */
-	OCXL_OUT_OF_BOUNDS = 7,		/**< The action requested falls outside the permitted area */
+	OCXL_NO_MEM = -1,			/**< An out of memory error occurred */
+	OCXL_NO_DEV = -2,			/**< The OpenCAPI device is not available */
+	OCXL_NO_CONTEXT = -3,		/**< The call requires an open context on the AFU */
+	OCXL_NO_IRQ = -4,			/**< no further interrupts are available, or the interrupt is invalid */
+	OCXL_INTERNAL_ERROR = -5,	/**< an internal error has occurred */
+	OCXL_ALREADY_DONE = -6,		/**< The action requested has already been performed */
+	OCXL_OUT_OF_BOUNDS = -7,		/**< The action requested falls outside the permitted area */
 } ocxl_err;
 
 /* setup.c */
