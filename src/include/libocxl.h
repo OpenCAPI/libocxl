@@ -112,12 +112,6 @@ ocxl_err ocxl_afu_irq_get_info(ocxl_afu_h afu, ocxl_irq_h irq, void **info);
 uint16_t ocxl_afu_irq_check(ocxl_afu_h afu, struct timeval *timeout,
                             const ocxl_irq_h ** triggered_irqs);
 
-/* AFU IRQ Callbacks */
-ocxl_err ocxl_afu_irq_attach_callback(ocxl_afu_h afu, ocxl_irq_h irq,
-                                      void (*callback)(ocxl_afu_h afu, ocxl_irq_h irq, void *info));
-ocxl_err ocxl_afu_irq_detach_callback(ocxl_afu_h afu, ocxl_irq_h irq);
-uint16_t ocxl_afu_irq_handle_callbacks(ocxl_afu_h afu, struct timeval *timeout);
-
 /* Platform specific: PPC64 */
 #ifdef _ARCH_PPC64
 ocxl_err ocxl_afu_set_ppc64_amr(ocxl_afu_h afu, uint64_t amr);

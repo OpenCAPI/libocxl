@@ -54,8 +54,7 @@ typedef struct ocxl_irq {
 	ocxl_irq_h handle; /**< The 64 bit handle for the IRQ */
 	struct usrirq_event event; /**< The event descriptor */
 	void *addr; /**< The mmaped address of the IRQ page */
-	void (*callback) (ocxl_afu_h afu, ocxl_irq_h irq, void *info);/**< A callback for when the IRQ is triggered */
-	void *info; /**< Additional info to pass to the callback/user */
+	void *info; /**< Additional info to pass to the user */
 	UT_hash_handle hh; /**< Required by UTHASH to make this a hash of ocxl_irqs */
 } ocxl_irq;
 

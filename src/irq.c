@@ -88,7 +88,6 @@ static void irq_free(ocxl_afu * afu, ocxl_irq * irq)
 		irq->event.eventfd = -1;
 	}
 
-	irq->callback = NULL;
 	irq->info = NULL;
 
 	HASH_DEL(afu->irqs, irq);
@@ -114,7 +113,6 @@ static ocxl_err irq_allocate(ocxl_afu * afu, ocxl_irq * irq, void *info)
 	irq->event.irq_offset = 0;
 	irq->event.eventfd = -1;
 	irq->addr = NULL;
-	irq->callback = NULL;
 	irq->info = info;
 
 	int fd = eventfd(0, EFD_CLOEXEC);
@@ -277,109 +275,6 @@ ocxl_err ocxl_afu_irq_get_info(ocxl_afu_h afu, ocxl_irq_h irq, void **info)
 }
 
 /**
- * attach a callback to an IRQ
- *
- * @param afu the AFU hosting the IRQ
- * @param irq the IRQ handle
- * @param callback the callback to execute when the IRQ is triggered
- * @retval OCXL_OK if the callback was attached
- * @retval OCXL_NO_IRQ if the IRQ is invalid
- * @retval OCXL_ALREADY_DONE if there is already a callback attached
- */
-ocxl_err ocxl_afu_irq_attach_callback(ocxl_afu_h afu, ocxl_irq_h irq,
-                                      void (*callback) (ocxl_afu_h afu, ocxl_irq_h irq, void *info))
-{
-	ocxl_afu *my_afu = (ocxl_afu *) afu;
-	ocxl_irq *my_irq = get_irq(my_afu, irq);
-
-	if (my_irq == NULL) {
-		return OCXL_NO_IRQ;
-	}
-
-	if (my_irq->callback) {
-		return OCXL_ALREADY_DONE;
-	}
-
-	my_irq->callback = callback;
-
-	return OCXL_OK;
-}
-
-/**
- * detach a callback from an IRQ
- *
- * @param afu the AFU hosting the IRQ
- * @param irq the IRQ handle to detach
- * @retval OCXL_OK if the callback was attached
- * @retval OCXL_ALREADY_DONE if there was no callback attached
- */
-ocxl_err ocxl_afu_irq_detach_callback(ocxl_afu_h afu, ocxl_irq_h irq)
-{
-	ocxl_afu *my_afu = (ocxl_afu *) afu;
-	ocxl_irq *my_irq = get_irq(my_afu, irq);
-
-	if (my_irq == NULL) {
-		return OCXL_NO_IRQ;
-	}
-
-	if (my_irq->callback == NULL) {
-		return OCXL_ALREADY_DONE;
-	}
-
-	my_irq->callback = NULL;
-	my_irq->info = NULL;
-
-	return OCXL_OK;
-}
-
-/**
- * Handle any pending IRQ callbacks
- *
- * Check for pending IRQs and issue their attached callbacks
- *
- * @param afu the AFU holding the interrupts
- * @param timeout how long to wait for interrupts to arrive
- * @return the number of IRQs handled
- */
-uint16_t ocxl_afu_irq_handle_callbacks(ocxl_afu_h afu, struct timeval * timeout)
-{
-	ocxl_afu *my_afu = (ocxl_afu *) afu;
-
-	fd_set irqs;
-	int maxfd = -1;
-	uint64_t count;
-
-	FD_ZERO(&irqs);
-
-	for (ocxl_irq * irq = my_afu->irqs; irq != NULL; irq = irq->hh.next) {
-		if (irq->event.eventfd > 0 && irq->callback) {
-			FD_SET(irq->event.eventfd, &irqs);
-			if (maxfd < irq->event.eventfd) {
-				maxfd = irq->event.eventfd;
-			}
-		}
-	}
-
-	uint16_t ready = select(maxfd + 1, &irqs, NULL, NULL, timeout);
-	if (ready) {
-		for (ocxl_irq * irq = my_afu->irqs; irq != NULL; irq = irq->hh.next) {
-			if (irq->event.eventfd > 0 && irq->callback) {
-				if (FD_ISSET(irq->event.eventfd, &irqs)) {
-					if (read(irq->event.eventfd, &count, sizeof(count)) < 0) {
-						errmsg("read of eventfd %d for AFU '%s' failed: %d: %s",
-						       irq->event.eventfd, my_afu->identifier.afu_name,
-						       errno, strerror(errno));
-					}
-					irq->callback(afu, irq->handle, irq->info);
-				}
-			}
-		}
-	}
-
-	return ready;
-}
-
-/**
  * Check for pending IRQs
  *
  * @param afu the AFU holding the interrupts
@@ -398,7 +293,7 @@ uint16_t ocxl_afu_irq_check(ocxl_afu_h afu, struct timeval * timeout, const ocxl
 	FD_ZERO(&irqs);
 
 	for (ocxl_irq * irq = my_afu->irqs; irq != NULL; irq = irq->hh.next) {
-		if (irq->event.eventfd >= 0 && irq->callback == NULL) {
+		if (irq->event.eventfd >= 0) {
 			FD_SET(irq->event.eventfd, &irqs);
 			if (maxfd < irq->event.eventfd) {
 				maxfd = irq->event.eventfd;
@@ -410,7 +305,7 @@ uint16_t ocxl_afu_irq_check(ocxl_afu_h afu, struct timeval * timeout, const ocxl
 	uint16_t triggered = 0;
 	if (ready) {
 		for (ocxl_irq * irq = my_afu->irqs; irq != NULL; irq = irq->hh.next) {
-			if (irq->event.eventfd >= 0 && irq->callback == NULL) {
+			if (irq->event.eventfd >= 0) {
 				if (FD_ISSET(irq->event.eventfd, &irqs)) {
 					if (read(irq->event.eventfd, &count, sizeof(count)) < 0) {
 						errmsg("read of eventfd %d for AFU '%s' failed: %d: %s",
