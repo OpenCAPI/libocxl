@@ -42,10 +42,6 @@ typedef enum {
  * AFU identification information
  */
 typedef struct ocxl_identifier {
-	uint16_t domain;	/**< The domain from the physical function */
-	uint8_t bus;		/**< The bus from the physical function */
-	uint8_t device;		/**< The domain from the physical function */
-	uint8_t function;	/**< The function from the physical function */
 	uint8_t afu_index;	/**< The AFU Index */
 	const char afu_name[AFU_NAME_MAX + 1];	/**< The name of the AFU */
 } ocxl_identifier;

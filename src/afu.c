@@ -152,11 +152,6 @@ size_t ocxl_afu_get_mmio_size(ocxl_afu_h afu)
  */
 static void afu_init(ocxl_afu * afu)
 {
-	afu->identifier.domain = 0;
-	afu->identifier.bus = 0;
-	afu->identifier.device = 0;
-	afu->identifier.function = 0;
-	afu->identifier.afu_index = 0;
 	memset((char *)afu->identifier.afu_name, '\0', sizeof(afu->identifier.afu_name));
 	memset(afu->device_path, '\0', sizeof(afu->device_path));
 	memset(afu->sysfs_path, '\0', sizeof(afu->sysfs_path));
@@ -259,9 +254,10 @@ static bool populate_metadata(dev_t dev, ocxl_afu * afu)
 	}
 
 	physical_function++;
+	uint16_t domain;
+	uint8_t bus, device, function;
 	int found = sscanf(physical_function, "%hu:%hhu:%hhu.%hhu.%hhu",
-	                   &afu->identifier.domain, &afu->identifier.bus,
-	                   &afu->identifier.device, &afu->identifier.function, &afu->identifier.afu_index);
+	                   &domain, &bus, &device, &function, &afu->identifier.afu_index);
 
 	if (found != 5) {
 		errmsg("Could not parse physical function '%s', only got %d components", found);
