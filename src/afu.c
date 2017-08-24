@@ -317,7 +317,7 @@ static ocxl_err get_afu_by_path(const char *path, ocxl_afu_h * afu)
 		return rc;
 	}
 
-	ocxl_afu *my_afu = (ocxl_afu *) afu;
+	ocxl_afu *my_afu = (ocxl_afu *) afu_h;
 
 	struct stat dev_stats;
 	if (stat(path, &dev_stats)) {
