@@ -297,8 +297,8 @@ static ocxl_event_action read_afu_event(ocxl_afu *afu, uint16_t max_supported_ev
  * @return the number of events triggered, if this is the same as event_count, you should call ocxl_afu_event_check again
  * @retval -1 if an error occurred
  */
-static int __ocxl_afu_event_check(ocxl_afu_h afu, int timeout, ocxl_event *events,
-                                  uint16_t event_count, uint16_t max_supported_event)
+static int __ocxl_afu_event_check(ocxl_afu_h afu, int timeout, ocxl_event *events, uint16_t event_count,
+                                  uint16_t max_supported_event) // allow static extraction
 {
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 

@@ -58,7 +58,7 @@ testobj:
 testobj/libocxl.a: $(TEST_OBJS)
 	$(call Q,AR, $(AR) rcs testobj/libocxl-temp.a $(TEST_OBJS), testobj/libocxl-temp.a)
 	$(call Q,STATIC_SYMS, $(NM) testobj/libocxl-temp.a | grep ' t ' | grep -v __ | cut -d ' ' -f 3 > testobj/static-syms)
-	$(call Q,STATIC_PROTOTYPES, grep -h static src/*.c | sed -e '{s/$$/;/; s/^inline //; s/^static //;}' >testobj/static.h)
+	$(call Q,STATIC_PROTOTYPES, perl -n static-prototypes.pl src/*.c >testobj/static.h)
 	$(call Q,OBJCOPY, $(OBJCOPY) --globalize-symbols=testobj/static-syms testobj/libocxl-temp.a testobj/libocxl.a, obj/libocxl.a)
 
 include Makefile.rules
