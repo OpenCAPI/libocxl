@@ -26,6 +26,7 @@
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 /// The base sysfs path for OCXL devices
 char sys_path[PATH_MAX] = "/sys/class/ocxl";
@@ -114,6 +115,11 @@ static bool read_sysfs_uint(const char *path, uint64_t * val)
 		return true;
 	}
 	buf[len - 1] = '\0';
+
+	if (!isdigit(buf[0])) {
+		errmsg("Contents of '%s' ('%s') does not represent a number", path, buf);
+		return true;
+	}
 
 	*val = strtoull(buf, NULL, 10);
 
