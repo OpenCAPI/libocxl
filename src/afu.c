@@ -268,7 +268,7 @@ static bool populate_metadata(dev_t dev, ocxl_afu * afu)
 	                   &domain, &bus, &device, &function, &afu->identifier.afu_index);
 
 	if (found != 5) {
-		errmsg("Could not parse physical function '%s', only got %d components", found);
+		errmsg("Could not parse physical function '%s', only got %d components", physical_function, found);
 		return false;
 	}
 
