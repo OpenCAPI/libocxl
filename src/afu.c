@@ -378,6 +378,11 @@ ocxl_err ocxl_afu_open_from_dev(const char *path, ocxl_afu_h * afu)
  */
 ocxl_err ocxl_afu_open(ocxl_afu_h afu)
 {
+	if (OCXL_INVALID_AFU == afu) {
+		errmsg("AFU has not been initialized");
+		return OCXL_NO_DEV;
+	}
+
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 
 	if (my_afu->fd != -1) {
