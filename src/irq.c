@@ -34,23 +34,7 @@
 
 #define MAX_EVENT_SIZE	(16*sizeof(uint64_t))
 
-/**
- * Fixme: Dummy struct, until it's added to the kernel header
- */
-typedef struct ocxl_kernel_event_header {
-	__u16 type; /* The type of event */
-	__u16 size; /* The size of the following data structure */
-} ocxl_kernel_event_header;
-
 #define OCXL_KERNEL_EVENT_TYPE_TRANSLATION_FAULT 0
-
-/**
- * Fixme: Dummy struct, until it's added to the kernel header
- */
-typedef struct ocxl_kernel_event_translation_fault {
-	__u64 addr;
-	__u64 dsisr;
-} ocxl_kernel_event_translation_fault;
 
 /**
  * @defgroup ocxl_irq OpenCAPI IRQ Functions

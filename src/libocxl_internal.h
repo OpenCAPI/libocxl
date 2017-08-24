@@ -37,6 +37,25 @@ extern FILE *errmsg_filehandle;
 
 /**
  * @internal
+ * Fixme: Dummy struct, until it's added to the kernel header
+ */
+typedef struct ocxl_kernel_event_header {
+	__u16 type; /* The type of event */
+	__u16 size; /* The size of the following data structure */
+} ocxl_kernel_event_header;
+
+/**
+ * @internal
+ * Fixme: Dummy struct, until it's added to the kernel header
+ */
+typedef struct ocxl_kernel_event_translation_fault {
+	__u64 addr;
+	__u64 dsisr;
+} ocxl_kernel_event_translation_fault;
+
+
+/**
+ * @internal
  * Represents an MMIO area from an AFU
  */
 typedef struct ocxl_mmio_area {
