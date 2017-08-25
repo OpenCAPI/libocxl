@@ -86,7 +86,7 @@ ocxl_err ocxl_global_mmio_map(ocxl_afu_h afu, ocxl_endian endian)
 
 	my_afu->global_mmio_fd = fd;
 
-	void *addr = mmap(NULL, my_afu->per_pasid_mmio.length, PROT_READ | PROT_WRITE,
+	void *addr = mmap(NULL, my_afu->global_mmio.length, PROT_READ | PROT_WRITE,
 	                  MAP_SHARED, my_afu->global_mmio_fd, 0);
 	if (addr == MAP_FAILED) {
 		close(my_afu->global_mmio_fd);
