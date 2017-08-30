@@ -129,8 +129,9 @@ static ocxl_err irq_allocate(ocxl_afu * afu, ocxl_irq * irq, void *info)
 	ev.events = EPOLLIN;
 	ev.data.ptr = &irq->fd_info;
 	if (epoll_ctl(my_afu->epoll_fd, EPOLL_CTL_ADD, irq->event.eventfd, &ev) == -1) {
-		errmsg("Could not add IRQ fd %d to epoll fd %d for AFU '%s'",
-		       irq->event.eventfd, my_afu->epoll_fd, my_afu->identifier.afu_name);
+		errmsg("Could not add IRQ fd %d to epoll fd %d for AFU '%s': %d: '%s'",
+		       irq->event.eventfd, my_afu->epoll_fd, my_afu->identifier.afu_name,
+			   errno, strerror(errno));
 		goto errend;
 	}
 

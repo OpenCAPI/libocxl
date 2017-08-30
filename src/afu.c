@@ -418,8 +418,9 @@ ocxl_err ocxl_afu_open(ocxl_afu_h afu)
 	ev.events = EPOLLIN;
 	ev.data.ptr = &my_afu->fd_info; // Already set up in afu_init
 	if (epoll_ctl(my_afu->epoll_fd, EPOLL_CTL_ADD, my_afu->fd, &ev) == -1) {
-		errmsg("Could not add device fd %d to epoll fd %d for AFU '%s'",
-		       my_afu->fd, my_afu->epoll_fd, my_afu->identifier.afu_name);
+		errmsg("Could not add device fd %d to epoll fd %d for AFU '%s': %d: '%s'",
+		       my_afu->fd, my_afu->epoll_fd, my_afu->identifier.afu_name,
+		       errno, strerror(errno));
 		return OCXL_NO_DEV;
 	}
 
