@@ -479,12 +479,12 @@ ocxl_err ocxl_mmio_read32(ocxl_afu_h afu, size_t offset, uint32_t * out)
 	}
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 
-	ocxl_err ret = mmio_check(my_afu, true, offset, 4);
+	ocxl_err ret = mmio_check(my_afu, false, offset, 4);
 	if (ret != OCXL_OK) {
 		return ret;
 	}
 
-	*out = read32(&my_afu->global_mmio, offset);
+	*out = read32(&my_afu->per_pasid_mmio, offset);
 
 	return OCXL_OK;
 }
@@ -512,12 +512,12 @@ ocxl_err ocxl_mmio_read64(ocxl_afu_h afu, size_t offset, uint64_t * out)
 	}
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 
-	ocxl_err ret = mmio_check(my_afu, true, offset, 8);
+	ocxl_err ret = mmio_check(my_afu, false, offset, 8);
 	if (ret != OCXL_OK) {
 		return ret;
 	}
 
-	*out = read64(&my_afu->global_mmio, offset);
+	*out = read64(&my_afu->per_pasid_mmio, offset);
 
 	return OCXL_OK;
 }
@@ -545,12 +545,12 @@ ocxl_err ocxl_mmio_write32(ocxl_afu_h afu, size_t offset, uint32_t value)
 	}
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 
-	ocxl_err ret = mmio_check(my_afu, true, offset, 4);
+	ocxl_err ret = mmio_check(my_afu, false, offset, 4);
 	if (ret != OCXL_OK) {
 		return ret;
 	}
 
-	write32(&my_afu->global_mmio, offset, value);
+	write32(&my_afu->per_pasid_mmio, offset, value);
 
 	return OCXL_OK;
 }
@@ -578,12 +578,12 @@ ocxl_err ocxl_mmio_write64(ocxl_afu_h afu, size_t offset, uint64_t value)
 	}
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 
-	ocxl_err ret = mmio_check(my_afu, true, offset, 8);
+	ocxl_err ret = mmio_check(my_afu, false, offset, 8);
 	if (ret != OCXL_OK) {
 		return ret;
 	}
 
-	write64(&my_afu->global_mmio, offset, value);
+	write64(&my_afu->per_pasid_mmio, offset, value);
 
 	return OCXL_OK;
 }
