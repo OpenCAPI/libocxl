@@ -24,6 +24,7 @@ areas on the the AFU. Endian conversion is handled automatically.
    pages correctly.
 3. [Astyle](http://astyle.sourceforge.net/), if you plan on submitting patches.
 4. [CPPCheck](http://cppcheck.sourceforge.net/), if you plan on submitting patches.
+5. [libFUSE](https://github.com/libfuse/libfuse), to run tests
 
 ## Included Dependencies
 - OCXL headers from the [Linux kernel](https://www.kernel.org/)

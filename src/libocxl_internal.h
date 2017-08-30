@@ -21,9 +21,9 @@
 #include <stdbool.h>
 #include "linux/usrirq.h"
 
-#define DEBUG(__dbg_tx, __dbg_format, __dbg_args...) \
+#define DEBUG(__dbg_format, __dbg_args...) \
 do {\
-        debug(__FILE__, __LINE__, __FUNCTION__, PSTR(__dbg_format), ## __dbg_args); \
+        debug(__FILE__, __LINE__, __FUNCTION__, __dbg_format, ## __dbg_args); \
 } while (0)
 
 void debug(const char *file, int line, const char *function, const char *format, ...);
@@ -34,6 +34,8 @@ extern char dev_path[PATH_MAX];
 extern char irq_path[PATH_MAX];
 extern bool verbose_errors;
 extern FILE *errmsg_filehandle;
+
+#define INITIAL_IRQ_COUNT 64
 
 /**
  * @internal

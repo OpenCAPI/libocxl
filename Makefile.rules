@@ -1,5 +1,4 @@
 # Basic makefile rules
--include $(OBJS:.o=.d)
 
 PREFIX ?= /usr/local
 
@@ -20,10 +19,13 @@ define Q
 endef
 endif
 
-obj/%.o : src/%.c obj
+obj/%.o : src/%.c obj src/include/libocxl.h src/libocxl_internal.h
 	$(call Q,CC, $(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<, $@)
 
-testobj/%.o : src/%.c testobj
+testobj/%.o : src/%.c testobj src/include/libocxl.h src/libocxl_internal.h
+	$(call Q,CC, $(CC) $(CPPFLAGS) $(TESTCFLAGS) -c -o $@ $<, $@)
+
+testobj/%.o-test : unittests/%.c testobj/libocxl.a
 	$(call Q,CC, $(CC) $(CPPFLAGS) $(TESTCFLAGS) -c -o $@ $<, $@)
 
 datadir    = $(PREFIX)/share

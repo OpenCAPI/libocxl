@@ -3,7 +3,7 @@ include Makefile.vars
 
 OBJS = obj/afu.o obj/internal.o obj/irq.o obj/mmio.o obj/setup.o
 TEST_OBJS = testobj/afu.o testobj/internal.o testobj/irq.o testobj/mmio.o testobj/setup.o
-CFLAGS += -I src/include -I kernel/include -fPIC
+CFLAGS += -I src/include -I kernel/include -fPIC -D_FILE_OFFSET_BITS=64
 
 # change VERS_LIB if new git tag
 VERS_LIB = 0.1
@@ -16,7 +16,7 @@ SONAMEOPT = -Wl,-soname,$(LIBSONAME)
 
 DOCDIR = docs
 
-all: obj/$(LIBSONAME) obj/libocxl.so obj/libocxl.a testobj/libocxl.a
+all: obj/$(LIBSONAME) obj/libocxl.so obj/libocxl.a testobj/unittests
 
 HAS_WGET = $(shell /bin/which wget > /dev/null 2>&1 && echo y || echo n)
 HAS_CURL = $(shell /bin/which curl > /dev/null 2>&1 && echo y || echo n)
@@ -60,6 +60,12 @@ testobj/libocxl.a: $(TEST_OBJS)
 	$(call Q,STATIC_SYMS, $(NM) testobj/libocxl-temp.a | grep ' t ' | grep -v __ | cut -d ' ' -f 3 > testobj/static-syms)
 	$(call Q,STATIC_PROTOTYPES, perl -n static-prototypes.pl src/*.c >testobj/static.h)
 	$(call Q,OBJCOPY, $(OBJCOPY) --globalize-symbols=testobj/static-syms testobj/libocxl-temp.a testobj/libocxl.a, obj/libocxl.a)
+
+testobj/unittests: testobj/unittests.o-test testobj/virtocxl.o-test
+	$(call Q,CC, $(CC) $(CFLAGS) $(LDFLAGS) -o testobj/unittests testobj/unittests.o-test testobj/virtocxl.o-test testobj/libocxl.a -lfuse -lpthread, testobj/unittests)
+
+test: testobj/unittests
+	sudo testobj/unittests
 
 include Makefile.rules
 

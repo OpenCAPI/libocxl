@@ -150,8 +150,6 @@ errend:
 	return ret;
 }
 
-#define INITIAL_IRQ_COUNT 64
-
 /**
  * Allocate an IRQ for an open AFU
  *
