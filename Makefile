@@ -50,7 +50,7 @@ obj/$(LIBNAME): obj $(OBJS) symver.map
 	$(call Q,CC, $(CC) $(CFLAGS) $(LDFLAGS) -shared $(OBJS) -o obj/$(LIBNAME), obj/$(LIBNAME)) -Wl,--version-script symver.map $(SONAMEOPT)
 
 obj/libocxl.a: $(OBJS)
-	$(call Q,AR, $(AR) rcs obj/libcxl.a $(OBJS), obj/libcxl.a)
+	$(call Q,AR, $(AR) rcs obj/libocxl.a $(OBJS), obj/libocxl.a)
 
 testobj:
 	mkdir testobj
