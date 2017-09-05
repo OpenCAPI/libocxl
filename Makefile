@@ -16,7 +16,7 @@ SONAMEOPT = -Wl,-soname,$(LIBSONAME)
 
 DOCDIR = docs
 
-all: obj/$(LIBSONAME) obj/libocxl.so obj/libocxl.a testobj/unittests
+all: obj/$(LIBSONAME) obj/libocxl.so obj/libocxl.a
 
 HAS_WGET = $(shell /bin/which wget > /dev/null 2>&1 && echo y || echo n)
 HAS_CURL = $(shell /bin/which curl > /dev/null 2>&1 && echo y || echo n)
