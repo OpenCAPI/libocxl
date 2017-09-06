@@ -32,6 +32,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <sys/epoll.h>
+#include <glob.h>
 
 /**
  * @defgroup ocxl_afu_getters OpenCAPI AFU Getters
@@ -308,6 +309,7 @@ static ocxl_err get_afu_by_path(const char *path, ocxl_afu_h * afu)
 	ocxl_afu_h afu_h;
 	ocxl_err rc = ocxl_afu_alloc(&afu_h);
 	if (rc != OCXL_OK) {
+		*afu = OCXL_INVALID_AFU;
 		return rc;
 	}
 
@@ -316,12 +318,14 @@ static ocxl_err get_afu_by_path(const char *path, ocxl_afu_h * afu)
 	struct stat dev_stats;
 	if (stat(path, &dev_stats)) {
 		errmsg("Could not stat AFU device '%s': Error %d: %s", path, errno, strerror(errno));
+		*afu = OCXL_INVALID_AFU;
 		return OCXL_NO_DEV;
 	}
 
 	if (!populate_metadata(dev_stats.st_rdev, my_afu)) {
 		errmsg("Could not find OCXL device for '%s', major=%d, minor=%d, device expected in '%s'",
 		       path, major(dev_stats.st_rdev), minor(dev_stats.st_rdev), dev_path);
+		*afu = OCXL_INVALID_AFU;
 		return OCXL_NO_DEV;
 	}
 
@@ -334,7 +338,7 @@ static ocxl_err get_afu_by_path(const char *path, ocxl_afu_h * afu)
  * Open an AFU at a specified path
  *
  * @param path the path of the AFU
- * @param[out] afu the AFU handle which we will allocate. This should be free with ocxl_afu_free
+ * @param[out] afu the AFU handle which we will allocate. This should be freed with ocxl_afu_free
  * @retval OCXL_OK if we have successfully fetched the AFU
  * @retval OCXL_NO_MEM if an out of memory error occured
  * @retval OCXL_NO_DEV if the device is invalid
@@ -345,17 +349,73 @@ ocxl_err ocxl_afu_open_from_dev(const char *path, ocxl_afu_h * afu)
 	ocxl_err rc = get_afu_by_path(path, afu);
 
 	if (rc != OCXL_OK) {
+		*afu = OCXL_INVALID_AFU;
 		return rc;
 	}
 
 	rc = ocxl_afu_open(*afu);
 	if (rc != OCXL_OK) {
 		ocxl_afu_free(afu);
+		*afu = OCXL_INVALID_AFU;
 		return rc;
 	}
 
 	return OCXL_OK;
 }
+
+/**
+ * Open an AFU with a specified name
+ *
+ * @param name the name of the AFU
+ * @param[out] afu the AFU handle which we will allocate. This should be freed with ocxl_afu_free
+ * @retval OCXL_OK if we have successfully fetched the AFU
+ * @retval OCXL_NO_MEM if an out of memory error occured
+ * @retval OCXL_NO_DEV if no valid device was found
+ * @retval OCXL_NO_MORE_CONTEXTS if maximum number of AFU contexts has been reached on all matching AFUs
+ */
+ocxl_err ocxl_afu_open_by_name(const char *name, ocxl_afu_h * afu)
+{
+	char pattern[PATH_MAX];
+	snprintf(pattern, sizeof(pattern), "%s/%s.*", dev_path, name);
+	glob_t glob_data;
+	ocxl_err ret = OCXL_INTERNAL_ERROR;
+	*afu = OCXL_INVALID_AFU;
+
+	int rc = glob(pattern, GLOB_ERR, NULL, &glob_data);
+	switch (rc) {
+	case 0:
+		break;
+	case GLOB_NOSPACE:
+		errmsg("No memory for glob while listing AFUs");
+		ret = OCXL_NO_MEM;
+		goto end;
+	case GLOB_NOMATCH:
+		errmsg("No OCXL devices found in '%s'", dev_path);
+		ret = OCXL_NO_DEV;
+		goto end;
+	default:
+		errmsg("Glob error %d while listing AFUs", rc);
+		goto end;
+	}
+
+	for (int dev = 0; dev < glob_data.gl_pathc; dev++) {
+		const char *dev_path = glob_data.gl_pathv[dev];
+		ret = ocxl_afu_open_from_dev(dev_path, afu);
+		switch (ret) {
+		case OCXL_OK:
+			goto end;
+		case OCXL_NO_MORE_CONTEXTS:
+			continue;
+		default:
+			goto end;
+		}
+	}
+
+end:
+	globfree(&glob_data);
+	return ret;
+}
+
 
 /**
  * Open a context on a closed AFU
@@ -524,7 +584,7 @@ ocxl_err ocxl_afu_use(ocxl_afu_h afu, uint64_t amr, ocxl_endian global_endianess
  * @see ocxl_afu_open, ocxl_afu_attach, ocxl_global_mmio_map, ocxl_mmio_map
  *
  * @param path the path of the AFU device
- * @param afu a pointer to the AFU handle we want to open
+ * @param[out] afu a pointer to the AFU handle we want to open
  * @param amr the value of the PPC64 specific PSL AMR register, may be 0 if this should be left alone
  * @param global_endianess	The endianess of the global MMIO area
  * @param per_pasid_endianess	The endianess of the per-PASID MMIO area
@@ -546,11 +606,79 @@ ocxl_err ocxl_afu_use_from_dev(const char *path, ocxl_afu_h * afu, uint64_t amr,
 	rc = ocxl_afu_use(*afu, amr, global_endianess, per_pasid_endianess);
 	if (rc != OCXL_OK) {
 		ocxl_afu_free(afu);
+		*afu = OCXL_INVALID_AFU;
 		return rc;
 	}
 
 	return OCXL_OK;
 }
+
+/**
+ * Open and attach a context on an AFU, given the name of the AFU
+ *
+ * Opens an AFU, attaches the context to the current process and memory maps the MMIO regions
+ *
+ * An AFU can have many contexts, the device can be opened once for each
+ * context that is available.
+ *
+ * @see ocxl_afu_open, ocxl_afu_attach, ocxl_global_mmio_map, ocxl_mmio_map
+ *
+ * @param name the name of the AFU
+ * @param[out] afu the AFU handle which we will allocate. This should be freed with ocxl_afu_free
+ * @param[out] afu a pointer to the AFU handle we want to open
+ * @param amr the value of the PPC64 specific PSL AMR register, may be 0 if this should be left alone
+ * @param global_endianess	The endianess of the global MMIO area
+ * @param per_pasid_endianess	The endianess of the per-PASID MMIO area
+ * @post on success, the AFU will be opened, the context attached, and any MMIO areas available will be mapped
+ * @retval OCXL_OK if we have successfully fetched the AFU
+ * @retval OCXL_NO_MEM if an out of memory error occured
+ * @retval OCXL_NO_DEV if no valid device was found
+ * @retval OCXL_NO_MORE_CONTEXTS if maximum number of AFU contexts has been reached on all matching AFUs
+ */
+ocxl_err ocxl_afu_use_by_name(const char *name, ocxl_afu_h * afu, uint64_t amr,
+        ocxl_endian global_endianess, ocxl_endian per_pasid_endianess)
+{
+	char pattern[PATH_MAX];
+	snprintf(pattern, sizeof(pattern), "%s/%s.*", dev_path, name);
+	glob_t glob_data;
+	ocxl_err ret = OCXL_INTERNAL_ERROR;
+	*afu = OCXL_INVALID_AFU;
+
+	int rc = glob(pattern, GLOB_ERR, NULL, &glob_data);
+	switch (rc) {
+	case 0:
+		break;
+	case GLOB_NOSPACE:
+		errmsg("No memory for glob while listing AFUs");
+		ret = OCXL_NO_MEM;
+		goto end;
+	case GLOB_NOMATCH:
+		errmsg("No OCXL devices found in '%s'", dev_path);
+		ret = OCXL_NO_DEV;
+		goto end;
+	default:
+		errmsg("Glob error %d while listing AFUs", rc);
+		goto end;
+	}
+
+	for (int dev = 0; dev < glob_data.gl_pathc; dev++) {
+		const char *dev_path = glob_data.gl_pathv[dev];
+		ret = ocxl_afu_use_from_dev(dev_path, afu, amr, global_endianess, per_pasid_endianess);
+		switch (ret) {
+		case OCXL_OK:
+			goto end;
+		case OCXL_NO_MORE_CONTEXTS:
+			continue;
+		default:
+			goto end;
+		}
+	}
+
+end:
+	globfree(&glob_data);
+	return ret;
+}
+
 #endif
 
 /**

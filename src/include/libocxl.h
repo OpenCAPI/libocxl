@@ -51,6 +51,8 @@ typedef struct ocxl_identifier {
  */
 typedef void *ocxl_afu_h;
 
+#define OCXL_INVALID_AFU NULL //< An invalid AFU handle
+
 /**
  * A handle for an IRQ on an AFU
  */
@@ -130,6 +132,7 @@ size_t ocxl_afu_get_mmio_size(ocxl_afu_h afu);
 
 /* AFU operations */
 ocxl_err ocxl_afu_open_from_dev(const char *path, ocxl_afu_h * afu);
+ocxl_err ocxl_afu_open_by_name(const char *name, ocxl_afu_h * afu);
 ocxl_err ocxl_afu_close(ocxl_afu_h afu);
 void ocxl_afu_free(ocxl_afu_h afu);
 ocxl_err ocxl_afu_open(ocxl_afu_h afu);
@@ -141,6 +144,8 @@ ocxl_err ocxl_afu_use(ocxl_afu_h afu, uint64_t amr, ocxl_endian global_endianess
                       ocxl_endian per_pasid_endianess);
 ocxl_err ocxl_afu_use_from_dev(const char *path, ocxl_afu_h * afu, uint64_t amr,
                                ocxl_endian global_endianess, ocxl_endian per_pasid_endianess);
+ocxl_err ocxl_afu_use_by_name(const char *name, ocxl_afu_h * afu, uint64_t amr,
+        ocxl_endian global_endianess, ocxl_endian per_pasid_endianess);
 #endif
 
 /* irq.c */
