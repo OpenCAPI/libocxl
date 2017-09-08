@@ -198,6 +198,10 @@ static void test_afu_init() {
 	ocxl_afu_h afu = (ocxl_afu_h) &afu1;
 	ASSERT(!strcmp(ocxl_afu_get_device_path(afu), ""));
 	ASSERT(!strcmp(ocxl_afu_get_sysfs_path(afu), ""));
+	uint8_t major, minor;
+	ocxl_afu_get_version(afu, &major, &minor);
+	ASSERT(major == 0);
+	ASSERT(minor == 0);
 	ASSERT(ocxl_afu_get_fd(afu) == -1);
 	ASSERT(ocxl_afu_get_global_mmio_size(afu) == 0);
 	ASSERT(ocxl_afu_get_mmio_size(afu) == 0);
@@ -251,6 +255,47 @@ static void test_device_matches() {
 end:
 	closedir(dev_dir);
 }
+
+#define BUF_SIZE 64
+
+/**
+ * Check read_sysfs_buf
+ */
+static void test_read_sysfs_buf() {
+	test_start("internal", "read_sysfs_buf");
+
+	char buf[BUF_SIZE];
+
+	memset(buf, 0, sizeof(buf));
+	ASSERT(3 == read_sysfs_buf("unittests/data/read_sysfs_buf/10", buf, sizeof(buf)));
+	ASSERT(!strcmp(buf, "10\n"));
+
+	memset(buf, 0, sizeof(buf));
+	ASSERT(4 == read_sysfs_buf("unittests/data/read_sysfs_buf/100", buf, sizeof(buf)));
+	ASSERT(!strcmp(buf, "100\n"));
+
+	memset(buf, 0, sizeof(buf));
+	ASSERT(5 == read_sysfs_buf("unittests/data/read_sysfs_buf/1000", buf, sizeof(buf)));
+	ASSERT(!strcmp(buf, "1000\n"));
+
+	memset(buf, 0, sizeof(buf));
+	ASSERT(21 == read_sysfs_buf("unittests/data/read_sysfs_buf/uint64_max", buf, sizeof(buf)));
+	ASSERT(!strcmp(buf, "18446744073709551615\n"));
+
+	memset(buf, 0, sizeof(buf));
+	ASSERT(3 == read_sysfs_buf("unittests/data/read_sysfs_buf/negative", buf, sizeof(buf)));
+	ASSERT(!strcmp(buf, "-1\n"));
+
+	ocxl_want_verbose_errors(0);
+	ASSERT(-1 == read_sysfs_buf("unittests/data/read_sysfs_buf/nonexistent", buf, sizeof(buf)));
+
+
+	test_stop(SUCCESS);
+
+end:
+	ocxl_want_verbose_errors(1);
+}
+
 
 /**
  * Check read_sysfs_uint
@@ -320,6 +365,8 @@ static void test_populate_metadata() {
 	ASSERT(afu.identifier.afu_index == 0);
 	ASSERT(!strcmp(afu.device_path, "/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0"));
 	ASSERT(!strcmp(afu.sysfs_path, "/tmp/ocxl-test/IBM,Dummy.0001:00:00.1.0"));
+	ASSERT(afu.version_major == 5);
+	ASSERT(afu.version_minor == 10);
 	ASSERT(afu.global_mmio.length == 32*1024*1024);
 	ASSERT(afu.per_pasid_mmio.length == 16384);
 
@@ -419,6 +466,37 @@ static void test_ocxl_afu_open_from_dev() {
 
 end:
 	ocxl_want_verbose_errors(1);
+	if (afu) {
+		ocxl_afu_free(afu);
+	}
+}
+
+/**
+ * Check AFU getters
+ */
+static void test_afu_getters() {
+	test_start("AFU", "getters");
+
+	ocxl_afu_h afu = 0;
+	ASSERT(OCXL_OK == ocxl_afu_open_by_name("IBM,Dummy", &afu));
+	const ocxl_identifier *identifier = ocxl_afu_get_identifier(afu);
+	ASSERT(identifier->afu_index == 0);
+	ASSERT(!strcmp(identifier->afu_name, "IBM,Dummy"));
+	ASSERT(!strcmp(ocxl_afu_get_device_path(afu), "/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0"));
+	char expected_path[PATH_MAX];
+	snprintf(expected_path, sizeof(expected_path), "%s/IBM,Dummy.0001:00:00.1.0", ocxl_sysfs_path);
+	ASSERT(!strcmp(ocxl_afu_get_sysfs_path(afu), expected_path));
+	uint8_t major, minor;
+	ocxl_afu_get_version(afu, &major, &minor);
+	ASSERT(major == 5);
+	ASSERT(minor == 10);
+	ASSERT(ocxl_afu_get_fd(afu) >= 0);
+	ASSERT(ocxl_afu_get_global_mmio_size(afu) == 32*1024*1024);
+	ASSERT(ocxl_afu_get_mmio_size(afu) == 16384);
+
+	test_stop(SUCCESS);
+
+end:
 	if (afu) {
 		ocxl_afu_free(afu);
 	}
@@ -957,6 +1035,7 @@ int main(int args, const char **argv) {
 		}
 	}
 
+	test_read_sysfs_buf();
 	test_read_sysfs_uint();
 	test_afu_init();
 	test_ocxl_afu_alloc();
@@ -966,6 +1045,7 @@ int main(int args, const char **argv) {
 	sleep(1);
 
 	test_populate_metadata();
+	test_afu_getters();
 	test_get_afu_by_path();
 	test_ocxl_afu_open();
 	test_ocxl_afu_open_from_dev();

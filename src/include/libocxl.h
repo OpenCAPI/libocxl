@@ -126,6 +126,7 @@ void ocxl_set_errmsg_filehandle(FILE * handle);
 const ocxl_identifier *ocxl_afu_get_identifier(ocxl_afu_h afu);
 const char *ocxl_afu_get_device_path(ocxl_afu_h afu);
 const char *ocxl_afu_get_sysfs_path(ocxl_afu_h afu);
+void ocxl_afu_get_version(ocxl_afu_h afu, uint8_t *major, uint8_t *minor);
 int ocxl_afu_get_fd(ocxl_afu_h afu);
 size_t ocxl_afu_get_global_mmio_size(ocxl_afu_h afu);
 size_t ocxl_afu_get_mmio_size(ocxl_afu_h afu);
@@ -145,7 +146,7 @@ ocxl_err ocxl_afu_use(ocxl_afu_h afu, uint64_t amr, ocxl_endian global_endianess
 ocxl_err ocxl_afu_use_from_dev(const char *path, ocxl_afu_h * afu, uint64_t amr,
                                ocxl_endian global_endianess, ocxl_endian per_pasid_endianess);
 ocxl_err ocxl_afu_use_by_name(const char *name, ocxl_afu_h * afu, uint64_t amr,
-        ocxl_endian global_endianess, ocxl_endian per_pasid_endianess);
+                              ocxl_endian global_endianess, ocxl_endian per_pasid_endianess);
 #endif
 
 /* irq.c */

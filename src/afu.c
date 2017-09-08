@@ -33,6 +33,7 @@
 #include <stdlib.h>
 #include <sys/epoll.h>
 #include <glob.h>
+#include <ctype.h>
 
 /**
  * @defgroup ocxl_afu_getters OpenCAPI AFU Getters
@@ -48,7 +49,7 @@
 /**
  * Get the identifier of the AFU
  *
- * The identifier contains the PCI synical function, AFU name & AFU Index
+ * The identifier contains the PCI physical function, AFU name & AFU Index
  *
  * @param afu The AFU to find the identifier of
  * @return the identifier of the AFU
@@ -84,6 +85,21 @@ const char *ocxl_afu_get_sysfs_path(ocxl_afu_h afu)
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 
 	return my_afu->sysfs_path;
+}
+
+/**
+ * Get the version of the AFU
+ *
+ * @param afu The AFU to get the sysfs path of
+ * @param[out] major the major version number
+ * @param[out] minor the minor version number
+ */
+void ocxl_afu_get_version(ocxl_afu_h afu, uint8_t *major, uint8_t *minor)
+{
+	ocxl_afu *my_afu = (ocxl_afu *) afu;
+
+	*major = my_afu->version_major;
+	*minor = my_afu->version_minor;
 }
 
 /**
@@ -158,6 +174,8 @@ static void afu_init(ocxl_afu * afu)
 	memset((char *)afu->identifier.afu_name, '\0', sizeof(afu->identifier.afu_name));
 	memset(afu->device_path, '\0', sizeof(afu->device_path));
 	memset(afu->sysfs_path, '\0', sizeof(afu->sysfs_path));
+	afu->version_major = 0;
+	afu->version_minor = 0;
 	afu->fd = -1;
 	afu->fd_info.type = EPOLL_SOURCE_AFU;
 	afu->fd_info.irq = NULL;
@@ -224,6 +242,135 @@ static bool device_matches(int dirfd, char *dev_name, dev_t dev)
 }
 
 /**
+ * Read a buffer from sysfs
+ *
+ * @param path the to read from
+ * @param[out] buf the buffer to populate
+ * @param size the size of the buffer
+ * @retval -1 if an error occurred
+ * @return the amount of buffer that was populated
+ *
+ */
+static int read_sysfs_buf(const char *path, char *buf, size_t size)
+{
+	int fd, len;
+
+	fd = open(path, O_RDONLY);
+	if (fd == -1) {
+		errmsg("Could not open '%s': %d: %s", path, errno, strerror(errno));
+		return -1;
+	}
+	len = read(fd, buf, size);
+	close(fd);
+
+	if (len == -1) {
+		errmsg("Could not read '%s': %d: %s", path, errno, strerror(errno));
+		return -1;
+	}
+
+	return len;
+}
+
+#define INT_LEN 20
+
+/**
+ * Read an unsigned int from sysfs
+ *
+ * @param path the to read from
+ * @param[out] val the value that was read
+ * @return true if an error occurred
+ */
+static bool read_sysfs_uint(const char *path, uint64_t * val)
+{
+	int len;
+	char buf[INT_LEN + 1];
+
+	len = read_sysfs_buf(path, buf, sizeof(buf));
+
+	if (len == -1) {
+		return true;
+	}
+
+	buf[len - 1] = '\0';
+
+	if (!isdigit(buf[0])) {
+		errmsg("Contents of '%s' ('%s') does not represent a number", path, buf);
+		return true;
+	}
+
+	*val = strtoull(buf, NULL, 10);
+
+	return false;
+}
+
+/**
+ * Populate the AFU MMIO sizes
+ *
+ * @param afu the afu to get the sizes for
+ * @return true if there was an error getting the sizes
+ */
+static bool mmio_sizes(ocxl_afu * afu)
+{
+	char path[PATH_MAX + 1];
+
+	uint64_t val;
+	int pathlen = snprintf(path, sizeof(path), "%s/pp_mmio_size", afu->sysfs_path);
+	if (pathlen >= sizeof(path)) {
+		errmsg("Path truncated constructing pp_mmio_size path, base='%s'", afu->sysfs_path);
+		return true;
+	}
+	if (read_sysfs_uint(path, &val)) {
+		return true;
+	}
+
+	afu->per_pasid_mmio.length = val;
+
+	pathlen = snprintf(path, sizeof(path), "%s/global_mmio_size", afu->sysfs_path);
+	if (pathlen >= sizeof(path)) {
+		errmsg("Path truncated constructing global_mmio_size path, base='%s'", afu->sysfs_path);
+		return true;
+	}
+
+	if (read_sysfs_uint(path, &val)) {
+		return true;
+	}
+
+	afu->global_mmio.length = val;
+
+	return false;
+}
+
+/**
+ * Populate the AFU version
+ *
+ * @param afu the AFU to get the version for
+ * @return true if there was an error getting the sizes
+ */
+static bool afu_version(ocxl_afu * afu)
+{
+	char path[PATH_MAX + 1];
+
+	int pathlen = snprintf(path, sizeof(path), "%s/afu_version", afu->sysfs_path);
+	if (pathlen >= sizeof(path)) {
+		errmsg("Path truncated constructing afu_version path, base='%s'", afu->sysfs_path);
+		return true;
+	}
+
+#define AFU_VERSION_SIZE (3+1+3+1)
+	char buf[AFU_VERSION_SIZE+1];
+	int len;
+	if ((len = read_sysfs_buf(path, buf, sizeof(buf))) == -1) {
+		return true;
+	}
+	buf[len] = 0;
+
+	sscanf(buf, "%hhu:%hhu", &afu->version_major, &afu->version_minor);
+
+	return false;
+}
+
+
+/**
  * Find the matching device for a given device major & minor, populate the AFU accordingly
  * @param dev the device number
  * @param afu the afu to set the name & device paths
@@ -287,7 +434,12 @@ static bool populate_metadata(dev_t dev, ocxl_afu * afu)
 		return false;
 	}
 
-	if (ocxl_afu_mmio_sizes(afu)) {
+	if (afu_version(afu)) {
+		errmsg("Could not fetch AFU version information for afu '%s'", afu->identifier.afu_name);
+		return false;
+	}
+
+	if (mmio_sizes(afu)) {
 		errmsg("Could not fetch MMIO sizes for afu '%s'", afu->identifier.afu_name);
 		return false;
 	}
@@ -636,7 +788,7 @@ ocxl_err ocxl_afu_use_from_dev(const char *path, ocxl_afu_h * afu, uint64_t amr,
  * @retval OCXL_NO_MORE_CONTEXTS if maximum number of AFU contexts has been reached on all matching AFUs
  */
 ocxl_err ocxl_afu_use_by_name(const char *name, ocxl_afu_h * afu, uint64_t amr,
-        ocxl_endian global_endianess, ocxl_endian per_pasid_endianess)
+                              ocxl_endian global_endianess, ocxl_endian per_pasid_endianess)
 {
 	char pattern[PATH_MAX];
 	snprintf(pattern, sizeof(pattern), "%s/%s.*", dev_path, name);

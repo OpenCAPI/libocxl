@@ -202,6 +202,24 @@ pthread_t create_ocxl_device(const char *afu_name, size_t global_mmio_size, size
 	}
 	close(fd);
 
+	// Create AFU version file
+	snprintf(tmp, sizeof(tmp), "%s/afu_version", sysfs_base);
+	len = snprintf(buf, sizeof(buf), "5:10\n");
+	fd = creat(tmp, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
+	if (fd < 0) {
+		fprintf(stderr, "Could not create afu_version file '%s': %d: %s\n",
+				tmp, errno, strerror(errno));
+		return 0;
+	}
+
+	written = write(fd, buf, len);
+	if (written < 0) {
+		fprintf(stderr, "Could not write pp_mmio_size file '%s': %d: %s\n",
+				tmp, errno, strerror(errno));
+		return 0;
+	}
+	close(fd);
+
 	// Create global MMIO area file
 	snprintf(tmp, sizeof(tmp), "%s/global_mmio_area", sysfs_base);
 	fd = creat(tmp, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);

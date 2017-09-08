@@ -106,6 +106,8 @@ typedef struct ocxl_afu {
 	ocxl_identifier identifier; /**< The physical function, name and index of the AFU */
 	char device_path[PATH_MAX + 1];
 	char sysfs_path[PATH_MAX + 1];
+	uint8_t version_major;
+	uint8_t version_minor;
 	int fd;	/**< A file descriptor for operating on the AFU */
 	epoll_fd_source fd_info; /**< Epoll information for the main AFU fd */
 	int irq_fd; /**< A file descriptor for AFU usrirq IRQs */

@@ -26,7 +26,6 @@
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
-#include <ctype.h>
 
 /// The base sysfs path for OCXL devices
 char sys_path[PATH_MAX] = "/sys/class/ocxl";
@@ -86,79 +85,4 @@ void errmsg(const char *format, ...)
 	}
 
 	va_end(ap);
-}
-
-#define INT_LEN 20
-
-/**
- * Read an unsigned int from sysfs
- *
- * @param path the to read from
- * @param val[out] the value that was read
- * @return true if an error occurred
- */
-static bool read_sysfs_uint(const char *path, uint64_t * val)
-{
-	int fd, len;
-	char buf[INT_LEN + 1];
-
-	fd = open(path, O_RDONLY);
-	if (fd == -1) {
-		errmsg("Could not open '%s': %d: %s", path, errno, strerror(errno));
-		return true;
-	}
-	len = read(fd, buf, sizeof(buf));
-	close(fd);
-
-	if (len == -1) {
-		errmsg("Could not read '%s': %d: %s", path, errno, strerror(errno));
-		return true;
-	}
-	buf[len - 1] = '\0';
-
-	if (!isdigit(buf[0])) {
-		errmsg("Contents of '%s' ('%s') does not represent a number", path, buf);
-		return true;
-	}
-
-	*val = strtoull(buf, NULL, 10);
-
-	return false;
-}
-
-/**
- * Populate the AFU MMIO sizes
- *
- * @param afu the afu to get the sizes for
- * @return true if there was an error getting the sizes
- */
-bool ocxl_afu_mmio_sizes(ocxl_afu * afu)
-{
-	char path[PATH_MAX + 1];
-
-	uint64_t val;
-	int pathlen = snprintf(path, sizeof(path), "%s/pp_mmio_size", afu->sysfs_path);
-	if (pathlen >= sizeof(path)) {
-		errmsg("Path truncated constructing pp_mmio_size path, base='%s'", afu->sysfs_path);
-		return true;
-	}
-	if (read_sysfs_uint(path, &val)) {
-		return true;
-	}
-
-	afu->per_pasid_mmio.length = val;
-
-	pathlen = snprintf(path, sizeof(path), "%s/global_mmio_size", afu->sysfs_path);
-	if (pathlen >= sizeof(path)) {
-		errmsg("Path truncated constructing global_mmio_size path, base='%s'", afu->sysfs_path);
-		return true;
-	}
-
-	if (read_sysfs_uint(path, &val)) {
-		return true;
-	}
-
-	afu->global_mmio.length = val;
-
-	return false;
 }
