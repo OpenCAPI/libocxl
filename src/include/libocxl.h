@@ -141,8 +141,6 @@ ocxl_err ocxl_afu_attach(ocxl_afu_h afu);
 
 /* High level wrappers */
 #ifdef _ARCH_PPC64
-ocxl_err ocxl_afu_use(ocxl_afu_h afu, uint64_t amr, ocxl_endian global_endianess,
-                      ocxl_endian per_pasid_endianess);
 ocxl_err ocxl_afu_use_from_dev(const char *path, ocxl_afu_h * afu, uint64_t amr,
                                ocxl_endian global_endianess, ocxl_endian per_pasid_endianess);
 ocxl_err ocxl_afu_use_by_name(const char *name, ocxl_afu_h * afu, uint64_t amr,

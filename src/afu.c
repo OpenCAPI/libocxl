@@ -865,7 +865,7 @@ ocxl_err ocxl_afu_attach(ocxl_afu_h afu)
  * @retval OCXL_NO_DEV if the AFU is invalid
  * @retval OCXL_NO_MORE_CONTEXTS if maximum number of AFU contexts has been reached
  */
-ocxl_err ocxl_afu_use(ocxl_afu_h afu, uint64_t amr, ocxl_endian global_endianess, ocxl_endian per_pasid_endianess)
+static ocxl_err afu_use(ocxl_afu_h afu, uint64_t amr, ocxl_endian global_endianess, ocxl_endian per_pasid_endianess)
 {
 	ocxl_err ret;
 
@@ -933,7 +933,7 @@ ocxl_err ocxl_afu_use_from_dev(const char *path, ocxl_afu_h * afu, uint64_t amr,
 		return rc;
 	}
 
-	rc = ocxl_afu_use(*afu, amr, global_endianess, per_pasid_endianess);
+	rc = afu_use(*afu, amr, global_endianess, per_pasid_endianess);
 	if (rc != OCXL_OK) {
 		ocxl_afu_close(*afu);
 		*afu = OCXL_INVALID_AFU;
