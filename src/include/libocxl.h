@@ -132,9 +132,9 @@ size_t ocxl_afu_get_global_mmio_size(ocxl_afu_h afu);
 size_t ocxl_afu_get_mmio_size(ocxl_afu_h afu);
 
 /* AFU operations */
-ocxl_err ocxl_afu_open(const char *name, const char *physical_function, int16_t afu_index, ocxl_afu_h * afu);
+ocxl_err ocxl_afu_open_specific(const char *name, const char *physical_function, int16_t afu_index, ocxl_afu_h * afu);
 ocxl_err ocxl_afu_open_from_dev(const char *path, ocxl_afu_h * afu);
-ocxl_err ocxl_afu_open_by_name(const char *name, ocxl_afu_h * afu);
+ocxl_err ocxl_afu_open(const char *name, ocxl_afu_h * afu);
 ocxl_err ocxl_afu_open_by_id(const char *name, uint8_t card_index, int16_t afu_index, ocxl_afu_h * afu);
 ocxl_err ocxl_afu_close(ocxl_afu_h afu);
 ocxl_err ocxl_afu_attach(ocxl_afu_h afu);
@@ -143,8 +143,8 @@ ocxl_err ocxl_afu_attach(ocxl_afu_h afu);
 #ifdef _ARCH_PPC64
 ocxl_err ocxl_afu_use_from_dev(const char *path, ocxl_afu_h * afu, uint64_t amr,
                                ocxl_endian global_endianess, ocxl_endian per_pasid_endianess);
-ocxl_err ocxl_afu_use_by_name(const char *name, ocxl_afu_h * afu, uint64_t amr,
-                              ocxl_endian global_endianess, ocxl_endian per_pasid_endianess);
+ocxl_err ocxl_afu_use(const char *name, ocxl_afu_h * afu, uint64_t amr,
+                      ocxl_endian global_endianess, ocxl_endian per_pasid_endianess);
 #endif
 
 /* irq.c */

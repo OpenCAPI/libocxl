@@ -510,24 +510,24 @@ end:
 /**
  * Check ocxl_afu_open
  */
-static void test_ocxl_afu_open() {
+static void test_ocxl_afu_open_specific() {
 	ocxl_afu_h afu = OCXL_INVALID_AFU - 1;
 
 	test_start("AFU", "ocxl_afu_open");
 
 	ocxl_want_verbose_errors(0);
-	ASSERT(OCXL_NO_DEV == ocxl_afu_open("nonexistent", NULL, -1, &afu));
+	ASSERT(OCXL_NO_DEV == ocxl_afu_open_specific("nonexistent", NULL, -1, &afu));
 	ASSERT(afu == OCXL_INVALID_AFU);
-	ASSERT(OCXL_NO_DEV == ocxl_afu_open("IBM,Dummy", "0001:00:00.2", -1, &afu));
-	ASSERT(OCXL_NO_DEV == ocxl_afu_open("IBM,Dummy", "0001:00:00.1", 1, &afu));
+	ASSERT(OCXL_NO_DEV == ocxl_afu_open_specific("IBM,Dummy", "0001:00:00.2", -1, &afu));
+	ASSERT(OCXL_NO_DEV == ocxl_afu_open_specific("IBM,Dummy", "0001:00:00.1", 1, &afu));
 	ocxl_want_verbose_errors(1);
-	ASSERT(OCXL_OK == ocxl_afu_open("IBM,Dummy", "0001:00:00.1", 0, &afu));
+	ASSERT(OCXL_OK == ocxl_afu_open_specific("IBM,Dummy", "0001:00:00.1", 0, &afu));
 	ASSERT(afu != OCXL_INVALID_AFU);
 	ASSERT(!strcmp(ocxl_afu_get_device_path(afu), "/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0"));
 	ocxl_afu_close(afu);
 	afu = OCXL_INVALID_AFU;
 
-	ASSERT(OCXL_OK == ocxl_afu_open("IBM,Dummy", "0001:00:00.1", -1, &afu));
+	ASSERT(OCXL_OK == ocxl_afu_open_specific("IBM,Dummy", "0001:00:00.1", -1, &afu));
 	ASSERT(afu != OCXL_INVALID_AFU);
 	ASSERT(!strcmp(ocxl_afu_get_device_path(afu), "/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0"));
 
@@ -555,13 +555,13 @@ static void test_ocxl_afu_open_by_id() {
 	ASSERT(OCXL_NO_DEV == ocxl_afu_open_by_id("IBM,Dummy", 0, 1, &afu));
 
 	ocxl_want_verbose_errors(1);
-	ASSERT(OCXL_OK == ocxl_afu_open("IBM,Dummy", 0, 0, &afu));
+	ASSERT(OCXL_OK == ocxl_afu_open_specific("IBM,Dummy", 0, 0, &afu));
 	ASSERT(afu != OCXL_INVALID_AFU);
 	ASSERT(!strcmp(ocxl_afu_get_device_path(afu), "/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0"));
 	ocxl_afu_close(afu);
 	afu = OCXL_INVALID_AFU;
 
-	ASSERT(OCXL_OK == ocxl_afu_open("IBM,Dummy", 0, -1, &afu));
+	ASSERT(OCXL_OK == ocxl_afu_open_specific("IBM,Dummy", 0, -1, &afu));
 	ASSERT(afu != OCXL_INVALID_AFU);
 	ASSERT(!strcmp(ocxl_afu_get_device_path(afu), "/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0"));
 
@@ -610,7 +610,7 @@ static void test_afu_getters() {
 	test_start("AFU", "getters");
 
 	ocxl_afu_h afu = OCXL_INVALID_AFU;
-	ASSERT(OCXL_OK == ocxl_afu_open_by_name("IBM,Dummy", &afu));
+	ASSERT(OCXL_OK == ocxl_afu_open("IBM,Dummy", &afu));
 	const ocxl_identifier *identifier = ocxl_afu_get_identifier(afu);
 	ASSERT(identifier->afu_index == 0);
 	ASSERT(!strcmp(identifier->afu_name, "IBM,Dummy"));
@@ -635,18 +635,18 @@ end:
 }
 
 /**
- * Check ocxl_afu_open_by_name
+ * Check ocxl_afu_open
  */
-static void test_ocxl_afu_open_by_name() {
-	test_start("AFU", "ocxl_afu_open_by_name");
+static void test_ocxl_afu_open() {
+	test_start("AFU", "ocxl_afu_open");
 
 	ocxl_afu_h afu = OCXL_INVALID_AFU;
 
 	ocxl_want_verbose_errors(0);
-	ASSERT(OCXL_NO_DEV == ocxl_afu_open_by_name("nonexistent", &afu));
+	ASSERT(OCXL_NO_DEV == ocxl_afu_open("nonexistent", &afu));
 	ocxl_want_verbose_errors(1);
 
-	ASSERT(OCXL_OK == ocxl_afu_open_by_name("IBM,Dummy", &afu));
+	ASSERT(OCXL_OK == ocxl_afu_open("IBM,Dummy", &afu));
 	ocxl_afu * my_afu = (ocxl_afu *)afu;
 	ASSERT(my_afu->fd != -1);
 	ASSERT(my_afu->irq_fd != -1);
@@ -695,16 +695,16 @@ ocxl_want_verbose_errors(1);
 /**
  * Check ocxl_afu_use_by_name
  */
-static void test_ocxl_afu_use_by_name() {
-	test_start("AFU", "ocxl_afu_use_by_name");
+static void test_ocxl_afu_use() {
+	test_start("AFU", "ocxl_afu_use");
 
 	ocxl_afu_h afu = OCXL_INVALID_AFU;
 
 	ocxl_want_verbose_errors(0);
-	ASSERT(OCXL_NO_DEV == ocxl_afu_use_by_name("nonexistent", &afu, 0, OCXL_MMIO_HOST_ENDIAN, OCXL_MMIO_HOST_ENDIAN));
+	ASSERT(OCXL_NO_DEV == ocxl_afu_use("nonexistent", &afu, 0, OCXL_MMIO_HOST_ENDIAN, OCXL_MMIO_HOST_ENDIAN));
 	ocxl_want_verbose_errors(1);
 
-	ASSERT(OCXL_OK == ocxl_afu_use_by_name("IBM,Dummy", &afu, 0, OCXL_MMIO_HOST_ENDIAN, OCXL_MMIO_HOST_ENDIAN));
+	ASSERT(OCXL_OK == ocxl_afu_use("IBM,Dummy", &afu, 0, OCXL_MMIO_HOST_ENDIAN, OCXL_MMIO_HOST_ENDIAN));
 	ocxl_afu * my_afu = (ocxl_afu *)afu;
 	ASSERT(my_afu->fd != -1);
 	ASSERT(my_afu->irq_fd != -1);
@@ -1182,15 +1182,15 @@ int main(int args, const char **argv) {
 	test_afu_getters();
 	test_get_afu_by_path();
 	test_afu_open();
-	test_ocxl_afu_open();
+	test_ocxl_afu_open_specific();
 	test_ocxl_afu_open_from_dev();
-	test_ocxl_afu_open_by_name();
+	test_ocxl_afu_open();
 	test_ocxl_afu_open_by_id();
 	test_ocxl_afu_attach();
 	test_ocxl_afu_close_free();
 #ifdef _ARCH_PPC64
 	test_ocxl_afu_use_from_dev();
-	test_ocxl_afu_use_by_name();
+	test_ocxl_afu_use();
 #endif
 
 	test_ocxl_global_mmio_map();

@@ -43,7 +43,7 @@ areas on the the AFU. Endian conversion is handled automatically.
 A typical use of libocxl will follow this pattern:
 
 1. **Setup:** optionally turn on error reporting within the library: ocxl\_want\_verbose\_errors().
-2. **Open the device:** ocxl\_afu\_use\_by\_name() if an AFU name is used, or ocxl\_afu\_use\_from\_dev() if
+2. **Open the device:** ocxl\_afu\_use() if an AFU name is used, or ocxl\_afu\_use\_from\_dev() if
    a device path is used.
 3. **Allocate IRQs:** ocxl\_afu\_irq\_alloc(). This returns a sequential per-AFU IRQ number.
    An opaque pointer is associated with the

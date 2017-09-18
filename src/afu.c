@@ -148,7 +148,7 @@ size_t ocxl_afu_get_mmio_size(ocxl_afu_h afu)
  * These functions provide access to open and close the AFU.
  *
  * A typical workflow involves the following:
- * - ocxl_afu_open_from_dev(), ocxl_open_by_name() - Open the device
+ * - ocxl_afu_open_from_dev(), ocxl_afu_open() - Open the device by device or name
  * - ocxl_afu_attach() - Attach the device to the process's address space
  * - ocxl_global_mmio_map() - Map the AFU Global MMIO space
  * - ocxl_mmio_map() - Map the Per-PASID MMIO space
@@ -704,7 +704,7 @@ end:
  * @retval OCXL_NO_DEV if no valid device was found
  * @retval OCXL_NO_MORE_CONTEXTS if maximum number of AFU contexts has been reached on all matching AFUs
  */
-ocxl_err ocxl_afu_open(const char *name, const char *physical_function, int16_t afu_index, ocxl_afu_h * afu)
+ocxl_err ocxl_afu_open_specific(const char *name, const char *physical_function, int16_t afu_index, ocxl_afu_h * afu)
 {
 	char pattern[PATH_MAX];
 	glob_t glob_data;
@@ -787,7 +787,7 @@ ocxl_err ocxl_afu_open_by_id(const char *name, uint8_t card_index, int16_t afu_i
 		goto end;
 	}
 
-	ret = ocxl_afu_open(name, funcs[card_index], afu_index, afu);
+	ret = ocxl_afu_open_specific(name, funcs[card_index], afu_index, afu);
 
 end:
 	if (funcs) {
@@ -807,9 +807,9 @@ end:
  * @retval OCXL_NO_DEV if no valid device was found
  * @retval OCXL_NO_MORE_CONTEXTS if maximum number of AFU contexts has been reached on all matching AFUs
  */
-ocxl_err ocxl_afu_open_by_name(const char *name, ocxl_afu_h * afu)
+ocxl_err ocxl_afu_open(const char *name, ocxl_afu_h * afu)
 {
-	return ocxl_afu_open(name, NULL, -1, afu);
+	return ocxl_afu_open_specific(name, NULL, -1, afu);
 }
 
 /**
@@ -965,8 +965,8 @@ ocxl_err ocxl_afu_use_from_dev(const char *path, ocxl_afu_h * afu, uint64_t amr,
  * @retval OCXL_NO_DEV if no valid device was found
  * @retval OCXL_NO_MORE_CONTEXTS if maximum number of AFU contexts has been reached on all matching AFUs
  */
-ocxl_err ocxl_afu_use_by_name(const char *name, ocxl_afu_h * afu, uint64_t amr,
-                              ocxl_endian global_endianess, ocxl_endian per_pasid_endianess)
+ocxl_err ocxl_afu_use(const char *name, ocxl_afu_h * afu, uint64_t amr,
+                      ocxl_endian global_endianess, ocxl_endian per_pasid_endianess)
 {
 	char pattern[PATH_MAX];
 	snprintf(pattern, sizeof(pattern), "%s/%s.*", dev_path, name);
