@@ -67,6 +67,9 @@ testobj/unittests: testobj/unittests.o-test testobj/virtocxl.o-test
 test: testobj/unittests
 	sudo testobj/unittests
 
+valgrind: testobj/unittests
+	sudo valgrind testobj/unittests
+
 include Makefile.rules
 
 cppcheck:
