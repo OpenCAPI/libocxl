@@ -208,79 +208,99 @@ uint64_t ocxl_afu_irq_get_id(ocxl_afu_h afu, ocxl_irq_h irq)
 	return (uint64_t)my_afu->irqs[irq].addr;
 }
 
+typedef struct ocxl_kernel_event_header ocxl_kernel_event_header;
+typedef struct ocxl_kernel_event_xsl_fault_error ocxl_kernel_event_xsl_fault_error;
+
 /**
  * @internal
- * Read an event from the main AFU descriptor
+ * Populate an XSL fault error event
+ *
+ * @param event the event to populate
+ * @param body the event body from the kernel
+ */
+static void populate_xsl_fault_error(ocxl_event *event, void *body)
+{
+	ocxl_kernel_event_xsl_fault_error *err = body;
+
+	event->type = OCXL_EVENT_TRANSLATION_FAULT;
+	event->translation_fault.addr = (void *)err->addr;
+#ifdef _ARCH_PPC64
+	event->translation_fault.dsisr = err->dsisr;
+#endif
+	event->translation_fault.count = err->count;
+}
+
+/**
+ * @internal
+ * Read events from the main AFU descriptor
  *
  * @param afu the AFU to read the event from
  * @param max_supported_event the id of the maximum supported kernel event, events with an ID higher than this will be ignored
- * @param[out] event the event information
+ * @param[out] event event to populate
+ * @param[out] last true if this was the last event to read from the kernel for now
  * @retval OCXL_EVENT_ACTION_SUCCESS if the event should be handled
  * @retval OCXL_EVENT_ACTION_FAIL if the event read failed (fatal)
  * @retval OCXL_EVENT_ACTION_NONE if there was no event to read
  * @retval OCXL_EVENT_ACTION_IGNORE if the read was successful but should be ignored
  */
-static ocxl_event_action read_afu_event(ocxl_afu *afu, uint16_t max_supported_event, ocxl_event *event)
+static ocxl_event_action read_afu_event(ocxl_afu *afu, uint16_t max_supported_event,
+		ocxl_event *event, bool *last) // hack to allow static symbol extraction
 {
-	ocxl_kernel_event_header header;
-	char buf[MAX_EVENT_SIZE];
-	int ret;
+	size_t event_size = sizeof(ocxl_kernel_event_header);
+	*last = true;
 
-	if ((ret = read(afu->fd, &header, sizeof(header))) < 0) {
-		if (ret == EAGAIN || ret == EWOULDBLOCK) {
+	switch (max_supported_event) {
+	case 0:
+		event_size += sizeof(ocxl_kernel_event_xsl_fault_error);
+		break;
+	default:
+		errmsg("Unknown maximum supported event type %u", max_supported_event);
+		return OCXL_EVENT_ACTION_FAIL;
+	}
+
+	char buf[event_size];
+
+	int buf_used;
+	if ((buf_used = read(afu->fd, buf, event_size)) < 0) {
+		if (errno == EAGAIN || errno == EWOULDBLOCK) {
 			return OCXL_EVENT_ACTION_NONE;
 		}
 
 		errmsg("read of event header from fd %d for AFU '%s' failed: %d: %s",
 		       afu->fd, afu->identifier.afu_name, errno, strerror(errno));
 		return OCXL_EVENT_ACTION_FAIL;
-	}
-
-	if (header.size > MAX_EVENT_SIZE) {
-		errmsg("Event size %d exceeds maximum expected %d",
-		       header.size, MAX_EVENT_SIZE);
+	} else if (buf_used < sizeof(ocxl_kernel_event_header)) {
+		errmsg("short read of event header from fd %d for AFU '%s'",
+		       afu->fd, afu->identifier.afu_name);
 		return OCXL_EVENT_ACTION_FAIL;
 	}
 
-	if (header.type > max_supported_event) {
-		// Drain the unused data
-		if (read(afu->fd, &buf, header.size) < 0) {
-			errmsg("read of event data from fd %d for AFU '%s' failed: %d: %s",
-			       afu->fd, afu->identifier.afu_name,
-			       errno, strerror(errno));
-		}
+	ocxl_kernel_event_header *header = (ocxl_kernel_event_header *)buf;
 
-		// Squelch events we don't know how to handle
+	if (header->type > max_supported_event) {
+		*last = !! header->flags & OCXL_KERNEL_EVENT_FLAG_LAST;
 		return OCXL_EVENT_ACTION_IGNORE;
 	}
 
-	switch (header.type) {
-	case OCXL_KERNEL_EVENT_TYPE_TRANSLATION_FAULT:
-		if (read(afu->fd, buf, header.size) < 0) {
-			errmsg("read of translation fault data from fd %d for AFU '%s' failed: %d: %s",
-			       afu->fd, afu->identifier.afu_name,
-			       errno, strerror(errno));
-			return 0;
+	switch (header->type) {
+	case OCXL_AFU_EVENT_XSL_FAULT_ERROR:
+		if (buf_used != sizeof(ocxl_kernel_event_header) + sizeof(ocxl_kernel_event_xsl_fault_error)) {
+			errmsg("Incorrectly sized buffer received from kernel for XSL fault error, expected %d, got %d",
+					sizeof(ocxl_kernel_event_header) + sizeof(ocxl_kernel_event_xsl_fault_error),
+					buf_used);
+			return OCXL_EVENT_ACTION_FAIL;
 		}
-
-		ocxl_kernel_event_translation_fault *translation_fault = (ocxl_kernel_event_translation_fault *)buf;
-
-		event->type = OCXL_EVENT_TRANSLATION_FAULT;
-		event->translation_fault.addr = (void *)translation_fault->addr;
-#ifdef __ARCH_PPC64
-		event->translation_fault.dsisr = translation_fault->dsisr;
-#endif
-		return OCXL_EVENT_ACTION_SUCCESS;
+		populate_xsl_fault_error(event, buf + sizeof(ocxl_kernel_event_header));
 		break;
-	/* Adding a new event type?
-	 * Increment max_supported_event in libocxl.h:ocxl_afu_event_check
-	 */
+
 	default:
 		errmsg("Unknown event %d, max_supported_event %d",
-		       header.type, max_supported_event);
+		       header->type, max_supported_event);
 		return OCXL_EVENT_ACTION_FAIL;
-		break;
 	}
+
+	*last = !! header->flags & OCXL_KERNEL_EVENT_FLAG_LAST;
+	return OCXL_EVENT_ACTION_SUCCESS;
 }
 
 
@@ -328,14 +348,23 @@ int ocxl_afu_event_check_versioned(ocxl_afu_h afu, int timeout, ocxl_event *even
 		epoll_fd_source *info = (epoll_fd_source *)my_afu->epoll_events[event].data.ptr;
 		ocxl_event_action ret;
 		uint64_t count;
+		bool last;
 
 		switch (info->type) {
 		case EPOLL_SOURCE_AFU:
-			while ((ret = read_afu_event(my_afu, max_supported_event, &events[triggered])),
+			while ((ret = read_afu_event(my_afu, max_supported_event, &events[triggered], &last)),
 			       ret == OCXL_EVENT_ACTION_SUCCESS || ret == OCXL_EVENT_ACTION_IGNORE) {
 				if (ret == OCXL_EVENT_ACTION_SUCCESS) {
 					triggered++;
 				}
+
+				if (last) {
+					break;
+				}
+			}
+
+			if (ret == OCXL_EVENT_ACTION_FAIL) {
+				return -1;
 			}
 
 			break;

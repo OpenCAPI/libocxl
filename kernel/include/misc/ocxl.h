@@ -13,6 +13,24 @@
 #include <linux/types.h>
 #include <linux/ioctl.h>
 
+enum ocxl_event_type {
+	OCXL_AFU_EVENT_XSL_FAULT_ERROR = 0,
+};
+
+#define OCXL_KERNEL_EVENT_FLAG_LAST 0x0001  /* This is the last event pending */
+
+struct ocxl_kernel_event_header {
+	__u16 type;
+	__u16 flags;
+	__u32 reserved2;
+};
+
+struct ocxl_kernel_event_xsl_fault_error {
+	__u64 addr;
+	__u64 dsisr;
+	__u64 count;
+};
+
 struct ocxl_ioctl_attach {
 	__u64 amr;
 	__u64 reserved1;

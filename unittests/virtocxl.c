@@ -16,6 +16,7 @@
 
 #include <fuse/cuse_lowlevel.h>
 #include <fuse/fuse_lowlevel.h>
+#include <linux/poll.h>
 #include "libocxl_internal.h"
 #include <misc/ocxl.h>
 #include <errno.h>
@@ -28,9 +29,12 @@
 
 #include <stdlib.h>
 
-ocxl_event_translation_fault translation_fault = { .addr = NULL };
+typedef struct ocxl_kernel_event_header ocxl_kernel_event_header;
+typedef struct ocxl_kernel_event_xsl_fault_error ocxl_kernel_event_xsl_fault_error;
+#define KERNEL_EVENT_SIZE (sizeof(ocxl_kernel_event_header) + sizeof(ocxl_kernel_event_xsl_fault_error))
+
+ocxl_kernel_event_xsl_fault_error translation_fault = { .addr = 0 };
 bool afu_attached = false;
-uint64_t base_offset = 0;
 const char *sysfs_path = NULL;
 
 static void afu_open(fuse_req_t req, struct fuse_file_info *fi)
@@ -39,42 +43,35 @@ static void afu_open(fuse_req_t req, struct fuse_file_info *fi)
 	fuse_reply_open(req, fi);
 }
 
-#define KERNEL_EVENT_SIZE (sizeof(ocxl_kernel_event_header) + sizeof(ocxl_kernel_event_translation_fault))
 static void afu_read(fuse_req_t req, size_t size, off_t off, struct fuse_file_info *fi)
 {
-	DEBUG("afu_read");
 	char buf[KERNEL_EVENT_SIZE];
 	ocxl_kernel_event_header header = {
-			.type = 0,
-			.size = sizeof(ocxl_kernel_event_translation_fault)
+			.type = OCXL_AFU_EVENT_XSL_FAULT_ERROR,
+			.flags = OCXL_KERNEL_EVENT_FLAG_LAST,
 	};
 
-	if (translation_fault.addr == NULL) {
-		fuse_reply_buf(req, NULL, 0);
+	if (0 != off) {
+		fuse_reply_err(req, EINVAL);
+		return;
+	}
+
+	if (translation_fault.addr == 0) {
+		fuse_reply_err(req, EAGAIN);
+		return;
+	}
+
+	if (size < KERNEL_EVENT_SIZE) {
+		fuse_reply_buf(req, buf, 0);
 		return;
 	}
 
 	memcpy(buf, &header, sizeof(header));
 	memcpy(buf + sizeof(header), &translation_fault, sizeof(translation_fault));
 
-	if (off >= base_offset) {
-		off -= base_offset;
-	}
+	fuse_reply_buf(req, buf, size);
 
-	if (off >= KERNEL_EVENT_SIZE) {
-		off = KERNEL_EVENT_SIZE;
-	}
-
-	if (size > KERNEL_EVENT_SIZE - off) {
-		size = KERNEL_EVENT_SIZE - off;
-	}
-
-	fuse_reply_buf(req, buf + off, size);
-
-	if (off + size >= KERNEL_EVENT_SIZE) {
-		translation_fault.addr = NULL;
-		base_offset += KERNEL_EVENT_SIZE;
-	}
+	translation_fault.addr = 0;
 }
 
 static void afu_ioctl(fuse_req_t req, int cmd, void *arg,
@@ -94,13 +91,13 @@ static void afu_ioctl(fuse_req_t req, int cmd, void *arg,
 
 static void afu_poll (fuse_req_t req, struct fuse_file_info *fi, struct fuse_pollhandle *ph)
 {
-	unsigned int events = 0;
-
-	if (translation_fault.addr != NULL) {
-		events++;
+	if (translation_fault.addr != 0) {
+		fuse_reply_poll(req, POLLIN | POLLRDNORM);
+	} else if (!afu_attached) {
+		fuse_reply_poll(req, POLLERR);
 	}
 
-	fuse_reply_poll(req, events);
+	fuse_reply_poll(req, 0);
 }
 
 #define DEVICE_NAME_MAX 64
@@ -364,14 +361,26 @@ pthread_t create_usrirq_device(const char *dev_name) {
 	return usrirq_thread;
 }
 
+#ifdef _ARCH_PPC64
 /**
  * Force a translation fault, this should cause afu_poll() to register an event, and afu_read() to return the event
  * @param addr the address of the fault
  * @param dsisr the value of the PPC64 specific DSISR register
+ * @param count the number of times the translation fault has triggered an error
  */
-void force_translation_fault(void *addr, uint64_t dsisr) {
+void force_translation_fault(void *addr, uint64_t dsisr, uint64_t count) {
 	translation_fault.addr = addr;
-#ifdef __ARCH_PPC64
 	translation_fault.dsisr = dsisr;
-#endif
+	translation_fault.count = count;
 }
+#else
+/**
+ * Force a translation fault, this should cause afu_poll() to register an event, and afu_read() to return the event
+ * @param addr the address of the fault
+ * @param count the number of times the translation fault has triggered an error
+ */
+void force_translation_fault(void *addr, uint64_t count) {
+	translation_fault.addr = (__u64)addr;
+	translation_fault.count = count;
+}
+#endif

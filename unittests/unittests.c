@@ -24,6 +24,8 @@
 #include <pthread.h>
 #include <signal.h>
 
+#include <misc/ocxl.h>
+
 #include "libocxl_internal.h"
 #include "static.h"
 
@@ -1129,6 +1131,67 @@ end:
 	}
 }
 
+/**
+ * Check read_afu_event
+ */
+static void test_read_afu_event() {
+	test_start("IRQ", "read_afu_event");
+
+	ocxl_afu_h afu = OCXL_INVALID_AFU;
+
+	ASSERT(OCXL_OK == ocxl_afu_open_from_dev("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu));
+	ASSERT(OCXL_OK == ocxl_afu_attach(afu));
+
+	ocxl_afu * my_afu = (ocxl_afu *)afu;
+	ocxl_event event;
+	bool last = false;
+	ASSERT(OCXL_EVENT_ACTION_NONE == read_afu_event(my_afu, 0, &event, &last));
+	ASSERT(last);
+
+#ifdef _ARCH_PPC64
+	force_translation_fault((void *)0xfeeddeadbeeff00d, 0x123456789abcdef0, 16);
+#else
+	force_translation_fault((void *)0xfeeddeadbeeff00d, 16);
+#endif
+
+	last = false;
+	ASSERT(OCXL_EVENT_ACTION_SUCCESS == read_afu_event(my_afu, 0, &event, &last));
+	ASSERT(last);
+	ASSERT(event.type == OCXL_EVENT_TRANSLATION_FAULT);
+	ASSERT(event.translation_fault.addr == (void *)0xfeeddeadbeeff00d);
+#ifdef _ARCH_PPC64
+	ASSERT(event.translation_fault.dsisr == 0x123456789abcdef0);
+#endif
+	ASSERT(event.translation_fault.count == 16);
+
+#ifdef _ARCH_PPC64
+	force_translation_fault((void *)0xfeeddeadbeeff00d, 0x123456789abcdef0, 16);
+#else
+	force_translation_fault((void *)0xfeeddeadbeeff00d, 16);
+#endif
+
+	last = false;
+	ASSERT(OCXL_EVENT_ACTION_SUCCESS == read_afu_event(my_afu, 0, &event, &last));
+	ASSERT(last);
+	ASSERT(event.type == OCXL_EVENT_TRANSLATION_FAULT);
+	ASSERT(event.translation_fault.addr == (void *)0xfeeddeadbeeff00d);
+#ifdef _ARCH_PPC64
+	ASSERT(event.translation_fault.dsisr == 0x123456789abcdef0);
+#endif
+	ASSERT(event.translation_fault.count == 16);
+
+	last = false;
+	ASSERT(OCXL_EVENT_ACTION_NONE == read_afu_event(my_afu, 0, &event, &last));
+	ASSERT(last);
+
+	test_stop(SUCCESS);
+
+end:
+	if (afu) {
+		ocxl_afu_close(afu);
+	}
+}
+
 static void exit_handler() {
 	void *ret;
 
@@ -1201,6 +1264,8 @@ int main(int args, const char **argv) {
 	test_read64();
 	test_ocxl_global_mmio_read32();
 	test_ocxl_global_mmio_read64();
+
+	test_read_afu_event();
 
 	exit_handler();
 

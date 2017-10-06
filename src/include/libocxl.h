@@ -93,13 +93,14 @@ typedef struct {
 } ocxl_event_irq;
 
 /**
- * The data for a triggered translation fault event
+ * The data for a triggered translation fault error event
  */
 typedef struct {
 	void *addr; /**< The address that triggered the fault */
-#ifdef __ARCH_PPC64
+#ifdef _ARCH_PPC64
 	uint64_t dsisr; /**< The value of the PPC64 specific DSISR (Data storage interrupt status register) */
 #endif
+	uint64_t count; /**< The number of times this address has triggered the fault */
 } ocxl_event_translation_fault;
 
 /**
@@ -169,7 +170,7 @@ int ocxl_afu_event_check_versioned(ocxl_afu_h afu, int timeout, ocxl_event *even
  * @return the number of events triggered, if this is the same as event_count, you should call ocxl_afu_event_check again
  * @retval -1 if an error occurred
  */
-inline int ocxl_afu_event_check(ocxl_afu_h afu, int timeout, ocxl_event *events, uint16_t event_count)
+static inline int ocxl_afu_event_check(ocxl_afu_h afu, int timeout, ocxl_event *events, uint16_t event_count)
 {
 	uint16_t max_supported_event = 0;
 	return ocxl_afu_event_check_versioned(afu, timeout, events, event_count, max_supported_event);
