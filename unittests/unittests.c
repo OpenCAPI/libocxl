@@ -1192,6 +1192,49 @@ end:
 	}
 }
 
+
+#ifdef __UNUSED
+/**
+ * Check ocxl_afu_event_check_versioned (with kernel events)
+ */
+static void test_ocxl_afu_event_check_versioned() {
+	test_start("IRQ", "ocxl_afu_event_check_versioned (kernel)");
+
+	ocxl_afu_h afu = OCXL_INVALID_AFU;
+
+	ASSERT(OCXL_OK == ocxl_afu_open_from_dev("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu));
+	ASSERT(OCXL_OK == ocxl_afu_attach(afu));
+
+#define EVENT_COUNT 5
+	ocxl_event events[EVENT_COUNT];
+
+	ASSERT(0 == ocxl_afu_event_check_versioned(afu, 10, events, EVENT_COUNT, 0));
+
+#ifdef _ARCH_PPC64
+	force_translation_fault((void *)0xfeeddeadbeeff00d, 0x123456789abcdef0, 16);
+#else
+	force_translation_fault((void *)0xfeeddeadbeeff00d, 16);
+#endif
+
+	ASSERT(1 == ocxl_afu_event_check_versioned(afu, 10, events, EVENT_COUNT, 0));
+	ASSERT(events[0].type == OCXL_EVENT_TRANSLATION_FAULT);
+	ASSERT(events[0].translation_fault.addr == (void *)0xfeeddeadbeeff00d);
+#ifdef _ARCH_PPC64
+	ASSERT(events[0].translation_fault.dsisr == 0x123456789abcdef0);
+#endif
+	ASSERT(events[0].translation_fault.count == 16);
+
+	ASSERT(0 == ocxl_afu_event_check_versioned(afu, 0, events, EVENT_COUNT, 0));
+
+	test_stop(SUCCESS);
+
+end:
+	if (afu) {
+		ocxl_afu_close(afu);
+	}
+}
+#endif
+
 static void exit_handler() {
 	void *ret;
 
@@ -1266,6 +1309,8 @@ int main(int args, const char **argv) {
 	test_ocxl_global_mmio_read64();
 
 	test_read_afu_event();
+	// Disabled as we neeh epoll support in CUSE to test this
+	// test_ocxl_afu_event_check_versioned();
 
 	exit_handler();
 
