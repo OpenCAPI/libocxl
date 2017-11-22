@@ -844,7 +844,6 @@ ocxl_err ocxl_afu_attach(ocxl_afu_h afu)
 	return OCXL_OK;
 }
 
-#ifdef _ARCH_PPC64
 /**
  * Open and attach a context on an AFU
  *
@@ -865,7 +864,11 @@ ocxl_err ocxl_afu_attach(ocxl_afu_h afu)
  * @retval OCXL_NO_DEV if the AFU is invalid
  * @retval OCXL_NO_MORE_CONTEXTS if maximum number of AFU contexts has been reached
  */
-static ocxl_err afu_use(ocxl_afu_h afu, uint64_t amr, ocxl_endian global_endianess, ocxl_endian per_pasid_endianess)
+static ocxl_err afu_use(ocxl_afu_h afu,
+#ifdef _ARCH_PPC64
+						uint64_t amr,
+#endif
+						ocxl_endian global_endianess, ocxl_endian per_pasid_endianess)
 {
 	ocxl_err ret;
 
@@ -874,6 +877,7 @@ static ocxl_err afu_use(ocxl_afu_h afu, uint64_t amr, ocxl_endian global_endiane
 		return ret;
 	}
 
+#ifdef _ARCH_PPC64
 	if (amr) {
 		ret = ocxl_afu_set_ppc64_amr(afu, amr);
 		if (ret != OCXL_OK) {
@@ -881,6 +885,7 @@ static ocxl_err afu_use(ocxl_afu_h afu, uint64_t amr, ocxl_endian global_endiane
 			return ret;
 		}
 	}
+#endif
 
 	ret = ocxl_afu_attach(afu);
 	if (ret != OCXL_OK) {
@@ -924,7 +929,10 @@ static ocxl_err afu_use(ocxl_afu_h afu, uint64_t amr, ocxl_endian global_endiane
  * @retval OCXL_NO_DEV if the AFU is invalid
  * @retval OCXL_NO_MORE_CONTEXTS if maximum number of AFU contexts has been reached
  */
-ocxl_err ocxl_afu_use_from_dev(const char *path, ocxl_afu_h * afu, uint64_t amr,
+ocxl_err ocxl_afu_use_from_dev(const char *path, ocxl_afu_h * afu,
+#ifdef _ARCH_PPC64
+							   uint64_t amr,
+#endif
                                ocxl_endian global_endianess, ocxl_endian per_pasid_endianess)
 {
 	ocxl_err rc = get_afu_by_path(path, afu);
@@ -933,7 +941,11 @@ ocxl_err ocxl_afu_use_from_dev(const char *path, ocxl_afu_h * afu, uint64_t amr,
 		return rc;
 	}
 
-	rc = afu_use(*afu, amr, global_endianess, per_pasid_endianess);
+	rc = afu_use(*afu,
+#ifdef _ARCH_PPC64
+				amr,
+#endif
+				global_endianess, per_pasid_endianess);
 	if (rc != OCXL_OK) {
 		ocxl_afu_close(*afu);
 		*afu = OCXL_INVALID_AFU;
@@ -965,7 +977,10 @@ ocxl_err ocxl_afu_use_from_dev(const char *path, ocxl_afu_h * afu, uint64_t amr,
  * @retval OCXL_NO_DEV if no valid device was found
  * @retval OCXL_NO_MORE_CONTEXTS if maximum number of AFU contexts has been reached on all matching AFUs
  */
-ocxl_err ocxl_afu_use(const char *name, ocxl_afu_h * afu, uint64_t amr,
+ocxl_err ocxl_afu_use(const char *name, ocxl_afu_h * afu,
+#ifdef _ARCH_PPC64
+					  uint64_t amr,
+#endif
                       ocxl_endian global_endianess, ocxl_endian per_pasid_endianess)
 {
 	char pattern[PATH_MAX];
@@ -993,7 +1008,11 @@ ocxl_err ocxl_afu_use(const char *name, ocxl_afu_h * afu, uint64_t amr,
 
 	for (int dev = 0; dev < glob_data.gl_pathc; dev++) {
 		const char *dev_path = glob_data.gl_pathv[dev];
-		ret = ocxl_afu_use_from_dev(dev_path, afu, amr, global_endianess, per_pasid_endianess);
+		ret = ocxl_afu_use_from_dev(dev_path, afu,
+#ifdef _ARCH_PPC64
+									amr,
+#endif
+									global_endianess, per_pasid_endianess);
 		switch (ret) {
 		case OCXL_OK:
 			goto end;
@@ -1009,7 +1028,6 @@ end:
 	return ret;
 }
 
-#endif
 
 /**
  * Close an AFU and detach it from the context
