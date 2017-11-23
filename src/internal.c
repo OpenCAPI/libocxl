@@ -50,6 +50,7 @@ pthread_mutex_t errmsg_mutex;
  * @param function the function name
  * @param format a printf format & args
  */
+__attribute__ ((format (printf, 4, 5)))
 void debug(const char *file, int line, const char *function, const char *format, ...)
 {
 	va_list ap;
@@ -66,6 +67,7 @@ void debug(const char *file, int line, const char *function, const char *format,
  * Output a warning message
  * @param format a printf format & args
  */
+__attribute__ ((format (printf, 1, 2)))
 void errmsg(const char *format, ...)
 {
 	va_list ap;
