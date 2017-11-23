@@ -242,7 +242,7 @@ static bool device_matches(int dirfd, char *dev_name, dev_t dev)
 }
 
 /**
- * Read a buffer from sysfs
+ * Read a buffer from a file
  *
  * @param path the to read from
  * @param[out] buf the buffer to populate
@@ -251,7 +251,7 @@ static bool device_matches(int dirfd, char *dev_name, dev_t dev)
  * @return the amount of buffer that was populated
  *
  */
-static int read_sysfs_buf(const char *path, char *buf, size_t size)
+static int read_file_buf(const char *path, char *buf, size_t size)
 {
 	int fd, len;
 
@@ -274,18 +274,18 @@ static int read_sysfs_buf(const char *path, char *buf, size_t size)
 #define INT_LEN 20
 
 /**
- * Read an unsigned int from sysfs
+ * Read an ASCII unsigned int from a file
  *
  * @param path the to read from
  * @param[out] val the value that was read
  * @return true if an error occurred
  */
-static bool read_sysfs_uint(const char *path, uint64_t * val)
+static bool read_file_uint(const char *path, uint64_t * val)
 {
 	int len;
 	char buf[INT_LEN + 1];
 
-	len = read_sysfs_buf(path, buf, sizeof(buf));
+	len = read_file_buf(path, buf, sizeof(buf));
 
 	if (len == -1) {
 		return true;
@@ -319,7 +319,7 @@ static bool mmio_sizes(ocxl_afu * afu)
 		errmsg("Path truncated constructing pp_mmio_size path, base='%s'", afu->sysfs_path);
 		return true;
 	}
-	if (read_sysfs_uint(path, &val)) {
+	if (read_file_uint(path, &val)) {
 		return true;
 	}
 
@@ -331,7 +331,7 @@ static bool mmio_sizes(ocxl_afu * afu)
 		return true;
 	}
 
-	if (read_sysfs_uint(path, &val)) {
+	if (read_file_uint(path, &val)) {
 		return true;
 	}
 
@@ -359,7 +359,7 @@ static bool afu_version(ocxl_afu * afu)
 #define AFU_VERSION_SIZE (3+1+3+1)
 	char buf[AFU_VERSION_SIZE+1];
 	int len;
-	if ((len = read_sysfs_buf(path, buf, sizeof(buf))) == -1) {
+	if ((len = read_file_buf(path, buf, sizeof(buf))) == -1) {
 		return true;
 	}
 	buf[len] = 0;

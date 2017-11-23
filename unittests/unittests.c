@@ -261,35 +261,35 @@ end:
 #define BUF_SIZE 64
 
 /**
- * Check read_sysfs_buf
+ * Check read_file_buf
  */
-static void test_read_sysfs_buf() {
-	test_start("internal", "read_sysfs_buf");
+static void test_read_file_buf() {
+	test_start("internal", "read_file_buf");
 
 	char buf[BUF_SIZE];
 
 	memset(buf, 0, sizeof(buf));
-	ASSERT(3 == read_sysfs_buf("unittests/data/read_sysfs_buf/10", buf, sizeof(buf)));
+	ASSERT(3 == read_file_buf("unittests/data/read_file_buf/10", buf, sizeof(buf)));
 	ASSERT(!strcmp(buf, "10\n"));
 
 	memset(buf, 0, sizeof(buf));
-	ASSERT(4 == read_sysfs_buf("unittests/data/read_sysfs_buf/100", buf, sizeof(buf)));
+	ASSERT(4 == read_file_buf("unittests/data/read_file_buf/100", buf, sizeof(buf)));
 	ASSERT(!strcmp(buf, "100\n"));
 
 	memset(buf, 0, sizeof(buf));
-	ASSERT(5 == read_sysfs_buf("unittests/data/read_sysfs_buf/1000", buf, sizeof(buf)));
+	ASSERT(5 == read_file_buf("unittests/data/read_file_buf/1000", buf, sizeof(buf)));
 	ASSERT(!strcmp(buf, "1000\n"));
 
 	memset(buf, 0, sizeof(buf));
-	ASSERT(21 == read_sysfs_buf("unittests/data/read_sysfs_buf/uint64_max", buf, sizeof(buf)));
+	ASSERT(21 == read_file_buf("unittests/data/read_file_buf/uint64_max", buf, sizeof(buf)));
 	ASSERT(!strcmp(buf, "18446744073709551615\n"));
 
 	memset(buf, 0, sizeof(buf));
-	ASSERT(3 == read_sysfs_buf("unittests/data/read_sysfs_buf/negative", buf, sizeof(buf)));
+	ASSERT(3 == read_file_buf("unittests/data/read_file_buf/negative", buf, sizeof(buf)));
 	ASSERT(!strcmp(buf, "-1\n"));
 
 	ocxl_want_verbose_errors(0);
-	ASSERT(-1 == read_sysfs_buf("unittests/data/read_sysfs_buf/nonexistent", buf, sizeof(buf)));
+	ASSERT(-1 == read_file_buf("unittests/data/read_file_buf/nonexistent", buf, sizeof(buf)));
 
 
 	test_stop(SUCCESS);
@@ -300,27 +300,27 @@ end:
 
 
 /**
- * Check read_sysfs_uint
+ * Check read_file_uint
  */
-static void test_read_sysfs_uint() {
-	test_start("internal", "read_sysfs_uint");
+static void test_read_file_uint() {
+	test_start("internal", "read_file_uint");
 
 	uint64_t val;
 
-	ASSERT(!read_sysfs_uint("unittests/data/read_sysfs_uint/10", &val));
+	ASSERT(!read_file_uint("unittests/data/read_file_uint/10", &val));
 	ASSERT(val == 10);
 
-	ASSERT(!read_sysfs_uint("unittests/data/read_sysfs_uint/100", &val));
+	ASSERT(!read_file_uint("unittests/data/read_file_uint/100", &val));
 	ASSERT(val == 100);
 
-	ASSERT(!read_sysfs_uint("unittests/data/read_sysfs_uint/1000", &val));
+	ASSERT(!read_file_uint("unittests/data/read_file_uint/1000", &val));
 	ASSERT(val == 1000);
 
-	ASSERT(!read_sysfs_uint("unittests/data/read_sysfs_uint/uint64_max", &val));
+	ASSERT(!read_file_uint("unittests/data/read_file_uint/uint64_max", &val));
 	ASSERT(val == UINT64_MAX);
 
 	ocxl_want_verbose_errors(0);
-	ASSERT(read_sysfs_uint("unittests/data/read_sysfs_uint/negative", &val));
+	ASSERT(read_file_uint("unittests/data/read_file_uint/negative", &val));
 
 	test_stop(SUCCESS);
 
@@ -1273,8 +1273,8 @@ int main(int args, const char **argv) {
 		}
 	}
 
-	test_read_sysfs_buf();
-	test_read_sysfs_uint();
+	test_read_file_buf();
+	test_read_file_uint();
 	test_allocate_string_array();
 	test_afu_init();
 	test_ocxl_afu_alloc();

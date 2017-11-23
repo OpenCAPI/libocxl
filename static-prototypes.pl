@@ -7,5 +7,8 @@ if (/static/) {
 	s/^\s+/ /; s/,\n/,/;
 	s/\)/\);/;
 	s#//.*##;
-	print;
+
+	if (!/afu_use/) {
+	   print;
+	}
 }
