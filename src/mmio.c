@@ -201,7 +201,7 @@ inline static ocxl_err mmio_check(ocxl_afu * afu, bool global, size_t offset, si
 	}
 
 	if (offset >= mmio->length - (size - 1)) {
-		errmsg("%s MMIO access of 0x%lx for AFU '%s' exceeds limit of 0x%lx",
+		errmsg("%s MMIO access of 0x%016lx for AFU '%s' exceeds limit of 0x%016lx",
 		       global ? "Global" : "Per-PASID", offset, afu->identifier.afu_name, mmio->length);
 		return OCXL_OUT_OF_BOUNDS;
 	}
@@ -342,6 +342,8 @@ ocxl_err ocxl_global_mmio_read32(ocxl_afu_h afu, size_t offset, uint32_t * out)
 
 	*out = read32(&my_afu->global_mmio, offset);
 
+	TRACE("Global MMIO Read32@0x%04lx=0x%08x", offset, *out);
+
 	return OCXL_OK;
 }
 
@@ -372,6 +374,8 @@ ocxl_err ocxl_global_mmio_read64(ocxl_afu_h afu, size_t offset, uint64_t * out)
 
 	*out = read64(&my_afu->global_mmio, offset);
 
+	TRACE("Global MMIO Read64@0x%04lx=0x%016lx", offset, *out);
+
 	return OCXL_OK;
 }
 
@@ -399,6 +403,8 @@ ocxl_err ocxl_global_mmio_write32(ocxl_afu_h afu, size_t offset, uint32_t value)
 	if (ret != OCXL_OK) {
 		return ret;
 	}
+
+	TRACE("Global MMIO Write32@0x%04lx=0x%08x", offset, value);
 
 	write32(&my_afu->global_mmio, offset, value);
 
@@ -429,6 +435,8 @@ ocxl_err ocxl_global_mmio_write64(ocxl_afu_h afu, size_t offset, uint64_t value)
 	if (ret != OCXL_OK) {
 		return ret;
 	}
+
+	TRACE("Global MMIO Write64@0x%04lx=0x%016lx", offset, value);
 
 	write64(&my_afu->global_mmio, offset, value);
 
@@ -462,6 +470,8 @@ ocxl_err ocxl_mmio_read32(ocxl_afu_h afu, size_t offset, uint32_t * out)
 
 	*out = read32(&my_afu->per_pasid_mmio, offset);
 
+	TRACE("Per PASID MMIO Read32@0x%04lx=0x%08x", offset, *out);
+
 	return OCXL_OK;
 }
 
@@ -492,6 +502,8 @@ ocxl_err ocxl_mmio_read64(ocxl_afu_h afu, size_t offset, uint64_t * out)
 
 	*out = read64(&my_afu->per_pasid_mmio, offset);
 
+	TRACE("Per PASID MMIO Read64@0x%04lx=0x%016lx", offset, *out);
+
 	return OCXL_OK;
 }
 
@@ -519,6 +531,8 @@ ocxl_err ocxl_mmio_write32(ocxl_afu_h afu, size_t offset, uint32_t value)
 	if (ret != OCXL_OK) {
 		return ret;
 	}
+
+	TRACE("Per PASID MMIO Write32@0x%04lx=0x%08x", offset, value);
 
 	write32(&my_afu->per_pasid_mmio, offset, value);
 
@@ -549,6 +563,8 @@ ocxl_err ocxl_mmio_write64(ocxl_afu_h afu, size_t offset, uint64_t value)
 	if (ret != OCXL_OK) {
 		return ret;
 	}
+
+	TRACE("Per PASID MMIO Write64@0x%04lx=0x%016lx", offset, value);
 
 	write64(&my_afu->per_pasid_mmio, offset, value);
 

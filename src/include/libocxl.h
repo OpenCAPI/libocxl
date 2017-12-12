@@ -120,6 +120,7 @@ typedef struct ocxl_event {
 
 /* setup.c */
 void ocxl_want_verbose_errors(int verbose);
+void ocxl_want_tracing(int want_tracing);
 void ocxl_set_errmsg_filehandle(FILE * handle);
 
 /* afu.c */

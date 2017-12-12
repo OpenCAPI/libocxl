@@ -85,6 +85,17 @@ void ocxl_want_verbose_errors(int verbose)
 }
 
 /**
+ * Indicate that we want tracing messages
+ *
+ * @param want_tracing true if we want tracing
+ */
+void ocxl_want_tracing(int want_tracing)
+{
+	tracing = ! !want_tracing;
+}
+
+
+/**
  * Set which filehandle to use for verbose errors
  *
  * If not called, defaults to stderr.

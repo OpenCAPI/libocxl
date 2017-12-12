@@ -41,22 +41,27 @@ bool verbose_errors = false;
 
 /// The filehandle to print verbose error messages to, defaults to stderr
 FILE *errmsg_filehandle = NULL;
+
+/// True if we want tracing
+bool tracing = false;
+
 pthread_mutex_t errmsg_mutex;
 
 /**
- * Output a debug message
+ * Output a trace message
  * @param file the source filename
  * @param line the source line
  * @param function the function name
+ * @param label the label for the message
  * @param format a printf format & args
  */
-__attribute__ ((format (printf, 4, 5)))
-void debug(const char *file, int line, const char *function, const char *format, ...)
+__attribute__ ((format (printf, 5, 6)))
+void trace_message(const char *label, const char *file, int line, const char *function, const char *format, ...)
 {
 	va_list ap;
 	va_start(ap, format);
 
-	fprintf(stderr, "%s:%d\t%s():\t\t", file, line, function);
+	fprintf(stderr, "%s: %s:%d\t%s():\t\t", label, file, line, function);
 	vfprintf(stderr, format, ap);
 	fprintf(stderr, "\n");
 
