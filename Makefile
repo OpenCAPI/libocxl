@@ -5,12 +5,9 @@ OBJS = obj/afu.o obj/internal.o obj/irq.o obj/mmio.o obj/setup.o
 TEST_OBJS = testobj/afu.o testobj/internal.o testobj/irq.o testobj/mmio.o testobj/setup.o
 CFLAGS += -I src/include -I kernel/include -fPIC -D_FILE_OFFSET_BITS=64
 
-# change VERS_LIB if new git tag
-VERS_LIB = 0.1
+VERS_LIB = $(VERSION_MAJOR).$(VERSION_MINOR)
 LIBNAME   = libocxl.so.$(VERS_LIB)
-# change VERS_SONAME only if library breaks backward compatibility.
-# refer to file symver.map
-VERS_SONAME=0
+VERS_SONAME=$(VERSION_MAJOR)
 LIBSONAME = libocxl.so.$(VERS_SONAME)
 SONAMEOPT = -Wl,-soname,$(LIBSONAME)
 
@@ -89,7 +86,7 @@ docs:
 	$(call Q,DOCS-HTML, doxygen Doxyfile-html,)
 
 clean:
-	rm -rf obj testobj docs
+	rm -rf obj testobj sampleobj docs $(VERSION_DIR) $(VERSION_DIR).txz
 
 install: all docs
 	mkdir -p $(libdir)
@@ -103,5 +100,9 @@ install: all docs
 	install -m 0644 -D docs/html/*.* $(datadir)/libocxl
 	install -m 0644 -D docs/html/search/* $(datadir)/libocxl/search
 
+dist:
+	ln -s . $(VERSION_DIR)
+	tar Jcf $(VERSION_DIR).txz --exclude $(VERSION_DIR)/debian --exclude $(VERSION_DIR)/.git --exclude $(VERSION_DIR)/$(VERSION_DIR) $(VERSION_DIR)/*
+	rm $(VERSION_DIR)
 
-.PHONY: clean all install docs precommit cppcheck cppcheck-xml
+.PHONY: clean all install docs precommit cppcheck cppcheck-xml dist
