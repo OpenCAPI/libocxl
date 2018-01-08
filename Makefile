@@ -7,8 +7,7 @@ CFLAGS += -I src/include -I kernel/include -fPIC -D_FILE_OFFSET_BITS=64
 
 VERS_LIB = $(VERSION_MAJOR).$(VERSION_MINOR)
 LIBNAME   = libocxl.so.$(VERS_LIB)
-VERS_SONAME=$(VERSION_MAJOR)
-LIBSONAME = libocxl.so.$(VERS_SONAME)
+LIBSONAME = libocxl.so.$(VERSION_MAJOR)
 SONAMEOPT = -Wl,-soname,$(LIBSONAME)
 
 DOCDIR = docs
@@ -90,20 +89,21 @@ clean:
 	rm -rf obj testobj sampleobj docs $(VERSION_DIR) $(VERSION_DIR).txz
 
 install: all docs
-	mkdir -p $(libdir)
-	mkdir -p $(includedir)
-	mkdir -p $(mandir)/man3
-	mkdir -p $(datadir)/libocxl/search
-	install -m 0755 obj/$(LIBNAME) $(libdir)/
-	cp -d obj/libocxl.so obj/$(LIBSONAME) $(libdir)/
-	install -m 0644 src/include/libocxl.h  $(includedir)/
-	install -m 0644 -D docs/man/man3/* $(mandir)/man3
-	install -m 0644 -D docs/html/*.* $(datadir)/libocxl
-	install -m 0644 -D docs/html/search/* $(datadir)/libocxl/search
+	mkdir -p $(DESTDIR)$(libdir)
+	mkdir -p $(DESTDIR)$(includedir)
+	mkdir -p $(DESTDIR)$(mandir)/man3
+	mkdir -p $(DESTDIR)$(datadir)/libocxl/search
+	install -m 0755 obj/$(LIBNAME) $(DESTDIR)$(libdir)/
+	ln -s $(LIBNAME) $(DESTDIR)$(libdir)/$(LIBSONAME)
+	ln -s $(LIBNAME) $(DESTDIR)$(libdir)/libocxl.so
+	install -m 0644 src/include/libocxl.h  $(DESTDIR)$(includedir)/
+	install -m 0644 -D docs/man/man3/* $(DESTDIR)$(mandir)/man3
+	install -m 0644 -D docs/html/*.* $(DESTDIR)$(datadir)/libocxl
+	install -m 0644 -D docs/html/search/* $(DESTDIR)$(datadir)/libocxl/search
 
 dist:
 	ln -s . $(VERSION_DIR)
-	tar Jcf $(VERSION_DIR).txz --exclude $(VERSION_DIR)/debian --exclude $(VERSION_DIR)/.git --exclude $(VERSION_DIR)/$(VERSION_DIR) $(VERSION_DIR)/*
+	tar Jcf $(VERSION_DIR).txz --exclude $(VERSION_DIR)/packages --exclude $(VERSION_DIR)/.git --exclude $(VERSION_DIR)/$(VERSION_DIR) $(VERSION_DIR)/*
 	rm $(VERSION_DIR)
 
 .PHONY: clean all install docs precommit cppcheck cppcheck-xml dist check_ocxl_header

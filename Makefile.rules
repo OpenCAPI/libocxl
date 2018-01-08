@@ -28,7 +28,7 @@ testobj/%.o : src/%.c src/include/libocxl.h src/libocxl_internal.h | testobj
 testobj/%.o-test : unittests/%.c testobj/libocxl.a
 	$(call Q,CC, $(CC) $(CPPFLAGS) $(TESTCFLAGS) -c -o $@ $<, $@)
 
-datadir    = $(PREFIX)/share
-includedir = $(PREFIX)/include
-mandir     = $(datadir)/man
-libdir = $(PREFIX)/lib64
+datadir    ?= $(PREFIX)/share
+includedir ?= $(PREFIX)/include
+mandir     ?= $(datadir)/man
+libdir ?= $(PREFIX)/lib64
