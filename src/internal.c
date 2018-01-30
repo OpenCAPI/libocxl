@@ -33,9 +33,6 @@ char sys_path[PATH_MAX] = "/sys/class/ocxl";
 /// The base device path for OCXL devices
 char dev_path[PATH_MAX] = "/dev/ocxl";
 
-/// The device path for the usrirq device
-char irq_path[PATH_MAX] = "/dev/usrirq";
-
 /// Whether the user wants verbose error messages
 bool verbose_errors = false;
 

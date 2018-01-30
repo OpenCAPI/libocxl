@@ -20,7 +20,6 @@
 #include <fcntl.h>
 #include <stdbool.h>
 #include <unistd.h>
-#include <linux/usrirq.h>
 #include <misc/ocxl.h>
 #include <sys/eventfd.h>
 #include <sys/ioctl.h>
@@ -179,7 +178,6 @@ static void afu_init(ocxl_afu * afu)
 	afu->fd = -1;
 	afu->fd_info.type = EPOLL_SOURCE_AFU;
 	afu->fd_info.irq = NULL;
-	afu->irq_fd = -1;
 	afu->epoll_fd = -1;
 	afu->epoll_events = NULL;
 	afu->epoll_event_count = 0;
@@ -476,15 +474,6 @@ static ocxl_err afu_open(ocxl_afu *afu)
 	}
 
 	afu->fd = fd;
-
-	fd = open(irq_path, O_RDWR | O_CLOEXEC);
-	if (fd < 0) {
-		errmsg("Could not open user IRQ device '%s' for AFU '%s': Error %d: %s",
-		       irq_path, afu->device_path, errno, strerror(errno));
-		close(afu->fd);
-		return OCXL_NO_DEV;
-	}
-	afu->irq_fd = fd;
 
 	fd = epoll_create1(EPOLL_CLOEXEC);
 	if (fd < 0) {

@@ -51,18 +51,6 @@ __attribute__ ((used)) static void ocxl_set_dev_path(const char *path)
 	dev_path[sizeof(dev_path) - 1] = '\0';
 }
 
-/**
- * Set the directory used for the ocxl irq device
- *
- * Defaults to /dev/usrirq
- *
- * @param path the new path to use for the IRQ device
- */
-__attribute__ ((used)) static void ocxl_set_irq_path(const char *path)
-{
-	strncpy(irq_path, path, sizeof(irq_path));
-	irq_path[sizeof(irq_path) - 1] = '\0';
-}
 #endif // TEST_ENVIRONMENT
 
 

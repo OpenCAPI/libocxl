@@ -24,7 +24,6 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <sys/eventfd.h>
-#include <linux/usrirq.h>
 #include <misc/ocxl.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
@@ -52,7 +51,7 @@ void irq_dealloc(ocxl_afu * afu, ocxl_irq * irq)
 	}
 
 	if (irq->event.irq_offset) {
-		int rc = ioctl(afu->irq_fd, USRIRQ_FREE, &irq->event.irq_offset);
+		int rc = ioctl(afu->fd, OCXL_IOCTL_IRQ_FREE, &irq->event.irq_offset);
 		if (rc) {
 			errmsg("Could not free IRQ in kernel: %d", rc);
 		}
@@ -99,6 +98,7 @@ static ocxl_err irq_allocate(ocxl_afu * afu, ocxl_irq * irq, void *info)
 
 	irq->event.irq_offset = 0;
 	irq->event.eventfd = -1;
+	irq->event.reserved = 0;
 	irq->irq_number = UINT16_MAX;
 	irq->addr = NULL;
 	irq->info = info;
@@ -113,13 +113,13 @@ static ocxl_err irq_allocate(ocxl_afu * afu, ocxl_irq * irq, void *info)
 	}
 	irq->event.eventfd = fd;
 
-	int rc = ioctl(afu->irq_fd, USRIRQ_ALLOC, &irq->event.irq_offset);
+	int rc = ioctl(afu->fd, OCXL_IOCTL_IRQ_ALLOC, &irq->event.irq_offset);
 	if (rc) {
 		errmsg("Could not allocate IRQ in kernel: %d", rc);
 		goto errend;
 	}
 
-	rc = ioctl(my_afu->irq_fd, USRIRQ_SET_EVENTFD, &irq->event);
+	rc = ioctl(my_afu->fd, OCXL_IOCTL_IRQ_SET_FD, &irq->event);
 	if (rc) {
 		errmsg("Could not set event descriptor in kernel: %d", rc);
 		goto errend;
@@ -135,8 +135,8 @@ static ocxl_err irq_allocate(ocxl_afu * afu, ocxl_irq * irq, void *info)
 		goto errend;
 	}
 
-	irq->addr = mmap(NULL, afu->page_size, PROT_READ | PROT_WRITE, MAP_SHARED,
-	                 my_afu->irq_fd, irq->event.irq_offset);
+	irq->addr = mmap(NULL, afu->page_size, PROT_WRITE, MAP_SHARED,
+	                 my_afu->fd, irq->event.irq_offset);
 	if (irq->addr == MAP_FAILED) {
 		errmsg("mmap for IRQ for AFU '%s': %d: '%s'", afu->identifier.afu_name, errno, strerror(errno));
 		goto errend;

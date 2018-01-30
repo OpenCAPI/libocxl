@@ -33,7 +33,6 @@
 
 static const char *ocxl_sysfs_path = "/tmp/ocxl-test";
 static const char *ocxl_dev_path = "/dev/ocxl-test";
-static const char *ocxl_irq_path = "/dev/usrirq-test";
 
 #define MAX_TESTS 1024
 #define TEST_NAME_LEN	32
@@ -79,11 +78,8 @@ int current_test = -1;
 
 // virtocxl functions
 pthread_t create_ocxl_device(const char *afu_name, size_t global_mmio_size, size_t per_pasid_mmio_size);
-pthread_t create_usrirq_device(const char *dev_name);
 void stop_afu();
-void stop_usrirq();
 void term_afu();
-void term_usrirq();
 void force_translation_fault(void *addr, uint64_t dsisr);
 bool afu_is_attached();
 
@@ -394,7 +390,6 @@ end:
 
 
 pthread_t afu_thread = 0;
-pthread_t usrirq_thread = 0;
 
 /**
  * Create the virtual AFU
@@ -404,12 +399,6 @@ static void create_afu() {
 	afu_thread = create_ocxl_device("IBM,Dummy", GLOBAL_MMIO_SIZE, PER_PASID_MMIO_SIZE);
 	if (!afu_thread) {
 		fprintf(stderr, "Could not create dummy AFU\n");
-		exit(1);
-	}
-
-	usrirq_thread = create_usrirq_device("usrirq-test");
-	if (!usrirq_thread) {
-		fprintf(stderr, "Could not create dummy usrirq\n");
 		exit(1);
 	}
 }
@@ -492,13 +481,11 @@ static void test_afu_open() {
 	ASSERT(OCXL_OK == get_afu_by_path("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu));
 	ocxl_afu * my_afu = (ocxl_afu *)afu;
 	ASSERT(my_afu->fd == -1);
-	ASSERT(my_afu->irq_fd == -1);
 	ASSERT(my_afu->epoll_fd == -1);
 
 	ASSERT(OCXL_OK == afu_open(afu));
 
 	ASSERT(my_afu->fd != -1);
-	ASSERT(my_afu->irq_fd != -1);
 	ASSERT(my_afu->epoll_fd != -1);
 
 	test_stop(SUCCESS);
@@ -592,7 +579,6 @@ static void test_ocxl_afu_open_from_dev() {
 	ASSERT(OCXL_OK == ocxl_afu_open_from_dev("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu));
 	ocxl_afu * my_afu = (ocxl_afu *)afu;
 	ASSERT(my_afu->fd != -1);
-	ASSERT(my_afu->irq_fd != -1);
 	ASSERT(my_afu->epoll_fd != -1);
 	ASSERT(!strcmp(ocxl_afu_get_device_path(afu), "/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0"));
 
@@ -651,7 +637,6 @@ static void test_ocxl_afu_open() {
 	ASSERT(OCXL_OK == ocxl_afu_open("IBM,Dummy", &afu));
 	ocxl_afu * my_afu = (ocxl_afu *)afu;
 	ASSERT(my_afu->fd != -1);
-	ASSERT(my_afu->irq_fd != -1);
 	ASSERT(my_afu->epoll_fd != -1);
 	ASSERT(!strcmp(ocxl_afu_get_device_path(afu), "/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0"));
 
@@ -680,7 +665,6 @@ static void test_ocxl_afu_use_from_dev() {
 	ASSERT(OCXL_OK == ocxl_afu_use_from_dev("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu, 0, OCXL_MMIO_HOST_ENDIAN, OCXL_MMIO_HOST_ENDIAN));
 	ocxl_afu * my_afu = (ocxl_afu *)afu;
 	ASSERT(my_afu->fd != -1);
-	ASSERT(my_afu->irq_fd != -1);
 	ASSERT(my_afu->epoll_fd != -1);
 	ASSERT(my_afu->global_mmio.start != NULL);
 	ASSERT(!strcmp(ocxl_afu_get_device_path(afu), "/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0"));
@@ -709,7 +693,6 @@ static void test_ocxl_afu_use() {
 	ASSERT(OCXL_OK == ocxl_afu_use("IBM,Dummy", &afu, 0, OCXL_MMIO_HOST_ENDIAN, OCXL_MMIO_HOST_ENDIAN));
 	ocxl_afu * my_afu = (ocxl_afu *)afu;
 	ASSERT(my_afu->fd != -1);
-	ASSERT(my_afu->irq_fd != -1);
 	ASSERT(my_afu->epoll_fd != -1);
 	ASSERT(my_afu->global_mmio.start != NULL);
 	ASSERT(!strcmp(ocxl_afu_get_device_path(afu), "/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0"));
@@ -1244,13 +1227,6 @@ static void exit_handler() {
 		pthread_join(afu_thread, &ret);
 		term_afu();
 	}
-
-	if (usrirq_thread) {
-		stop_usrirq();
-		pthread_kill(usrirq_thread, SIGTERM);
-		pthread_join(usrirq_thread, &ret);
-		term_usrirq();
-	}
 }
 
 int main(int args, const char **argv) {
@@ -1262,7 +1238,6 @@ int main(int args, const char **argv) {
 
 	ocxl_set_sys_path(ocxl_sysfs_path);
 	ocxl_set_dev_path(ocxl_dev_path);
-	ocxl_set_irq_path(ocxl_irq_path);
 	ocxl_want_verbose_errors(1);
 
 	struct stat sysfs_stat;

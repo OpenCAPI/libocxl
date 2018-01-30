@@ -17,9 +17,9 @@
 #ifndef _LIBOCXL_INTERNAL_H
 #define _LIBOCXL_INTERNAL_H
 
+#include <misc/ocxl.h>
 #include "libocxl.h"
 #include <stdbool.h>
-#include "linux/usrirq.h"
 
 #define DEBUG(__dbg_format, __dbg_args...) \
 do {\
@@ -39,7 +39,6 @@ void errmsg(const char *format, ...);
 
 extern char sys_path[PATH_MAX];
 extern char dev_path[PATH_MAX];
-extern char irq_path[PATH_MAX];
 extern bool verbose_errors;
 extern bool tracing;
 extern FILE *errmsg_filehandle;
@@ -79,7 +78,7 @@ typedef struct epoll_fd_source {
  * AFU IRQ information
  */
 struct ocxl_irq {
-	struct usrirq_event event; /**< The event descriptor */
+	struct ocxl_ioctl_irq_fd event; /**< The event descriptor */
 	uint16_t irq_number; /**< The 0 indexed IRQ number */
 	void *addr; /**< The mmaped address of the IRQ page */
 	void *info; /**< Additional info to pass to the user */
@@ -100,7 +99,6 @@ typedef struct ocxl_afu {
 	uint8_t version_minor;
 	int fd;	/**< A file descriptor for operating on the AFU */
 	epoll_fd_source fd_info; /**< Epoll information for the main AFU fd */
-	int irq_fd; /**< A file descriptor for AFU usrirq IRQs */
 	int epoll_fd; /**< A file descriptor for AFU IRQs wrapped with epoll */
 	struct epoll_event *epoll_events; /**< buffer for epoll return */
 	size_t epoll_event_count; /**< number of elements available in the epoll_events buffer */
