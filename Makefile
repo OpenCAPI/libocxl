@@ -53,9 +53,14 @@ obj/libocxl.a: $(OBJS)
 
 include Makefile.rules
 
-precommit: clean all
+cppcheck:
+	cppcheck --enable=all -j 4 -q  src/*.c src/include/libocxl.h
+	
+cppcheck-xml:
+	cppcheck --enable=all -j 4 -q  src/*.c src/include/libocxl.h --xml-version=2 2>cppcheck.xml
+
+precommit: clean all cppcheck
 	astyle --style=linux --indent=tab=8 --max-code-length=120 src/*.c src/*.h src/include/*.h
-	cppcheck --enable=all -j 4 -q  src/*.c src/include/libocxl.h 
 
 docs:
 	rm -rf $(DOCDIR)
@@ -78,4 +83,4 @@ install: all
 	install -m 0644 -D docs/html/search/* $(datadir)/libocxl/search
 
 
-.PHONY: clean all install docs precommit
+.PHONY: clean all install docs precommit cppcheck cppcheck-xml
