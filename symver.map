@@ -8,7 +8,6 @@ LIBOCXL_0 {
 		ocxl_afu_get_mmio_size;
 		ocxl_afu_open_from_dev;
 		ocxl_afu_close;
-		ocxl_afu_free;
 		ocxl_afu_open;
 		ocxl_afu_open_from_dev;
 		ocxl_afu_open_by_name;

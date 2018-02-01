@@ -234,7 +234,7 @@ static void test_ocxl_afu_alloc() {
 	test_stop(SUCCESS);
 
 end:
-	ocxl_afu_free(afu);
+	ocxl_afu_close(afu);
 }
 
 /**
@@ -458,7 +458,7 @@ static void test_get_afu_by_path() {
 	ASSERT(OCXL_OK == get_afu_by_path("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu));
 	ASSERT(afu != 0);
 	ASSERT(!strcmp(ocxl_afu_get_device_path(afu), "/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0"));
-	ocxl_afu_free(afu);
+	ocxl_afu_close(afu);
 
 	afu = 0;
 
@@ -473,7 +473,7 @@ static void test_get_afu_by_path() {
 end:
 	ocxl_want_verbose_errors(1);
 	if (afu) {
-		ocxl_afu_free(afu);
+		ocxl_afu_close(afu);
 	}
 
 	unlink(symlink_path);
@@ -503,7 +503,7 @@ static void test_afu_open() {
 
 end:
 	if (afu) {
-		ocxl_afu_free(afu);
+		ocxl_afu_close(afu);
 	}
 }
 
@@ -524,7 +524,7 @@ static void test_ocxl_afu_open() {
 	ASSERT(OCXL_OK == ocxl_afu_open("IBM,Dummy", "0001:00:00.1", 0, &afu));
 	ASSERT(afu != OCXL_INVALID_AFU);
 	ASSERT(!strcmp(ocxl_afu_get_device_path(afu), "/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0"));
-	ocxl_afu_free(afu);
+	ocxl_afu_close(afu);
 	afu = OCXL_INVALID_AFU;
 
 	ASSERT(OCXL_OK == ocxl_afu_open("IBM,Dummy", "0001:00:00.1", -1, &afu));
@@ -536,7 +536,7 @@ static void test_ocxl_afu_open() {
 end:
 	ocxl_want_verbose_errors(1);
 	if (afu) {
-		ocxl_afu_free(afu);
+		ocxl_afu_close(afu);
 	}
 }
 
@@ -558,7 +558,7 @@ static void test_ocxl_afu_open_by_id() {
 	ASSERT(OCXL_OK == ocxl_afu_open("IBM,Dummy", 0, 0, &afu));
 	ASSERT(afu != OCXL_INVALID_AFU);
 	ASSERT(!strcmp(ocxl_afu_get_device_path(afu), "/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0"));
-	ocxl_afu_free(afu);
+	ocxl_afu_close(afu);
 	afu = OCXL_INVALID_AFU;
 
 	ASSERT(OCXL_OK == ocxl_afu_open("IBM,Dummy", 0, -1, &afu));
@@ -570,7 +570,7 @@ static void test_ocxl_afu_open_by_id() {
 end:
 	ocxl_want_verbose_errors(1);
 	if (afu) {
-		ocxl_afu_free(afu);
+		ocxl_afu_close(afu);
 	}
 }
 
@@ -599,7 +599,7 @@ static void test_ocxl_afu_open_from_dev() {
 end:
 	ocxl_want_verbose_errors(1);
 	if (afu) {
-		ocxl_afu_free(afu);
+		ocxl_afu_close(afu);
 	}
 }
 
@@ -630,7 +630,7 @@ static void test_afu_getters() {
 
 end:
 	if (afu) {
-		ocxl_afu_free(afu);
+		ocxl_afu_close(afu);
 	}
 }
 
@@ -658,7 +658,7 @@ static void test_ocxl_afu_open_by_name() {
 end:
 	ocxl_want_verbose_errors(1);
 	if (afu) {
-		ocxl_afu_free(afu);
+		ocxl_afu_close(afu);
 	}
 }
 
@@ -688,7 +688,7 @@ static void test_ocxl_afu_use_from_dev() {
 end:
 ocxl_want_verbose_errors(1);
 	if (afu) {
-		ocxl_afu_free(afu);
+		ocxl_afu_close(afu);
 	}
 }
 
@@ -717,7 +717,7 @@ static void test_ocxl_afu_use_by_name() {
 end:
 ocxl_want_verbose_errors(1);
 	if (afu) {
-		ocxl_afu_free(afu);
+		ocxl_afu_close(afu);
 	}
 }
 
@@ -741,7 +741,7 @@ static void test_ocxl_afu_attach() {
 
 end:
 	if (afu) {
-		ocxl_afu_free(afu);
+		ocxl_afu_close(afu);
 	}
 }
 
@@ -762,7 +762,7 @@ static void test_ocxl_afu_close_free() {
 
 end:
 	if (afu) {
-		ocxl_afu_free(afu);
+		ocxl_afu_close(afu);
 	}
 }
 
@@ -817,7 +817,7 @@ static void test_ocxl_global_mmio_map() {
 
 end:
 	if (afu) {
-		ocxl_afu_free(afu);
+		ocxl_afu_close(afu);
 	}
 }
 
@@ -873,7 +873,7 @@ static void test_ocxl_mmio_map() {
 
 end:
 	if (afu) {
-		ocxl_afu_free(afu);
+		ocxl_afu_close(afu);
 	}
 }
 #endif
@@ -905,7 +905,7 @@ static void test_mmio_check() {
 end:
 	ocxl_want_verbose_errors(1);
 	if (afu) {
-		ocxl_afu_free(afu);
+		ocxl_afu_close(afu);
 	}
 }
 
@@ -981,7 +981,7 @@ static void test_read32() {
 
 end:
 	if (afu) {
-		ocxl_afu_free(afu);
+		ocxl_afu_close(afu);
 	}
 }
 
@@ -1056,7 +1056,7 @@ static void test_read64() {
 
 end:
 	if (afu) {
-		ocxl_afu_free(afu);
+		ocxl_afu_close(afu);
 	}
 }
 
@@ -1091,7 +1091,7 @@ static void test_ocxl_global_mmio_read32() {
 end:
 	ocxl_want_verbose_errors(1);
 	if (afu) {
-		ocxl_afu_free(afu);
+		ocxl_afu_close(afu);
 	}
 }
 
@@ -1125,7 +1125,7 @@ static void test_ocxl_global_mmio_read64() {
 
 end:
 	if (afu) {
-		ocxl_afu_free(afu);
+		ocxl_afu_close(afu);
 	}
 }
 

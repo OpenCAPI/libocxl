@@ -205,7 +205,7 @@ static void afu_init(ocxl_afu * afu)
 }
 
 /**
- * Allocate an AFU handle (should be freed with ocxl_afu_free)
+ * Allocate an AFU handle (should be freed with ocxl_afu_close)
  *
  * @param[out] afu_out a pointer to an AFU handle to set
  * @retval OCXL_OK if the AFU was allocated
@@ -452,7 +452,7 @@ static bool populate_metadata(dev_t dev, ocxl_afu * afu)
  * An AFU can have many contexts, the device can be opened once for each
  * context that is available. A seperate afu handle is required for each context.
  *
- * @param afu the AFU handle we want to open
+ * @param afu the AFU instance we want to open
  * @retval OCXL_OK on success
  * @retval OCXL_NO_DEV if the AFU is invalid
  * @retval OCXL_ALREADY_DONE if the AFU is already open
@@ -550,7 +550,7 @@ static ocxl_err get_afu_by_path(const char *path, ocxl_afu_h * afu)
  * Open an AFU at a specified path
  *
  * @param path the path of the AFU
- * @param[out] afu the AFU handle which we will allocate. This should be freed with ocxl_afu_free
+ * @param[out] afu the AFU handle which we will allocate. This should be freed with ocxl_afu_close
  * @retval OCXL_OK if we have successfully fetched the AFU
  * @retval OCXL_NO_MEM if an out of memory error occurred
  * @retval OCXL_NO_DEV if the device is invalid
@@ -565,9 +565,9 @@ ocxl_err ocxl_afu_open_from_dev(const char *path, ocxl_afu_h * afu)
 		return rc;
 	}
 
-	rc = afu_open(*afu);
+	rc = afu_open((ocxl_afu *)*afu);
 	if (rc != OCXL_OK) {
-		ocxl_afu_free(afu);
+		ocxl_afu_close(*afu);
 		*afu = OCXL_INVALID_AFU;
 		return rc;
 	}
@@ -698,7 +698,7 @@ end:
  * @param name the name of the AFU
  * @param physical_function the PCI physical function of the card (as a string, or NULL for any)
  * @param afu_index the AFU index (or -1 for any)
- * @param[out] afu the AFU handle which we will allocate. This should be freed with ocxl_afu_free
+ * @param[out] afu the AFU handle which we will allocate. This should be freed with ocxl_afu_close
  * @retval OCXL_OK if we have successfully fetched the AFU
  * @retval OCXL_NO_MEM if an out of memory error occurred
  * @retval OCXL_NO_DEV if no valid device was found
@@ -763,7 +763,7 @@ end:
  * @param name the name of the AFU
  * @param card_index the card index (in order of discovery)
  * @param afu_index the AFU index (or -1 for any)
- * @param[out] afu the AFU handle which we will allocate. This should be freed with ocxl_afu_free
+ * @param[out] afu the AFU handle which we will allocate. This should be freed with ocxl_afu_close
  * @retval OCXL_OK if we have successfully fetched the AFU
  * @retval OCXL_NO_MEM if an out of memory error occurred
  * @retval OCXL_NO_DEV if no valid device was found
@@ -801,7 +801,7 @@ end:
  * Open an AFU with a specified name
  *
  * @param name the name of the AFU
- * @param[out] afu the AFU handle which we will allocate. This should be freed with ocxl_afu_free
+ * @param[out] afu the AFU handle which we will allocate. This should be freed with ocxl_afu_close
  * @retval OCXL_OK if we have successfully fetched the AFU
  * @retval OCXL_NO_MEM if an out of memory error occurred
  * @retval OCXL_NO_DEV if no valid device was found
@@ -935,7 +935,7 @@ ocxl_err ocxl_afu_use_from_dev(const char *path, ocxl_afu_h * afu, uint64_t amr,
 
 	rc = ocxl_afu_use(*afu, amr, global_endianess, per_pasid_endianess);
 	if (rc != OCXL_OK) {
-		ocxl_afu_free(afu);
+		ocxl_afu_close(*afu);
 		*afu = OCXL_INVALID_AFU;
 		return rc;
 	}
@@ -954,7 +954,7 @@ ocxl_err ocxl_afu_use_from_dev(const char *path, ocxl_afu_h * afu, uint64_t amr,
  * @see afu_open, ocxl_afu_attach, ocxl_global_mmio_map, ocxl_mmio_map
  *
  * @param name the name of the AFU
- * @param[out] afu the AFU handle which we will allocate. This should be freed with ocxl_afu_free
+ * @param[out] afu the AFU handle which we will allocate. This should be freed with ocxl_afu_close
  * @param[out] afu a pointer to the AFU handle we want to open
  * @param amr the value of the PPC64 specific PSL AMR register, may be 0 if this should be left alone
  * @param global_endianess	The endianess of the global MMIO area
@@ -1014,8 +1014,6 @@ end:
 /**
  * Close an AFU and detach it from the context
  *
- * @see ocxl_afu_free
- *
  * @param afu a pointer to the AFU handle we want to close
  * @retval OCXL_OK if the AFU was freed
  * @retval OCXL_ALREADY_DONE if the AFU was not open
@@ -1051,23 +1049,9 @@ ocxl_err ocxl_afu_close(ocxl_afu_h afu)
 	close(my_afu->fd);
 	my_afu->fd = -1;
 
-	return OCXL_OK;
-}
-
-/**
- * Frees an AFU handle
- *
- * This will implicitly call ocxl_afu_close() to free AFU resources before freeing the handle.
- *
- * @param afu the AFU handle to free
- * @post the handle can no longer be used
- */
-void ocxl_afu_free(ocxl_afu_h afu)
-{
-	(void)ocxl_afu_close(afu);
-
-	ocxl_afu *my_afu = (ocxl_afu *) afu;
 	free(my_afu);
+
+	return OCXL_OK;
 }
 
 /**
