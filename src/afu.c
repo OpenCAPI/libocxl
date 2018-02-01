@@ -31,6 +31,7 @@
 #include <sys/types.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/epoll.h>
 
 /**
  * @defgroup ocxl_afu_getters OpenCAPI AFU Getters
@@ -158,7 +159,12 @@ static void afu_init(ocxl_afu * afu)
 	memset(afu->device_path, '\0', sizeof(afu->device_path));
 	memset(afu->sysfs_path, '\0', sizeof(afu->sysfs_path));
 	afu->fd = -1;
+	afu->fd_info.type = EPOLL_SOURCE_AFU;
+	afu->fd_info.irq = NULL;
 	afu->irq_fd = -1;
+	afu->epoll_fd = -1;
+	afu->epoll_events = NULL;
+	afu->epoll_event_count = 0;
 	afu->global_mmio_fd = -1;
 
 	afu->global_mmio.endianess = OCXL_MMIO_HOST_ENDIAN;
@@ -395,6 +401,23 @@ ocxl_err ocxl_afu_open(ocxl_afu_h afu)
 	}
 	my_afu->irq_fd = fd;
 
+	fd = epoll_create1(EPOLL_CLOEXEC);
+	if (fd < 0) {
+		errmsg("Could not create epoll descriptor. Error %d: %s",
+		       errno, strerror(errno));
+		return OCXL_NO_DEV;
+	}
+	my_afu->epoll_fd = fd;
+
+	struct epoll_event ev;
+	ev.events = EPOLLIN;
+	ev.data.ptr = &my_afu->fd_info; // Already set up in afu_init
+	if (epoll_ctl(my_afu->epoll_fd, EPOLL_CTL_ADD, my_afu->fd, &ev) == -1) {
+		errmsg("Could not add device fd %d to epoll fd %d for AFU '%s'",
+		       my_afu->fd, my_afu->epoll_fd, my_afu->identifier.afu_name);
+		return OCXL_NO_DEV;
+	}
+
 	return OCXL_OK;
 }
 
@@ -557,6 +580,11 @@ ocxl_err ocxl_afu_close(ocxl_afu_h afu)
 		my_afu->irqs = NULL;
 		my_afu->irq_count = 0;
 		my_afu->irq_size = 0;
+	}
+
+	if (my_afu->epoll_events) {
+		free(my_afu->epoll_events);
+		my_afu->epoll_event_count = 0;
 	}
 
 	close(my_afu->fd);

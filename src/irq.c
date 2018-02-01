@@ -30,6 +30,7 @@
 #include <sys/ioctl.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/epoll.h>
 
 #define MAX_EVENT_SIZE	(16*sizeof(uint64_t))
 
@@ -114,8 +115,11 @@ static ocxl_err irq_allocate(ocxl_afu * afu, ocxl_irq * irq, void *info)
 
 	irq->event.irq_offset = 0;
 	irq->event.eventfd = -1;
+	irq->irq_number = UINT16_MAX;
 	irq->addr = NULL;
 	irq->info = info;
+	irq->fd_info.type = EPOLL_SOURCE_IRQ;
+	irq->fd_info.irq = irq;
 
 	int fd = eventfd(0, EFD_CLOEXEC);
 	if (fd < 0) {
@@ -137,12 +141,22 @@ static ocxl_err irq_allocate(ocxl_afu * afu, ocxl_irq * irq, void *info)
 		goto errend;
 	}
 
+	struct epoll_event ev;
+	ev.events = EPOLLIN;
+	ev.data.ptr = &irq->fd_info;
+	if (epoll_ctl(my_afu->epoll_fd, EPOLL_CTL_ADD, irq->event.eventfd, &ev) == -1) {
+		errmsg("Could not add IRQ fd %d to epoll fd %d for AFU '%s'",
+		       irq->event.eventfd, my_afu->epoll_fd, my_afu->identifier.afu_name);
+		goto errend;
+	}
+
 	irq->addr = mmap(NULL, afu->page_size, PROT_READ | PROT_WRITE, MAP_SHARED,
 	                 my_afu->irq_fd, irq->event.irq_offset);
 	if (irq->addr == MAP_FAILED) {
 		errmsg("mmap for IRQ for AFU '%s': %d: '%s'", afu->identifier.afu_name, errno, strerror(errno));
 		goto errend;
 	}
+
 
 	return OCXL_OK;
 
@@ -183,6 +197,7 @@ ocxl_err ocxl_afu_irq_alloc(ocxl_afu_h afu, void *info, ocxl_irq_h * irq)
 		errmsg("Could not allocate IRQ for AFU '%s'", my_afu->identifier.afu_name);
 		return rc;
 	}
+	my_afu->irqs[my_afu->irq_count].irq_number = my_afu->irq_count;
 
 	*irq = (ocxl_irq_h)my_afu->irq_count;
 	my_afu->irq_count++;
@@ -288,67 +303,74 @@ static ocxl_event_action read_afu_event(ocxl_afu *afu, uint16_t max_supported_ev
 
 
 /**
- * Check for pending IRQs
+ * Check for pending IRQs & other events
  *
  * @param afu the AFU holding the interrupts
- * @param timeout how long to wait for interrupts to arrive
+ * @param timeout how long to wait (in milliseconds) for interrupts to arrive, set to -1 to wait indefinitely, or 0 to return immediately if no events are available
  * @param[out] events the triggered events (caller allocated)
  * @param event_count the number of events that can fit into the events array
  * @param max_supported_event the id of the maximum supported kernel event, events with an ID higher than this will be ignored
  * @return the number of events triggered, if this is the same as event_count, you should call ocxl_afu_event_check again
+ * @retval -1 if an error occurred
  */
-static uint16_t __ocxl_afu_event_check(ocxl_afu_h afu, struct timeval * timeout, ocxl_event *events,
-                                       uint16_t event_count, uint16_t max_supported_event)
+static int __ocxl_afu_event_check(ocxl_afu_h afu, int timeout, ocxl_event *events,
+                                  uint16_t event_count, uint16_t max_supported_event)
 {
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 
-	fd_set event_fds;
-	int maxfd;
+	if (event_count > my_afu->epoll_event_count) {
+		free(my_afu->epoll_events);
+		my_afu->epoll_events = NULL;
+		my_afu->epoll_event_count = 0;
 
-	FD_ZERO(&event_fds);
-	FD_SET(my_afu->fd, &event_fds);
-	maxfd = my_afu->fd;
-
-	for (uint16_t irq = 0; irq < my_afu->irq_count; irq++) {
-		if (my_afu->irqs[irq].event.eventfd >= 0) {
-			FD_SET(my_afu->irqs[irq].event.eventfd, &event_fds);
-			if (maxfd < my_afu->irqs[irq].event.eventfd) {
-				maxfd = my_afu->irqs[irq].event.eventfd;
-			}
+		struct epoll_event *events = malloc(event_count * sizeof(*events));
+		if (events == NULL) {
+			errmsg("Could not allocate space for %d events", event_count);
+			return -1;
 		}
+
+		my_afu->epoll_events = events;
+		my_afu->epoll_event_count = event_count;
 	}
 
-	int ready = select(maxfd + 1, &event_fds, NULL, NULL, timeout);
+	int count;
+	if ((count = epoll_wait(my_afu->epoll_fd, my_afu->epoll_events, event_count, timeout)) == -1) {
+		errmsg("epoll_wait failed waiting for AFU events on AFU '%s': %d: '%s'",
+		       my_afu->identifier.afu_name, errno, strerror(errno));
+		return -1;
+	}
+
 	uint16_t triggered = 0;
-	if (ready) {
-		// Handle kernel events
-		if (FD_ISSET(my_afu->fd, &event_fds)) {
-			ocxl_event_action ret;
+	for (int event = 0; event < count; event++) {
+		epoll_fd_source *info = (epoll_fd_source *)my_afu->epoll_events[event].data.ptr;
+		ocxl_event_action ret;
+		uint64_t count;
+
+		switch (info->type) {
+		case EPOLL_SOURCE_AFU:
 			while ((ret = read_afu_event(my_afu, max_supported_event, &events[triggered])),
 			       ret == OCXL_EVENT_ACTION_SUCCESS || ret == OCXL_EVENT_ACTION_IGNORE) {
 				if (ret == OCXL_EVENT_ACTION_SUCCESS) {
 					triggered++;
 				}
 			}
-		}
 
-		// Handle AFU IRQs
-		uint64_t count;
-		for (uint16_t irq = 0; irq < my_afu->irq_count; irq++) {
-			if (my_afu->irqs[irq].event.eventfd >= 0) {
-				if (FD_ISSET(my_afu->irqs[irq].event.eventfd, &event_fds)) {
-					if (read(my_afu->irqs[irq].event.eventfd, &count, sizeof(count)) < 0) {
-						errmsg("read of eventfd %d for AFU '%s' IRQ %d failed: %d: %s",
-						       my_afu->irqs[irq].event.eventfd, my_afu->identifier.afu_name,
-						       irq, errno, strerror(errno));
-					}
-					events[triggered].type = OCXL_EVENT_IRQ;
-					events[triggered].irq.irq = irq;
-					events[triggered].irq.id = (uint64_t)my_afu->irqs[irq].addr;
-					events[triggered].irq.info = my_afu->irqs[irq].info;
-					events[triggered++].irq.count = count;
-				}
+			break;
+
+		case EPOLL_SOURCE_IRQ:
+			if (read(info->irq->event.eventfd, &count, sizeof(count)) < 0) {
+				errmsg("read of eventfd %d for AFU '%s' IRQ %d failed: %d: %s",
+				       info->irq->event.eventfd, my_afu->identifier.afu_name,
+				       info->irq->irq_number, errno, strerror(errno));
+				continue;
 			}
+			events[triggered].type = OCXL_EVENT_IRQ;
+			events[triggered].irq.irq = info->irq->irq_number;
+			events[triggered].irq.id = (uint64_t)info->irq->addr;
+			events[triggered].irq.info = info->irq->info;
+			events[triggered++].irq.count = count;
+
+			break;
 		}
 	}
 
@@ -360,10 +382,11 @@ static uint16_t __ocxl_afu_event_check(ocxl_afu_h afu, struct timeval * timeout,
  *
  * @fn ocxl_afu_event_check(ocxl_afu_h afu, struct timeval * timeout, ocxl_event *events, uint16_t event_count)
  * @param afu the AFU holding the interrupts
- * @param timeout how long to wait for interrupts to arrive
+ * @param timeout how long to wait (in milliseconds) for interrupts to arrive, set to -1 to wait indefinitely, or 0 to return immediately if no events are available
  * @param[out] events the triggered events (caller allocated)
  * @param event_count the number of triggered events
  * @return the number of events triggered, if this is the same as event_count, you should call ocxl_afu_event_check again
+ * @retval -1 if an error occurred
  */
 // No function implementation for ocxl_event_check, we set up a versioned symbol alias for it instead
 
@@ -372,8 +395,8 @@ static uint16_t __ocxl_afu_event_check(ocxl_afu_h afu, struct timeval * timeout,
  */
 
 
-uint16_t ocxl_afu_event_check_0(ocxl_afu_h afu, struct timeval * timeout, ocxl_event *events,
-                                uint16_t event_count)
+int ocxl_afu_event_check_0(ocxl_afu_h afu, int timeout, ocxl_event *events,
+                           uint16_t event_count)
 {
 	return __ocxl_afu_event_check(afu, timeout, events, event_count, 0);
 }

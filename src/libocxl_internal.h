@@ -45,15 +45,37 @@ typedef struct ocxl_mmio_area {
 	ocxl_endian endianess; /**< The endianess of the MMIO area */
 } ocxl_mmio_area;
 
+
+struct ocxl_irq;
+typedef struct ocxl_irq ocxl_irq;
+
+/**
+ * @internal
+ * Metadata for determining which source triggered an epoll fd
+ */
+typedef struct epoll_fd_source {
+	enum {
+		EPOLL_SOURCE_AFU,
+		EPOLL_SOURCE_IRQ,
+	} type;
+	union {
+		ocxl_irq *irq;
+	};
+} epoll_fd_source;
+
 /**
  * @internal
  * AFU IRQ information
  */
-typedef struct ocxl_irq {
+struct ocxl_irq {
 	struct usrirq_event event; /**< The event descriptor */
+	uint16_t irq_number; /**< The 0 indexed IRQ number */
 	void *addr; /**< The mmaped address of the IRQ page */
 	void *info; /**< Additional info to pass to the user */
-} ocxl_irq;
+	epoll_fd_source fd_info; /**< Epoll information for this IRQ */
+};
+
+
 
 /**
  * @internal
@@ -64,7 +86,11 @@ typedef struct ocxl_afu {
 	char device_path[PATH_MAX + 1];
 	char sysfs_path[PATH_MAX + 1];
 	int fd;	/**< A file descriptor for operating on the AFU */
-	int irq_fd; /**< A file descriptor for AFU IRQs */
+	epoll_fd_source fd_info; /**< Epoll information for the main AFU fd */
+	int irq_fd; /**< A file descriptor for AFU usrirq IRQs */
+	int epoll_fd; /**< A file descriptor for AFU IRQs wrapped with epoll */
+	struct epoll_event *epoll_events; /**< buffer for epoll return */
+	size_t epoll_event_count; /**< number of elements available in the epoll_events buffer */
 	int global_mmio_fd; /**< A file descriptor for accessing the AFU global MMIO area */
 	ocxl_mmio_area global_mmio;
 	ocxl_mmio_area per_pasid_mmio;
