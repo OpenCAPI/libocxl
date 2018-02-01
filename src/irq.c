@@ -201,10 +201,6 @@ ocxl_err ocxl_afu_irq_alloc(ocxl_afu_h afu, void *info, ocxl_irq_h * irq)
  */
 uint64_t ocxl_afu_irq_get_id(ocxl_afu_h afu, ocxl_irq_h irq)
 {
-	if (afu == OCXL_INVALID_AFU) {
-		return 0;
-	}
-
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 
 	if (irq > my_afu->irq_count) {

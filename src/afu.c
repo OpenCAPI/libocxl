@@ -40,7 +40,6 @@
  * paths, and MMIO sizes.
  *
  * These operate on any valid AFU handle, even if it has not been opened.
- * These may not be called on an INVALID_AFU handle.
  *
  * @{
  */
@@ -303,15 +302,10 @@ static bool populate_metadata(dev_t dev, ocxl_afu * afu)
  * @retval OCXL_OK if we have successfully fetched the AFU
  * @retval OCXL_NO_MEM if an out of memory error occured
  * @retval OCXL_NO_DEV if the device is invalid
- * @retval OCXL_ALREADY_DONE if the AFU handle is in use
  */
 static ocxl_err get_afu_by_path(const char *path, ocxl_afu_h * afu)
 {
-	if (*afu != OCXL_INVALID_AFU) {
-		return OCXL_ALREADY_DONE;
-	}
-
-	ocxl_afu_h afu_h = OCXL_INVALID_AFU;
+	ocxl_afu_h afu_h;
 	ocxl_err rc = ocxl_afu_alloc(&afu_h);
 	if (rc != OCXL_OK) {
 		return rc;
@@ -344,7 +338,6 @@ static ocxl_err get_afu_by_path(const char *path, ocxl_afu_h * afu)
  * @retval OCXL_OK if we have successfully fetched the AFU
  * @retval OCXL_NO_MEM if an out of memory error occured
  * @retval OCXL_NO_DEV if the device is invalid
- * @retval OCXL_ALREADY_DONE if the AFU handle is in use
  */
 ocxl_err ocxl_afu_open_from_dev(const char *path, ocxl_afu_h * afu)
 {
@@ -378,11 +371,6 @@ ocxl_err ocxl_afu_open_from_dev(const char *path, ocxl_afu_h * afu)
  */
 ocxl_err ocxl_afu_open(ocxl_afu_h afu)
 {
-	if (OCXL_INVALID_AFU == afu) {
-		errmsg("AFU has not been initialized");
-		return OCXL_NO_DEV;
-	}
-
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 
 	if (my_afu->fd != -1) {
@@ -607,18 +595,12 @@ ocxl_err ocxl_afu_close(ocxl_afu_h afu)
  * @param afu the AFU handle to free
  * @post the handle can no longer be used
  */
-void ocxl_afu_free(ocxl_afu_h * afu)
+void ocxl_afu_free(ocxl_afu_h afu)
 {
-	if (*afu == OCXL_INVALID_AFU) {
-		return;
-	}
+	(void)ocxl_afu_close(afu);
 
-	(void)ocxl_afu_close(*afu);
-
-	ocxl_afu *my_afu = (ocxl_afu *) * afu;
+	ocxl_afu *my_afu = (ocxl_afu *) afu;
 	free(my_afu);
-
-	*afu = OCXL_INVALID_AFU;
 }
 
 /**

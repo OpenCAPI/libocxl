@@ -123,9 +123,6 @@ ocxl_err ocxl_global_mmio_map(ocxl_afu_h afu, ocxl_endian endian)
  */
 ocxl_err ocxl_mmio_map(ocxl_afu_h afu, ocxl_endian endian)
 {
-	if (afu == OCXL_INVALID_AFU) {
-		return OCXL_NO_CONTEXT;
-	}
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 
 	if (my_afu->fd < 0) {
@@ -155,9 +152,6 @@ ocxl_err ocxl_mmio_map(ocxl_afu_h afu, ocxl_endian endian)
  */
 void ocxl_global_mmio_unmap(ocxl_afu_h afu)
 {
-	if (afu == OCXL_INVALID_AFU) {
-		return;
-	}
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 
 	if (my_afu->global_mmio.start) {
@@ -178,9 +172,6 @@ void ocxl_global_mmio_unmap(ocxl_afu_h afu)
  */
 void ocxl_mmio_unmap(ocxl_afu_h afu)
 {
-	if (afu == OCXL_INVALID_AFU) {
-		return;
-	}
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 
 	if (my_afu->per_pasid_mmio.start) {
@@ -342,9 +333,6 @@ inline static void write64(ocxl_mmio_area * mmio, size_t offset, uint64_t value)
  */
 ocxl_err ocxl_global_mmio_read32(ocxl_afu_h afu, size_t offset, uint32_t * out)
 {
-	if (afu == OCXL_INVALID_AFU) {
-		return OCXL_NO_CONTEXT;
-	}
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 
 	ocxl_err ret = mmio_check(my_afu, true, offset, 4);
@@ -375,9 +363,6 @@ ocxl_err ocxl_global_mmio_read32(ocxl_afu_h afu, size_t offset, uint32_t * out)
  */
 ocxl_err ocxl_global_mmio_read64(ocxl_afu_h afu, size_t offset, uint64_t * out)
 {
-	if (afu == OCXL_INVALID_AFU) {
-		return OCXL_NO_CONTEXT;
-	}
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 
 	ocxl_err ret = mmio_check(my_afu, true, offset, 8);
@@ -408,9 +393,6 @@ ocxl_err ocxl_global_mmio_read64(ocxl_afu_h afu, size_t offset, uint64_t * out)
  */
 ocxl_err ocxl_global_mmio_write32(ocxl_afu_h afu, size_t offset, uint32_t value)
 {
-	if (afu == OCXL_INVALID_AFU) {
-		return OCXL_NO_CONTEXT;
-	}
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 
 	ocxl_err ret = mmio_check(my_afu, true, offset, 4);
@@ -441,9 +423,6 @@ ocxl_err ocxl_global_mmio_write32(ocxl_afu_h afu, size_t offset, uint32_t value)
  */
 ocxl_err ocxl_global_mmio_write64(ocxl_afu_h afu, size_t offset, uint64_t value)
 {
-	if (afu == OCXL_INVALID_AFU) {
-		return OCXL_NO_CONTEXT;
-	}
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 
 	ocxl_err ret = mmio_check(my_afu, true, offset, 8);
@@ -474,9 +453,6 @@ ocxl_err ocxl_global_mmio_write64(ocxl_afu_h afu, size_t offset, uint64_t value)
  */
 ocxl_err ocxl_mmio_read32(ocxl_afu_h afu, size_t offset, uint32_t * out)
 {
-	if (afu == OCXL_INVALID_AFU) {
-		return OCXL_NO_CONTEXT;
-	}
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 
 	ocxl_err ret = mmio_check(my_afu, false, offset, 4);
@@ -507,9 +483,6 @@ ocxl_err ocxl_mmio_read32(ocxl_afu_h afu, size_t offset, uint32_t * out)
  */
 ocxl_err ocxl_mmio_read64(ocxl_afu_h afu, size_t offset, uint64_t * out)
 {
-	if (afu == OCXL_INVALID_AFU) {
-		return OCXL_NO_CONTEXT;
-	}
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 
 	ocxl_err ret = mmio_check(my_afu, false, offset, 8);
@@ -540,9 +513,6 @@ ocxl_err ocxl_mmio_read64(ocxl_afu_h afu, size_t offset, uint64_t * out)
  */
 ocxl_err ocxl_mmio_write32(ocxl_afu_h afu, size_t offset, uint32_t value)
 {
-	if (afu == OCXL_INVALID_AFU) {
-		return OCXL_NO_CONTEXT;
-	}
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 
 	ocxl_err ret = mmio_check(my_afu, false, offset, 4);
@@ -573,9 +543,6 @@ ocxl_err ocxl_mmio_write32(ocxl_afu_h afu, size_t offset, uint32_t value)
  */
 ocxl_err ocxl_mmio_write64(ocxl_afu_h afu, size_t offset, uint64_t value)
 {
-	if (afu == OCXL_INVALID_AFU) {
-		return OCXL_NO_CONTEXT;
-	}
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 
 	ocxl_err ret = mmio_check(my_afu, false, offset, 8);

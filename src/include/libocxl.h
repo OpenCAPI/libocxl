@@ -50,13 +50,11 @@ typedef struct ocxl_identifier {
  * A handle for an AFU
  */
 typedef void *ocxl_afu_h;
-#define OCXL_INVALID_AFU NULL /**< An invalid AFU handle */
 
 /**
  * A handle for an IRQ on an AFU
  */
 typedef uint16_t ocxl_irq_h;
-#define OCXL_INVALID_IRQ UINT16_MAX /**< An invalid IRQ handle */
 
 /**
  * Potential return values from ocxl_* functions
@@ -132,7 +130,7 @@ size_t ocxl_afu_get_mmio_size(ocxl_afu_h afu);
 /* AFU operations */
 ocxl_err ocxl_afu_open_from_dev(const char *path, ocxl_afu_h * afu);
 ocxl_err ocxl_afu_close(ocxl_afu_h afu);
-void ocxl_afu_free(ocxl_afu_h * afu);
+void ocxl_afu_free(ocxl_afu_h afu);
 ocxl_err ocxl_afu_open(ocxl_afu_h afu);
 ocxl_err ocxl_afu_attach(ocxl_afu_h afu);
 
