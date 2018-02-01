@@ -148,7 +148,7 @@ ocxl_err ocxl_afu_use_from_dev(const char *path, ocxl_afu_h * afu, uint64_t amr,
 /* AFU IRQ functions */
 ocxl_err ocxl_afu_irq_alloc(ocxl_afu_h afu, void *info, ocxl_irq_h * irq_handle);
 uint64_t ocxl_afu_irq_get_id(ocxl_afu_h afu, ocxl_irq_h irq);
-uint16_t ocxl_afu_event_check(ocxl_afu_h afu, struct timeval * timeout, ocxl_event *events, uint16_t event_count);
+int ocxl_afu_event_check(ocxl_afu_h afu, int timeout, ocxl_event *events, uint16_t event_count);
 
 /* Platform specific: PPC64 */
 #ifdef _ARCH_PPC64

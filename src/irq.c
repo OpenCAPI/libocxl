@@ -37,20 +37,6 @@
 #define OCXL_KERNEL_EVENT_TYPE_TRANSLATION_FAULT 0
 
 /**
- * @defgroup ocxl_irq OpenCAPI IRQ Functions
- *
- * These functions allow the allocation and handling of AFU IRQs. IRQs can be
- * handled either via requesting an array of triggered IRQ handles (via ocxl_afu_check),
- * or by issuing callbacks via ocxl_afu_handle_callbacks().
- *
- * Each IRQ has an opaque pointer attached, which is communicated to the caller via the event struct
- * passed back from ocxl_afu_event_check(). This pointer can be used by the caller to
- * save identifying information against the IRQ.
- *
- * @{
- */
-
-/**
  * Deallocate a single IRQ
  * @param afu the AFU the IRQ belongs to
  * @param irq the IRQ
@@ -80,6 +66,20 @@ void irq_dealloc(ocxl_afu * afu, ocxl_irq * irq)
 
 	irq->info = NULL;
 }
+
+/**
+ * @defgroup ocxl_irq OpenCAPI IRQ Functions
+ *
+ * These functions allow the allocation and handling of AFU IRQs. IRQs can be
+ * handled either via requesting an array of triggered IRQ handles (via ocxl_afu_check),
+ * or by issuing callbacks via ocxl_afu_handle_callbacks().
+ *
+ * Each IRQ has an opaque pointer attached, which is communicated to the caller via the event struct
+ * passed back from ocxl_afu_event_check(). This pointer can be used by the caller to
+ * save identifying information against the IRQ.
+ *
+ * @{
+ */
 
 /**
  * Allocate a single IRQ
@@ -362,9 +362,9 @@ static int __ocxl_afu_event_check(ocxl_afu_h afu, int timeout, ocxl_event *event
 }
 
 /**
- * Check for pending IRQs
+ * Check for pending IRQs and other events
  *
- * @fn ocxl_afu_event_check(ocxl_afu_h afu, struct timeval * timeout, ocxl_event *events, uint16_t event_count)
+ * @fn ocxl_afu_event_check(ocxl_afu_h afu, int timeout, ocxl_event *events, uint16_t event_count)
  * @param afu the AFU holding the interrupts
  * @param timeout how long to wait (in milliseconds) for interrupts to arrive, set to -1 to wait indefinitely, or 0 to return immediately if no events are available
  * @param[out] events the triggered events (caller allocated)
