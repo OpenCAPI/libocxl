@@ -148,7 +148,33 @@ ocxl_err ocxl_afu_use_from_dev(const char *path, ocxl_afu_h * afu, uint64_t amr,
 /* AFU IRQ functions */
 ocxl_err ocxl_afu_irq_alloc(ocxl_afu_h afu, void *info, ocxl_irq_h * irq_handle);
 uint64_t ocxl_afu_irq_get_id(ocxl_afu_h afu, ocxl_irq_h irq);
-int ocxl_afu_event_check(ocxl_afu_h afu, int timeout, ocxl_event *events, uint16_t event_count);
+int ocxl_afu_event_check_versioned(ocxl_afu_h afu, int timeout, ocxl_event *events, uint16_t event_count,
+                                   uint16_t max_supported_event);
+
+/**
+ * @addtogroup ocxl_irq
+ * @{
+ */
+
+/**
+ * Check for pending IRQs and other events
+ *
+ * @param afu the AFU holding the interrupts
+ * @param timeout how long to wait (in milliseconds) for interrupts to arrive, set to -1 to wait indefinitely, or 0 to return immediately if no events are available
+ * @param[out] events the triggered events (caller allocated)
+ * @param event_count the number of triggered events
+ * @return the number of events triggered, if this is the same as event_count, you should call ocxl_afu_event_check again
+ * @retval -1 if an error occurred
+ */
+inline int ocxl_afu_event_check(ocxl_afu_h afu, int timeout, ocxl_event *events, uint16_t event_count)
+{
+	uint16_t max_supported_event = 0;
+	return ocxl_afu_event_check_versioned(afu, timeout, events, event_count, max_supported_event);
+}
+
+/**
+ * @}
+ */
 
 /* Platform specific: PPC64 */
 #ifdef _ARCH_PPC64

@@ -131,7 +131,7 @@ static ocxl_err irq_allocate(ocxl_afu * afu, ocxl_irq * irq, void *info)
 	if (epoll_ctl(my_afu->epoll_fd, EPOLL_CTL_ADD, irq->event.eventfd, &ev) == -1) {
 		errmsg("Could not add IRQ fd %d to epoll fd %d for AFU '%s': %d: '%s'",
 		       irq->event.eventfd, my_afu->epoll_fd, my_afu->identifier.afu_name,
-			   errno, strerror(errno));
+		       errno, strerror(errno));
 		goto errend;
 	}
 
@@ -278,6 +278,9 @@ static ocxl_event_action read_afu_event(ocxl_afu *afu, uint16_t max_supported_ev
 #endif
 		return OCXL_EVENT_ACTION_SUCCESS;
 		break;
+	/* Adding a new event type?
+	 * Increment max_supported_event in libocxl.h:ocxl_afu_event_check
+	 */
 	default:
 		errmsg("Unknown event %d, max_supported_event %d",
 		       header.type, max_supported_event);
@@ -288,7 +291,7 @@ static ocxl_event_action read_afu_event(ocxl_afu *afu, uint16_t max_supported_ev
 
 
 /**
- * Check for pending IRQs & other events
+ * Check for pending IRQs and other events
  *
  * @param afu the AFU holding the interrupts
  * @param timeout how long to wait (in milliseconds) for interrupts to arrive, set to -1 to wait indefinitely, or 0 to return immediately if no events are available
@@ -296,10 +299,11 @@ static ocxl_event_action read_afu_event(ocxl_afu *afu, uint16_t max_supported_ev
  * @param event_count the number of events that can fit into the events array
  * @param max_supported_event the id of the maximum supported kernel event, events with an ID higher than this will be ignored
  * @return the number of events triggered, if this is the same as event_count, you should call ocxl_afu_event_check again
+ * @see ocxl_afu_event_check
  * @retval -1 if an error occurred
  */
-static int __ocxl_afu_event_check(ocxl_afu_h afu, int timeout, ocxl_event *events, uint16_t event_count,
-                                  uint16_t max_supported_event) // allow static extraction
+int ocxl_afu_event_check_versioned(ocxl_afu_h afu, int timeout, ocxl_event *events, uint16_t event_count,
+                                   uint16_t max_supported_event)
 {
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 
@@ -363,28 +367,5 @@ static int __ocxl_afu_event_check(ocxl_afu_h afu, int timeout, ocxl_event *event
 }
 
 /**
- * Check for pending IRQs and other events
- *
- * @fn ocxl_afu_event_check(ocxl_afu_h afu, int timeout, ocxl_event *events, uint16_t event_count)
- * @param afu the AFU holding the interrupts
- * @param timeout how long to wait (in milliseconds) for interrupts to arrive, set to -1 to wait indefinitely, or 0 to return immediately if no events are available
- * @param[out] events the triggered events (caller allocated)
- * @param event_count the number of triggered events
- * @return the number of events triggered, if this is the same as event_count, you should call ocxl_afu_event_check again
- * @retval -1 if an error occurred
- */
-// No function implementation for ocxl_event_check, we set up a versioned symbol alias for it instead
-
-/**
  * @}
  */
-
-
-int ocxl_afu_event_check_0(ocxl_afu_h afu, int timeout, ocxl_event *events,
-                           uint16_t event_count)
-{
-	return __ocxl_afu_event_check(afu, timeout, events, event_count, 0);
-}
-
-
-__asm__(".symver ocxl_afu_event_check_0,ocxl_afu_event_check@LIBOCXL_0");
