@@ -77,7 +77,7 @@ typedef enum {
  */
 typedef enum {
 	OCXL_EVENT_IRQ = 0,					/**< An AFU IRQ */
-	OCXL_EVENT_TRANSLATION_ERROR = 1,	/**< A memory translation error occurred on the AFU */
+	OCXL_EVENT_TRANSLATION_FAULT = 1,	/**< A memory translation fault occurred on the AFU */
 } ocxl_event_type;
 
 
@@ -87,14 +87,18 @@ typedef enum {
 typedef struct {
 	ocxl_irq_h handle; /**< The IRQ handle of the triggered IRQ */
 	void *info; /**< An opaque pointer associated with the IRQ */
+	uint64_t count; /**< The number of times the interrupt has been triggered since last checked */
 } ocxl_event_irq;
 
 /**
- * The data for a triggered translation error event
+ * The data for a triggered translation fault event
  */
 typedef struct {
-	uint64_t count; /**< The number of times a translation error has occurred since last reported */
-} ocxl_event_translation_error;
+	void *addr; /**< The address that triggered the fault */
+#ifdef __ARCH_PPC64
+	uint64_t dsisr; /**< The value of the PPC64 specific DSISR (Data storage interrupt status register) */
+#endif
+} ocxl_event_translation_fault;
 
 /**
  * An OCXL event
@@ -105,7 +109,8 @@ typedef struct ocxl_event {
 	ocxl_event_type type;
 	union {
 		ocxl_event_irq irq; /**< Usable only when the type is OCXL_EVENT_IRQ */
-		ocxl_event_translation_error translation_error; /**< Usable only when the type is OCXL_OCXL_EVENT_TRANSLATION_ERROR */
+		ocxl_event_translation_fault translation_fault; /**< Usable only when the type is OCXL_OCXL_EVENT_TRANSLATION_FAULT */
+		uint64_t padding[16];
 	};
 } ocxl_event;
 

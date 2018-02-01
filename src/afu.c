@@ -374,7 +374,7 @@ ocxl_err ocxl_afu_open(ocxl_afu_h afu)
 		return OCXL_ALREADY_DONE;
 	}
 
-	int fd = open(my_afu->device_path, O_RDWR | O_CLOEXEC);
+	int fd = open(my_afu->device_path, O_RDWR | O_CLOEXEC | O_NONBLOCK);
 	if (fd < 0) {
 		errmsg("Could not open AFU device '%s': Error %d: %s", my_afu->device_path, errno, strerror(errno));
 		return OCXL_NO_DEV;

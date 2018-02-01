@@ -79,6 +79,17 @@ typedef struct ocxl_afu {
 #endif
 } ocxl_afu;
 
+/**
+ * @internal
+ * The type of action of the read_afu_event() function
+ */
+typedef enum ocxl_event_action {
+	OCXL_EVENT_ACTION_SUCCESS,	/**< The event read was successful and should be handled */
+	OCXL_EVENT_ACTION_FAIL,		/**< The event read failed */
+	OCXL_EVENT_ACTION_NONE,		/**< There was no event to read */
+	OCXL_EVENT_ACTION_IGNORE,	/**< The event read was successful, but should be ignored */
+} ocxl_event_action;
+
 bool ocxl_afu_mmio_sizes(ocxl_afu * afu);
 
 #endif				/* _LIBOCXL_INTERNAL_H */

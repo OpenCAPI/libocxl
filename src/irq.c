@@ -29,6 +29,26 @@
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 
+#define MAX_EVENT_SIZE	(16*sizeof(uint64_t))
+
+/**
+ * Fixme: Dummy struct, until it's added to the kernel header
+ */
+typedef struct ocxl_kernel_event_header {
+	__u16 type; /* The type of event */
+	__u16 size; /* The size of the following data structure */
+} ocxl_kernel_event_header;
+
+#define OCXL_KERNEL_EVENT_TYPE_TRANSLATION_FAULT 0
+
+/**
+ * Fixme: Dummy struct, until it's added to the kernel header
+ */
+typedef struct ocxl_kernel_event_translation_fault {
+	__u64 addr;
+	__u64 dsisr;
+} ocxl_kernel_event_translation_fault;
+
 /**
  * @defgroup ocxl_irq OpenCAPI IRQ Functions
  *
@@ -210,39 +230,128 @@ ocxl_err ocxl_afu_irq_free(ocxl_afu_h afu, ocxl_irq_h * irq)
 }
 
 /**
+ * @internal
+ * Read an event from the main AFU descriptor
+ *
+ * @param afu the AFU to read the event from
+ * @param max_supported_event the id of the maximum supported kernel event, events with an ID higher than this will be ignored
+ * @param[out] event the event information
+ * @retval OCXL_EVENT_ACTION_SUCCESS if the event should be handled
+ * @retval OCXL_EVENT_ACTION_FAIL if the event read failed (fatal)
+ * @retval OCXL_EVENT_ACTION_NONE if there was no event to read
+ * @retval OCXL_EVENT_ACTION_IGNORE if the read was successful but should be ignored
+ */
+static ocxl_event_action read_afu_event(ocxl_afu *afu, uint16_t max_supported_event, ocxl_event *event)
+{
+	ocxl_kernel_event_header header;
+	char buf[MAX_EVENT_SIZE];
+	int ret;
+
+	if ((ret = read(afu->fd, &header, sizeof(header))) < 0) {
+		if (ret == EAGAIN || ret == EWOULDBLOCK) {
+			return OCXL_EVENT_ACTION_NONE;
+		}
+
+		errmsg("read of event header from fd %d for AFU '%s' failed: %d: %s",
+		       afu->fd, afu->identifier.afu_name, errno, strerror(errno));
+		return OCXL_EVENT_ACTION_FAIL;
+	}
+
+	if (header.size > MAX_EVENT_SIZE) {
+		errmsg("Event size %d exceeds maximum expected %d",
+		       header.size, MAX_EVENT_SIZE);
+		return OCXL_EVENT_ACTION_FAIL;
+	}
+
+	if (header.type > max_supported_event) {
+		// Drain the unused data
+		if (read(afu->fd, &buf, header.size) < 0) {
+			errmsg("read of event data from fd %d for AFU '%s' failed: %d: %s",
+			       afu->fd, afu->identifier.afu_name,
+			       errno, strerror(errno));
+		}
+
+		// Squelch events we don't know how to handle
+		return OCXL_EVENT_ACTION_IGNORE;
+	}
+
+	switch (header.type) {
+	case OCXL_KERNEL_EVENT_TYPE_TRANSLATION_FAULT:
+		if (read(afu->fd, buf, header.size) < 0) {
+			errmsg("read of translation fault data from fd %d for AFU '%s' failed: %d: %s",
+			       afu->fd, afu->identifier.afu_name,
+			       errno, strerror(errno));
+			return 0;
+		}
+
+		ocxl_kernel_event_translation_fault *translation_fault = (ocxl_kernel_event_translation_fault *)buf;
+
+		event->type = OCXL_EVENT_TRANSLATION_FAULT;
+		event->translation_fault.addr = (void *)translation_fault->addr;
+#ifdef __ARCH_PPC64
+		event->translation_fault.dsisr = translation_fault->dsisr;
+#endif
+		return OCXL_EVENT_ACTION_SUCCESS;
+		break;
+	default:
+		errmsg("Unknown event %d, max_supported_event %d",
+		       header.type, max_supported_event);
+		return OCXL_EVENT_ACTION_FAIL;
+		break;
+	}
+}
+
+
+/**
  * Check for pending IRQs
  *
  * @param afu the AFU holding the interrupts
  * @param timeout how long to wait for interrupts to arrive
  * @param[out] events the triggered events (caller allocated)
- * @param event_count the number of triggered events
+ * @param event_count the number of events that can fit into the events array
+ * @param max_supported_event the id of the maximum supported kernel event, events with an ID higher than this will be ignored
  * @return the number of events triggered, if this is the same as event_count, you should call ocxl_afu_event_check again
  */
-uint16_t ocxl_afu_event_check(ocxl_afu_h afu, struct timeval * timeout, ocxl_event *events, uint16_t event_count)
+static uint16_t __ocxl_afu_event_check(ocxl_afu_h afu, struct timeval * timeout, ocxl_event *events,
+                                       uint16_t event_count, uint16_t max_supported_event)
 {
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 
-	fd_set irqs;
-	int maxfd = -1;
-	uint64_t count;
+	fd_set event_fds;
+	int maxfd;
 
-	FD_ZERO(&irqs);
+	FD_ZERO(&event_fds);
+	FD_SET(my_afu->fd, &event_fds);
+	maxfd = my_afu->fd;
 
 	for (ocxl_irq * irq = my_afu->irqs; irq != NULL; irq = irq->hh.next) {
 		if (irq->event.eventfd >= 0) {
-			FD_SET(irq->event.eventfd, &irqs);
+			FD_SET(irq->event.eventfd, &event_fds);
 			if (maxfd < irq->event.eventfd) {
 				maxfd = irq->event.eventfd;
 			}
 		}
 	}
 
-	int ready = select(maxfd + 1, &irqs, NULL, NULL, timeout);
+	int ready = select(maxfd + 1, &event_fds, NULL, NULL, timeout);
 	uint16_t triggered = 0;
 	if (ready) {
+		// Handle kernel events
+		if (FD_ISSET(my_afu->fd, &event_fds)) {
+			ocxl_event_action ret;
+			while ((ret = read_afu_event(my_afu, max_supported_event, &events[triggered])),
+			       ret == OCXL_EVENT_ACTION_SUCCESS || ret == OCXL_EVENT_ACTION_IGNORE) {
+				if (ret == OCXL_EVENT_ACTION_SUCCESS) {
+					triggered++;
+				}
+			}
+		}
+
+		// Handle AFU IRQs
+		uint64_t count;
 		for (ocxl_irq * irq = my_afu->irqs; irq != NULL && triggered < event_count; irq = irq->hh.next) {
 			if (irq->event.eventfd >= 0) {
-				if (FD_ISSET(irq->event.eventfd, &irqs)) {
+				if (FD_ISSET(irq->event.eventfd, &event_fds)) {
 					if (read(irq->event.eventfd, &count, sizeof(count)) < 0) {
 						errmsg("read of eventfd %d for AFU '%s' failed: %d: %s",
 						       irq->event.eventfd, my_afu->identifier.afu_name,
@@ -250,17 +359,38 @@ uint16_t ocxl_afu_event_check(ocxl_afu_h afu, struct timeval * timeout, ocxl_eve
 					}
 					events[triggered].type = OCXL_EVENT_IRQ;
 					events[triggered].irq.handle = irq->handle;
-					events[triggered++].irq.info = irq->info;
+					events[triggered].irq.info = irq->info;
+					events[triggered++].irq.count = count;
 				}
 			}
 		}
 	}
 
-	// Fixme: Need to implement Translation errors
-
 	return triggered;
 }
 
 /**
+ * Check for pending IRQs
+ *
+ * @fn ocxl_afu_event_check(ocxl_afu_h afu, struct timeval * timeout, ocxl_event *events, uint16_t event_count)
+ * @param afu the AFU holding the interrupts
+ * @param timeout how long to wait for interrupts to arrive
+ * @param[out] events the triggered events (caller allocated)
+ * @param event_count the number of triggered events
+ * @return the number of events triggered, if this is the same as event_count, you should call ocxl_afu_event_check again
+ */
+// No function implementation for ocxl_event_check, we set up a versioned symbol alias for it instead
+
+/**
  * @}
  */
+
+
+uint16_t ocxl_afu_event_check_0(ocxl_afu_h afu, struct timeval * timeout, ocxl_event *events,
+                                uint16_t event_count)
+{
+	return __ocxl_afu_event_check(afu, timeout, events, event_count, 0);
+}
+
+
+__asm__(".symver ocxl_afu_event_check_0,ocxl_afu_event_check@LIBOCXL_0");
