@@ -29,6 +29,8 @@
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
 #include <sys/types.h>
+#include <string.h>
+#include <stdlib.h>
 
 /**
  * @defgroup ocxl_afu_getters OpenCAPI AFU Getters
@@ -170,6 +172,8 @@ static void afu_init(ocxl_afu * afu)
 	afu->page_size = sysconf(_SC_PAGESIZE);
 
 	afu->irqs = NULL;
+	afu->irq_count = 0;
+	afu->irq_size = 0;
 
 #ifdef _ARCH_PPC64
 	afu->ppc64_amr = 0;
@@ -544,12 +548,19 @@ ocxl_err ocxl_afu_close(ocxl_afu_h afu)
 	ocxl_mmio_unmap(afu);
 	ocxl_global_mmio_unmap(afu);
 
-	ocxl_irq *irq = NULL, *tmp = NULL;
-	HASH_ITER(hh, my_afu->irqs, irq, tmp) {
-		ocxl_afu_irq_free(afu, &irq->handle);
+	if (my_afu->irqs) {
+		for (uint16_t irq = 0; irq < my_afu->irq_count; irq++) {
+			irq_dealloc(my_afu, &my_afu->irqs[irq]);
+		}
+
+		free(my_afu->irqs);
+		my_afu->irqs = NULL;
+		my_afu->irq_count = 0;
+		my_afu->irq_size = 0;
 	}
 
 	close(my_afu->fd);
+	my_afu->fd = -1;
 
 	return OCXL_OK;
 }

@@ -27,15 +27,12 @@ areas on the the AFU. Endian conversion is handled automatically.
 
 ## Included Dependencies
 - OCXL headers from the [Linux kernel](https://www.kernel.org/)
-- [UTHash](https://troydhanson.github.io/uthash/)
 
 ## Build Instructions (Local build)
-- `git submodule update --init --recursive`
 - `make`
 - `PREFIX=/usr/local make install`
 
 ## Build Instructions (Cross compilation)
-- `git submodule update --init --recursive`
 - `export CROSS_COMPILE=/path/to/compiler/bin/powerpc64le-unknown-linux-gnu-`
 - `make`
 
@@ -47,23 +44,22 @@ A typical use of libocxl will follow this pattern:
 2. **Discovery:** Use the discovery enumerators, or use an AFU device name specified by the user.
 3. **Open the device:** ocxl\_afu\_use() if using an enumerator, or ocxl\_afu\_use\_from\_dev() if
    a device path is used.
-4. **Allocate IRQs:** ocxl\_afu\_irq\_alloc(). This returns a 64 bit IRQ handle. This handle may
-   later be passed to the AFU via MMIO to enable it. An opaque pointer is associated with the
+4. **Allocate IRQs:** ocxl\_afu\_irq\_alloc(). This returns a sequential per-AFU IRQ number.
+   An opaque pointer is associated with the
    handle in which the caller can store additional information. This is not used by OpenCAPI,
-   but can be queried with ocxl\_afu\_irq\_get\_info() to identify the IRQ, without having a
-   lookup table associating the IRQ handle with it's purpose. A callback can be optionally
-   associated with an IRQ with ocxl\_afu\_irq\_attach\_callback().
+   but is passed as part of the event information to provide additional context to the IRQ handler.
 5. **Configure global MMIO:** Some AFUs may have a global MMIO area, which will contain configuration
    information that will affect all PASIDs on the AFU. Use ocxl\_global\_mmio\_write32() and
    ocxl\_global\_mmio\_write64() to write the information.
 6. **Configure the per-PASID MMIO:** Some AFUs support multiple contexts, and each context will
    get it's own MMIO area for configuration and communication. Typical information that may
-   be communicated across the MMIO interface include IRQ handles, and pointers to AFU-specific
+   be communicated across the MMIO interface include IRQ handles (obtained with
+   ocxl\_afu\_irq\_get\_id()), and pointers to AFU-specific
    data structures. Use ocxl\_mmio\_write32() and ocxl\_mmio\_write64() to write the information.
 7. **Signal the AFU to do some work:** This is typically done via a write into the per-PASID MMIO area.
-8. **Handle AFU IRQs:** Pending IRQs can be queried using ocxl\_afu\_irq\_check(). If required, the
-    associated opaque info pointer can be retrieved using ocxl\_afu\_irq\_get\_info(). IRQs with
-    associated callbacks are handled with ocxl\_afu\_irq\_handle\_callbacks().
+8. **Handle AFU IRQs:** Pending IRQs can be queried using ocxl\_afu\_event\_check(). An IRQ event
+   contains the IRQ number, the info pointer assigned when activated, the 64 bit IRQ handle, and
+   the number of times the IRQ has been triggered since last checked.
 9. **Read results:** Work completion may be signally by the AFU via an IRQ, or by writing to
    the MMIO area. Typically, bulk data should be written to a pointer passed to the AFU, however,
    small quantities of data may be read from the MMIO area using ocxl\_global\_mmio\_read32() and

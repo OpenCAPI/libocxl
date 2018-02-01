@@ -24,6 +24,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <string.h>
+#include <stdlib.h>
 
 /// The base sysfs path for OCXL devices
 char sys_path[PATH_MAX] = "/sys/class/ocxl";

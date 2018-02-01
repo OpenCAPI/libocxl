@@ -15,6 +15,8 @@
  */
 
 #include "libocxl_internal.h"
+#include <string.h>
+#include <stdlib.h>
 
 /**
  * @defgroup ocxl_setup OpenCAPI Library Setup Functions

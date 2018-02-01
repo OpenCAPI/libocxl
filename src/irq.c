@@ -28,6 +28,8 @@
 #include <misc/ocxl.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
+#include <string.h>
+#include <stdlib.h>
 
 #define MAX_EVENT_SIZE	(16*sizeof(uint64_t))
 
@@ -56,37 +58,20 @@ typedef struct ocxl_kernel_event_translation_fault {
  * handled either via requesting an array of triggered IRQ handles (via ocxl_afu_check),
  * or by issuing callbacks via ocxl_afu_handle_callbacks().
  *
- * Each IRQ has an opaque pointer attached, which is passed to the callback, or can
- * be queried with ocxl_afu_irq_get_info(). This pointer can be used by the caller to
+ * Each IRQ has an opaque pointer attached, which is communicated to the caller via the event struct
+ * passed back from ocxl_afu_event_check(). This pointer can be used by the caller to
  * save identifying information against the IRQ.
  *
  * @{
  */
 
 /**
- * Get an IRQ from it's handle
- *
- * @param afu the AFU the IRQ belongs to
- * @param handle the IRQ handle
- * @return a pointer to the IRQ struct
- * @retval NULL if the IRQ was not allocated
- */
-static ocxl_irq *get_irq(ocxl_afu * afu, ocxl_irq_h handle)
-{
-	ocxl_irq *ret;
-
-	HASH_FIND_INT(afu->irqs, &handle, ret);
-
-	return ret;
-}
-
-/**
  * Deallocate a single IRQ
+ * @param afu the AFU the IRQ belongs to
+ * @param irq the IRQ
  */
-static void irq_free(ocxl_afu * afu, ocxl_irq * irq)
+void irq_dealloc(ocxl_afu * afu, ocxl_irq * irq)
 {
-	irq->handle = 0;
-
 	if (irq->addr) {
 		if (munmap(irq->addr, afu->page_size)) {
 			errmsg("Could not unmap IRQ page for AFU '%s': %d: '%s'",
@@ -100,8 +85,8 @@ static void irq_free(ocxl_afu * afu, ocxl_irq * irq)
 		if (rc) {
 			errmsg("Could not free IRQ in kernel: %d", rc);
 		}
+		irq->event.irq_offset = 0;
 	}
-	irq->event.irq_offset = 0;
 
 	if (irq->event.eventfd >= 0) {
 		close(irq->event.eventfd);
@@ -109,8 +94,6 @@ static void irq_free(ocxl_afu * afu, ocxl_irq * irq)
 	}
 
 	irq->info = NULL;
-
-	HASH_DEL(afu->irqs, irq);
 }
 
 /**
@@ -129,7 +112,6 @@ static ocxl_err irq_allocate(ocxl_afu * afu, ocxl_irq * irq, void *info)
 	ocxl_err ret = OCXL_INTERNAL_ERROR;
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 
-	irq->handle = 0;
 	irq->event.irq_offset = 0;
 	irq->event.eventfd = -1;
 	irq->addr = NULL;
@@ -162,71 +144,74 @@ static ocxl_err irq_allocate(ocxl_afu * afu, ocxl_irq * irq, void *info)
 		goto errend;
 	}
 
-	irq->handle = (ocxl_irq_h) irq->addr;
-
-	HASH_ADD_INT(afu->irqs, handle, irq);
-
 	return OCXL_OK;
 
 errend:
-	irq_free(my_afu, irq);
+	irq_dealloc(my_afu, irq);
 	return ret;
 }
+
+#define INITIAL_IRQ_COUNT 64
 
 /**
  * Allocate an IRQ for an open AFU
  *
  * @param afu the AFU to allocate IRQs for
  * @param info user information to associate with the handle (may be NULL)
- * @param[out] irq_handle the handle of the allocated IRQ
+ * @param[out] irq the 0 indexed IRQ number that was allocated. This will be monotonically incremented by each subsequent call.
  * @retval OCXL_OK if the IRQs have been allocated
  * @retval OCXL_NO_MEM if a memory allocation error occurred
  */
-ocxl_err ocxl_afu_irq_alloc(ocxl_afu_h afu, void *info, ocxl_irq_h * irq_handle)
+ocxl_err ocxl_afu_irq_alloc(ocxl_afu_h afu, void *info, ocxl_irq_h * irq)
 {
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 
-	ocxl_irq *irq = malloc(sizeof(*irq));
-	if (irq == NULL) {
-		errmsg("Could not allocated %d bytes for IRQ for AFU '%s'", sizeof(*irq), my_afu->identifier.afu_name);
-		return OCXL_NO_MEM;
+	if (my_afu->irq_count == my_afu->irq_size) {
+		size_t new_size = (my_afu->irq_size > 0) ? 2 * my_afu->irq_size : INITIAL_IRQ_COUNT;
+		ocxl_irq *irqs = realloc(my_afu->irqs, new_size * sizeof(ocxl_irq));
+		if (irqs == NULL) {
+			errmsg("Could not realloc IRQs for afu '%s' to %d IRQs",
+			       my_afu->identifier.afu_name, new_size);
+			return OCXL_NO_MEM;
+		}
+		my_afu->irqs = irqs;
+		my_afu->irq_size = new_size;
 	}
 
-	ocxl_err rc = irq_allocate(my_afu, irq, info);
+	ocxl_err rc = irq_allocate(my_afu, &my_afu->irqs[my_afu->irq_count], info);
 	if (rc != OCXL_OK) {
 		errmsg("Could not allocate IRQ for AFU '%s'", my_afu->identifier.afu_name);
 		return rc;
 	}
 
-	*irq_handle = irq->handle;
+	*irq = (ocxl_irq_h)my_afu->irq_count;
+	my_afu->irq_count++;
 
 	return OCXL_OK;
 }
 
 /**
- * Deallocate an IRQ for an open AFU
+ * Get the 64 bit IRQ ID for an IRQ
  *
- * @param afu the AFU to free the IRQ on
- * @param irq the IRQ handle to free
- * @retval OCXL_OK if the free was successful
- * @retval OCXL_ALREADY_DONE if the IRQ is not allocated
- * @post the IRQ is set to INVALID_IRQ
+ * This ID can be written to the AFU to allow the AFU to trigger the IRQ.
+ *
+ * @param afu the AFU the IRQ belongs to
+ * @param irq the IRQ to get the handle of
+ * @return the handle, or 0 if the handle is invalid
  */
-ocxl_err ocxl_afu_irq_free(ocxl_afu_h afu, ocxl_irq_h * irq)
+uint64_t ocxl_afu_irq_get_id(ocxl_afu_h afu, ocxl_irq_h irq)
 {
-	ocxl_afu *my_afu = (ocxl_afu *) afu;
-	ocxl_irq *my_irq = get_irq(afu, *irq);
-
-	if (my_irq == NULL) {
-		return OCXL_ALREADY_DONE;
+	if (afu == OCXL_INVALID_AFU) {
+		return 0;
 	}
 
-	irq_free(my_afu, my_irq);
-	free(my_irq);
+	ocxl_afu *my_afu = (ocxl_afu *) afu;
 
-	*irq = OCXL_INVALID_IRQ;
+	if (irq > my_afu->irq_count) {
+		return 0;
+	}
 
-	return OCXL_OK;
+	return (uint64_t)my_afu->irqs[irq].addr;
 }
 
 /**
@@ -324,11 +309,11 @@ static uint16_t __ocxl_afu_event_check(ocxl_afu_h afu, struct timeval * timeout,
 	FD_SET(my_afu->fd, &event_fds);
 	maxfd = my_afu->fd;
 
-	for (ocxl_irq * irq = my_afu->irqs; irq != NULL; irq = irq->hh.next) {
-		if (irq->event.eventfd >= 0) {
-			FD_SET(irq->event.eventfd, &event_fds);
-			if (maxfd < irq->event.eventfd) {
-				maxfd = irq->event.eventfd;
+	for (uint16_t irq = 0; irq < my_afu->irq_count; irq++) {
+		if (my_afu->irqs[irq].event.eventfd >= 0) {
+			FD_SET(my_afu->irqs[irq].event.eventfd, &event_fds);
+			if (maxfd < my_afu->irqs[irq].event.eventfd) {
+				maxfd = my_afu->irqs[irq].event.eventfd;
 			}
 		}
 	}
@@ -349,17 +334,18 @@ static uint16_t __ocxl_afu_event_check(ocxl_afu_h afu, struct timeval * timeout,
 
 		// Handle AFU IRQs
 		uint64_t count;
-		for (ocxl_irq * irq = my_afu->irqs; irq != NULL && triggered < event_count; irq = irq->hh.next) {
-			if (irq->event.eventfd >= 0) {
-				if (FD_ISSET(irq->event.eventfd, &event_fds)) {
-					if (read(irq->event.eventfd, &count, sizeof(count)) < 0) {
-						errmsg("read of eventfd %d for AFU '%s' failed: %d: %s",
-						       irq->event.eventfd, my_afu->identifier.afu_name,
-						       errno, strerror(errno));
+		for (uint16_t irq = 0; irq < my_afu->irq_count; irq++) {
+			if (my_afu->irqs[irq].event.eventfd >= 0) {
+				if (FD_ISSET(my_afu->irqs[irq].event.eventfd, &event_fds)) {
+					if (read(my_afu->irqs[irq].event.eventfd, &count, sizeof(count)) < 0) {
+						errmsg("read of eventfd %d for AFU '%s' IRQ %d failed: %d: %s",
+						       my_afu->irqs[irq].event.eventfd, my_afu->identifier.afu_name,
+						       irq, errno, strerror(errno));
 					}
 					events[triggered].type = OCXL_EVENT_IRQ;
-					events[triggered].irq.handle = irq->handle;
-					events[triggered].irq.info = irq->info;
+					events[triggered].irq.irq = irq;
+					events[triggered].irq.id = (uint64_t)my_afu->irqs[irq].addr;
+					events[triggered].irq.info = my_afu->irqs[irq].info;
 					events[triggered++].irq.count = count;
 				}
 			}

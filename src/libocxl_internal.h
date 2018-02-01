@@ -19,7 +19,6 @@
 
 #include "libocxl.h"
 #include <stdbool.h>
-#include "uthash.h"
 #include "linux/usrirq.h"
 
 #define DEBUG(__dbg_tx, __dbg_format, __dbg_args...) \
@@ -51,11 +50,9 @@ typedef struct ocxl_mmio_area {
  * AFU IRQ information
  */
 typedef struct ocxl_irq {
-	ocxl_irq_h handle; /**< The 64 bit handle for the IRQ */
 	struct usrirq_event event; /**< The event descriptor */
 	void *addr; /**< The mmaped address of the IRQ page */
 	void *info; /**< Additional info to pass to the user */
-	UT_hash_handle hh; /**< Required by UTHASH to make this a hash of ocxl_irqs */
 } ocxl_irq;
 
 /**
@@ -73,6 +70,8 @@ typedef struct ocxl_afu {
 	ocxl_mmio_area per_pasid_mmio;
 	size_t page_size;
 	ocxl_irq *irqs;
+	uint16_t irq_count; /**< The number of valid IRQs */
+	uint16_t irq_size; /**< The maximum number of IRQs available */
 
 #ifdef _ARCH_PPC64
 	uint64_t ppc64_amr;
@@ -91,5 +90,6 @@ typedef enum ocxl_event_action {
 } ocxl_event_action;
 
 bool ocxl_afu_mmio_sizes(ocxl_afu * afu);
+void irq_dealloc(ocxl_afu * afu, ocxl_irq * irq);
 
 #endif				/* _LIBOCXL_INTERNAL_H */

@@ -12,7 +12,7 @@ LIBOCXL_0 {
 		ocxl_afu_attach;
 		ocxl_afu_use;
 		ocxl_afu_irq_alloc;
-		ocxl_afu_irq_free;
+		ocxl_afu_irq_get_id;
 		ocxl_afu_event_check;
 		ocxl_afu_set_ppc64_amr;
 		ocxl_global_mmio_map;

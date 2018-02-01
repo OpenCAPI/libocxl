@@ -55,8 +55,8 @@ typedef void *ocxl_afu_h;
 /**
  * A handle for an IRQ on an AFU
  */
-typedef uint64_t ocxl_irq_h;
-#define OCXL_INVALID_IRQ 0 /**< An invalid IRQ handle */
+typedef uint16_t ocxl_irq_h;
+#define OCXL_INVALID_IRQ UINT16_MAX /**< An invalid IRQ handle */
 
 /**
  * Potential return values from ocxl_* functions
@@ -85,7 +85,8 @@ typedef enum {
  * The data for a triggered IRQ event
  */
 typedef struct {
-	ocxl_irq_h handle; /**< The IRQ handle of the triggered IRQ */
+	uint16_t irq; /**< The IRQ number of the AFU */
+	uint64_t id; /**< The 64 bit ID of the triggered IRQ */
 	void *info; /**< An opaque pointer associated with the IRQ */
 	uint64_t count; /**< The number of times the interrupt has been triggered since last checked */
 } ocxl_event_irq;

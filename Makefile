@@ -3,7 +3,7 @@ include Makefile.vars
 
 OBJS = obj/afu.o obj/internal.o obj/irq.o obj/mmio.o obj/setup.o
 TEST_OBJS = testobj/afu.o testobj/internal.o testobj/irq.o testobj/mmio.o testobj/setup.o
-CFLAGS += -I src/include -I uthash/src -I kernel/include -fPIC
+CFLAGS += -I src/include -I kernel/include -fPIC
 
 # change VERS_LIB if new git tag
 VERS_LIB = 0.1
