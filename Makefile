@@ -46,7 +46,7 @@ obj/libocxl.so: obj/$(LIBNAME)
 obj/$(LIBSONAME): obj/$(LIBNAME)
 	ln -sf $(LIBNAME) obj/$(LIBSONAME)
 
-obj/$(LIBNAME): obj $(OBJS) symver.map
+obj/$(LIBNAME): $(OBJS) symver.map
 	$(call Q,CC, $(CC) $(CFLAGS) $(LDFLAGS) -shared $(OBJS) -o obj/$(LIBNAME), obj/$(LIBNAME)) -Wl,--version-script symver.map $(SONAMEOPT)
 
 obj/libocxl.a: $(OBJS)
