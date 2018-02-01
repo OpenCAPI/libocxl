@@ -338,6 +338,7 @@ static ocxl_err get_afu_by_path(const char *path, ocxl_afu_h * afu)
  * @retval OCXL_OK if we have successfully fetched the AFU
  * @retval OCXL_NO_MEM if an out of memory error occured
  * @retval OCXL_NO_DEV if the device is invalid
+ * @retval OCXL_NO_MORE_CONTEXTS if maximum number of AFU contexts has been reached
  */
 ocxl_err ocxl_afu_open_from_dev(const char *path, ocxl_afu_h * afu)
 {
@@ -368,6 +369,7 @@ ocxl_err ocxl_afu_open_from_dev(const char *path, ocxl_afu_h * afu)
  * @retval OCXL_OK on success
  * @retval OCXL_NO_DEV if the AFU is invalid
  * @retval OCXL_ALREADY_DONE if the AFU is already open
+ * @retval OCXL_NO_MORE_CONTEXTS if maximum number of AFU contexts has been reached
  */
 ocxl_err ocxl_afu_open(ocxl_afu_h afu)
 {
@@ -379,6 +381,11 @@ ocxl_err ocxl_afu_open(ocxl_afu_h afu)
 
 	int fd = open(my_afu->device_path, O_RDWR | O_CLOEXEC | O_NONBLOCK);
 	if (fd < 0) {
+		if (errno == ENOSPC) {
+			errmsg("Could not open AFU device '%s', the maximum number of contexts has been reached: Error %d: %s",
+			       my_afu->device_path, errno, strerror(errno));
+			return OCXL_NO_MORE_CONTEXTS;
+		}
 		errmsg("Could not open AFU device '%s': Error %d: %s", my_afu->device_path, errno, strerror(errno));
 		return OCXL_NO_DEV;
 	}
@@ -466,6 +473,7 @@ ocxl_err ocxl_afu_attach(ocxl_afu_h afu)
  * @retval OCXL_OK on success
  * @retval OCXL_NO_MEM if we could not allocate memory
  * @retval OCXL_NO_DEV if the AFU is invalid
+ * @retval OCXL_NO_MORE_CONTEXTS if maximum number of AFU contexts has been reached
  */
 ocxl_err ocxl_afu_use(ocxl_afu_h afu, uint64_t amr, ocxl_endian global_endianess, ocxl_endian per_pasid_endianess)
 {
@@ -524,6 +532,7 @@ ocxl_err ocxl_afu_use(ocxl_afu_h afu, uint64_t amr, ocxl_endian global_endianess
  * @retval OCXL_OK on success
  * @retval OCXL_NO_MEM if we could not allocate memory
  * @retval OCXL_NO_DEV if the AFU is invalid
+ * @retval OCXL_NO_MORE_CONTEXTS if maximum number of AFU contexts has been reached
  */
 ocxl_err ocxl_afu_use_from_dev(const char *path, ocxl_afu_h * afu, uint64_t amr,
                                ocxl_endian global_endianess, ocxl_endian per_pasid_endianess)

@@ -68,6 +68,7 @@ typedef enum {
 	OCXL_INTERNAL_ERROR = -5,	/**< an internal error has occurred */
 	OCXL_ALREADY_DONE = -6,		/**< The action requested has already been performed */
 	OCXL_OUT_OF_BOUNDS = -7,	/**< The action requested falls outside the permitted area */
+	OCXL_NO_MORE_CONTEXTS = -8, /**< No more contexts can be opened on the AFU */
 } ocxl_err;
 
 /**
