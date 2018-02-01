@@ -148,7 +148,7 @@ size_t ocxl_afu_get_mmio_size(ocxl_afu_h afu)
  * These functions provide access to open and close the AFU.
  *
  * A typical workflow involves the following:
- * - ocxl_afu_open() or ocxl_afu_open_from_dev() - Open the device
+ * - ocxl_afu_open_from_dev(), ocxl_open_by_name() - Open the device
  * - ocxl_afu_attach() - Attach the device to the process's address space
  * - ocxl_global_mmio_map() - Map the AFU Global MMIO space
  * - ocxl_mmio_map() - Map the Per-PASID MMIO space
@@ -369,7 +369,6 @@ static bool afu_version(ocxl_afu * afu)
 	return false;
 }
 
-
 /**
  * Find the matching device for a given device major & minor, populate the AFU accordingly
  * @param dev the device number
@@ -448,12 +447,73 @@ static bool populate_metadata(dev_t dev, ocxl_afu * afu)
 }
 
 /**
+ * Open a context on a closed AFU
+ *
+ * An AFU can have many contexts, the device can be opened once for each
+ * context that is available. A seperate afu handle is required for each context.
+ *
+ * @param afu the AFU handle we want to open
+ * @retval OCXL_OK on success
+ * @retval OCXL_NO_DEV if the AFU is invalid
+ * @retval OCXL_ALREADY_DONE if the AFU is already open
+ * @retval OCXL_NO_MORE_CONTEXTS if maximum number of AFU contexts has been reached
+ */
+static ocxl_err afu_open(ocxl_afu *afu)
+{
+	if (afu->fd != -1) {
+		return OCXL_ALREADY_DONE;
+	}
+
+	int fd = open(afu->device_path, O_RDWR | O_CLOEXEC | O_NONBLOCK);
+	if (fd < 0) {
+		if (errno == ENOSPC) {
+			errmsg("Could not open AFU device '%s', the maximum number of contexts has been reached: Error %d: %s",
+			       afu->device_path, errno, strerror(errno));
+			return OCXL_NO_MORE_CONTEXTS;
+		}
+		errmsg("Could not open AFU device '%s': Error %d: %s", afu->device_path, errno, strerror(errno));
+		return OCXL_NO_DEV;
+	}
+
+	afu->fd = fd;
+
+	fd = open(irq_path, O_RDWR | O_CLOEXEC);
+	if (fd < 0) {
+		errmsg("Could not open user IRQ device '%s' for AFU '%s': Error %d: %s",
+		       irq_path, afu->device_path, errno, strerror(errno));
+		close(afu->fd);
+		return OCXL_NO_DEV;
+	}
+	afu->irq_fd = fd;
+
+	fd = epoll_create1(EPOLL_CLOEXEC);
+	if (fd < 0) {
+		errmsg("Could not create epoll descriptor. Error %d: %s",
+		       errno, strerror(errno));
+		return OCXL_NO_DEV;
+	}
+	afu->epoll_fd = fd;
+
+	struct epoll_event ev;
+	ev.events = EPOLLIN;
+	ev.data.ptr = &afu->fd_info; // Already set up in afu_init
+	if (epoll_ctl(afu->epoll_fd, EPOLL_CTL_ADD, afu->fd, &ev) == -1) {
+		errmsg("Could not add device fd %d to epoll fd %d for AFU '%s': %d: '%s'",
+		       afu->fd, afu->epoll_fd, afu->identifier.afu_name,
+		       errno, strerror(errno));
+		return OCXL_NO_DEV;
+	}
+
+	return OCXL_OK;
+}
+
+/**
  * Get an AFU at the specified device path
  *
  * @param path the path of the AFU
  * @param[out] afu the afu handle
  * @retval OCXL_OK if we have successfully fetched the AFU
- * @retval OCXL_NO_MEM if an out of memory error occured
+ * @retval OCXL_NO_MEM if an out of memory error occurred
  * @retval OCXL_NO_DEV if the device is invalid
  */
 static ocxl_err get_afu_by_path(const char *path, ocxl_afu_h * afu)
@@ -492,7 +552,7 @@ static ocxl_err get_afu_by_path(const char *path, ocxl_afu_h * afu)
  * @param path the path of the AFU
  * @param[out] afu the AFU handle which we will allocate. This should be freed with ocxl_afu_free
  * @retval OCXL_OK if we have successfully fetched the AFU
- * @retval OCXL_NO_MEM if an out of memory error occured
+ * @retval OCXL_NO_MEM if an out of memory error occurred
  * @retval OCXL_NO_DEV if the device is invalid
  * @retval OCXL_NO_MORE_CONTEXTS if maximum number of AFU contexts has been reached
  */
@@ -505,7 +565,7 @@ ocxl_err ocxl_afu_open_from_dev(const char *path, ocxl_afu_h * afu)
 		return rc;
 	}
 
-	rc = ocxl_afu_open(*afu);
+	rc = afu_open(*afu);
 	if (rc != OCXL_OK) {
 		ocxl_afu_free(afu);
 		*afu = OCXL_INVALID_AFU;
@@ -516,22 +576,151 @@ ocxl_err ocxl_afu_open_from_dev(const char *path, ocxl_afu_h * afu)
 }
 
 /**
- * Open an AFU with a specified name
+ * Allocate an array of fixed length strings
+ * @param count the number of strings
+ * @param length the length of each string (including space for a NULL terminator)
+ * @return the array, or NULL if the array could not be allocated
+ */
+static char **allocate_string_array(size_t count, size_t length)
+{
+	size_t buf_len = count * sizeof(char *) + count * length;
+	char *buf =  malloc(buf_len);
+	if (buf == NULL) {
+		errmsg("Could not allocate %d bytes for string array", buf_len);
+		return NULL;
+	}
+
+	char **pointers = (char **)buf;
+	char *strings = buf + count * sizeof(char *);
+
+	for (int i = 0; i < count; i++) {
+		char * string = strings + (i * length);
+		pointers[i] = string;
+		string[0] = '\0';
+	}
+
+	return pointers;
+}
+
+/**
+ * Get a list of the physical functions for an AFU
+ * @param name the name of the AFU
+ * @param[out] physical_functions an array we will allocate containing the physical functions
+ * @param[out] count the number of physical functions found
+ * @retval OCXL_OK if we have found matching physical functions
+ * @retval OCXL_NO_MEM if an out of memory error occurred
+ * @retval OCXL_NO_DEV if no valid device was found
+ */
+static ocxl_err list_physical_functions(const char *name, char ***physical_functions, size_t *count)
+{
+	char pattern[PATH_MAX];
+	char **funcs = NULL;
+	ocxl_err ret = OCXL_INTERNAL_ERROR;
+
+	snprintf(pattern, sizeof(pattern), "%s/%s.*.0",
+	         dev_path, name);
+
+	glob_t glob_data;
+	int rc = glob(pattern, GLOB_ERR, NULL, &glob_data);
+	switch (rc) {
+	case 0:
+		break;
+	case GLOB_NOSPACE:
+		errmsg("No memory for glob while listing AFUs");
+		ret = OCXL_NO_MEM;
+		goto end;
+	case GLOB_NOMATCH:
+		errmsg("No OCXL devices found in '%s' for pattern '%s'", dev_path, pattern);
+		ret = OCXL_NO_DEV;
+		goto end;
+	default:
+		errmsg("Glob error %d while listing AFUs", rc);
+		goto end;
+	}
+
+#define PHYS_FUNC_LEN (4+1+2+12+1+1 + 1) // 0001:00:00.1
+	funcs = allocate_string_array(glob_data.gl_pathc, PHYS_FUNC_LEN);
+	if (funcs == NULL) {
+		errmsg("Could not allocate output physical function array");
+		ret = OCXL_NO_MEM;
+		goto end;
+	}
+
+	for (size_t func = 0; func < glob_data.gl_pathc; func++) {
+		char *dev_name = glob_data.gl_pathv[func];
+
+		char *physical_function = strchr(dev_name, '.');
+		if (physical_function == NULL) {
+			errmsg("Could not identify physical function in device path '%s'",
+			       glob_data.gl_pathv[func]);
+			goto end;
+		}
+		physical_function++;
+
+		char *end = strrchr(dev_name, '.');
+		if (end == NULL) {
+			errmsg("Could not identify end of physical function in device path '%s'",
+			       glob_data.gl_pathv[func]);
+			goto end;
+		}
+
+		size_t len = end - physical_function;
+		if (len >= PHYS_FUNC_LEN) {
+			errmsg("Excessively long physical function length detected in device path '%s'");
+			goto end;
+		}
+		memcpy(funcs[func], physical_function, len);
+		funcs[func][len] = '\0';
+	}
+
+	*count = glob_data.gl_pathc;
+	*physical_functions = funcs;
+
+	ret = OCXL_OK;
+
+end:
+	if (ret != OCXL_OK) {
+		if (funcs != NULL) {
+			free(funcs);
+		}
+		*count = 0;
+		*physical_functions = NULL;
+	}
+
+	globfree(&glob_data);
+	return ret;
+}
+
+
+/**
+ * Open an AFU with a specified name on a specific card/afu index
  *
  * @param name the name of the AFU
+ * @param physical_function the PCI physical function of the card (as a string, or NULL for any)
+ * @param afu_index the AFU index (or -1 for any)
  * @param[out] afu the AFU handle which we will allocate. This should be freed with ocxl_afu_free
  * @retval OCXL_OK if we have successfully fetched the AFU
- * @retval OCXL_NO_MEM if an out of memory error occured
+ * @retval OCXL_NO_MEM if an out of memory error occurred
  * @retval OCXL_NO_DEV if no valid device was found
  * @retval OCXL_NO_MORE_CONTEXTS if maximum number of AFU contexts has been reached on all matching AFUs
  */
-ocxl_err ocxl_afu_open_by_name(const char *name, ocxl_afu_h * afu)
+ocxl_err ocxl_afu_open(const char *name, const char *physical_function, int16_t afu_index, ocxl_afu_h * afu)
 {
 	char pattern[PATH_MAX];
-	snprintf(pattern, sizeof(pattern), "%s/%s.*", dev_path, name);
 	glob_t glob_data;
 	ocxl_err ret = OCXL_INTERNAL_ERROR;
 	*afu = OCXL_INVALID_AFU;
+
+	if (afu_index == -1) {
+		snprintf(pattern, sizeof(pattern), "%s/%s.%s.*",
+		         dev_path, name,
+		         physical_function ? physical_function : "*");
+	} else {
+		snprintf(pattern, sizeof(pattern), "%s/%s.%s.%d",
+		         dev_path, name,
+		         physical_function ? physical_function : "*",
+		         afu_index);
+	}
 
 	int rc = glob(pattern, GLOB_ERR, NULL, &glob_data);
 	switch (rc) {
@@ -542,7 +731,7 @@ ocxl_err ocxl_afu_open_by_name(const char *name, ocxl_afu_h * afu)
 		ret = OCXL_NO_MEM;
 		goto end;
 	case GLOB_NOMATCH:
-		errmsg("No OCXL devices found in '%s'", dev_path);
+		errmsg("No OCXL devices found in '%s' with pattern '%s'", dev_path, pattern);
 		ret = OCXL_NO_DEV;
 		goto end;
 	default:
@@ -568,70 +757,59 @@ end:
 	return ret;
 }
 
+/**
+ * Open an AFU with a specified name on a specific card/afu index
+ *
+ * @param name the name of the AFU
+ * @param card_index the card index (in order of discovery)
+ * @param afu_index the AFU index (or -1 for any)
+ * @param[out] afu the AFU handle which we will allocate. This should be freed with ocxl_afu_free
+ * @retval OCXL_OK if we have successfully fetched the AFU
+ * @retval OCXL_NO_MEM if an out of memory error occurred
+ * @retval OCXL_NO_DEV if no valid device was found
+ * @retval OCXL_NO_MORE_CONTEXTS if maximum number of AFU contexts has been reached on all matching AFUs
+ */
+ocxl_err ocxl_afu_open_by_id(const char *name, uint8_t card_index, int16_t afu_index, ocxl_afu_h * afu)
+{
+	char **funcs = NULL;
+	size_t func_count;
+
+	ocxl_err ret = list_physical_functions(name, &funcs, &func_count);
+	if (ret != OCXL_OK) {
+		errmsg("Could not retrieve list of physical functions for AFU '%s'", name);
+		return ret;
+	}
+
+	if (card_index >= func_count) {
+		errmsg("Requested card index %d exceeds maximum detected index of %d for AFU '%s'",
+		       card_index, func_count, name);
+		ret = OCXL_NO_DEV;
+		goto end;
+	}
+
+	ret = ocxl_afu_open(name, funcs[card_index], afu_index, afu);
+
+end:
+	if (funcs) {
+		free(funcs);
+	}
+
+	return ret;
+}
 
 /**
- * Open a context on a closed AFU
+ * Open an AFU with a specified name
  *
- * An AFU can have many contexts, the device can be opened once for each
- * context that is available. A seperate afu handle is required for each context.
- *
- * @see ocxl_afu_use
- *
- * @param afu the AFU handle we want to open
- * @retval OCXL_OK on success
- * @retval OCXL_NO_DEV if the AFU is invalid
- * @retval OCXL_ALREADY_DONE if the AFU is already open
- * @retval OCXL_NO_MORE_CONTEXTS if maximum number of AFU contexts has been reached
+ * @param name the name of the AFU
+ * @param[out] afu the AFU handle which we will allocate. This should be freed with ocxl_afu_free
+ * @retval OCXL_OK if we have successfully fetched the AFU
+ * @retval OCXL_NO_MEM if an out of memory error occurred
+ * @retval OCXL_NO_DEV if no valid device was found
+ * @retval OCXL_NO_MORE_CONTEXTS if maximum number of AFU contexts has been reached on all matching AFUs
  */
-ocxl_err ocxl_afu_open(ocxl_afu_h afu)
+ocxl_err ocxl_afu_open_by_name(const char *name, ocxl_afu_h * afu)
 {
-	ocxl_afu *my_afu = (ocxl_afu *) afu;
-
-	if (my_afu->fd != -1) {
-		return OCXL_ALREADY_DONE;
-	}
-
-	int fd = open(my_afu->device_path, O_RDWR | O_CLOEXEC | O_NONBLOCK);
-	if (fd < 0) {
-		if (errno == ENOSPC) {
-			errmsg("Could not open AFU device '%s', the maximum number of contexts has been reached: Error %d: %s",
-			       my_afu->device_path, errno, strerror(errno));
-			return OCXL_NO_MORE_CONTEXTS;
-		}
-		errmsg("Could not open AFU device '%s': Error %d: %s", my_afu->device_path, errno, strerror(errno));
-		return OCXL_NO_DEV;
-	}
-
-	my_afu->fd = fd;
-
-	fd = open(irq_path, O_RDWR | O_CLOEXEC);
-	if (fd < 0) {
-		errmsg("Could not open user IRQ device '%s' for AFU '%s': Error %d: %s",
-		       irq_path, my_afu->device_path, errno, strerror(errno));
-		close(my_afu->fd);
-		return OCXL_NO_DEV;
-	}
-	my_afu->irq_fd = fd;
-
-	fd = epoll_create1(EPOLL_CLOEXEC);
-	if (fd < 0) {
-		errmsg("Could not create epoll descriptor. Error %d: %s",
-		       errno, strerror(errno));
-		return OCXL_NO_DEV;
-	}
-	my_afu->epoll_fd = fd;
-
-	struct epoll_event ev;
-	ev.events = EPOLLIN;
-	ev.data.ptr = &my_afu->fd_info; // Already set up in afu_init
-	if (epoll_ctl(my_afu->epoll_fd, EPOLL_CTL_ADD, my_afu->fd, &ev) == -1) {
-		errmsg("Could not add device fd %d to epoll fd %d for AFU '%s': %d: '%s'",
-		       my_afu->fd, my_afu->epoll_fd, my_afu->identifier.afu_name,
-		       errno, strerror(errno));
-		return OCXL_NO_DEV;
-	}
-
-	return OCXL_OK;
+	return ocxl_afu_open(name, NULL, -1, afu);
 }
 
 /**
@@ -691,7 +869,7 @@ ocxl_err ocxl_afu_use(ocxl_afu_h afu, uint64_t amr, ocxl_endian global_endianess
 {
 	ocxl_err ret;
 
-	ret = ocxl_afu_open(afu);
+	ret = afu_open(afu);
 	if (ret != OCXL_OK) {
 		return ret;
 	}
@@ -773,7 +951,7 @@ ocxl_err ocxl_afu_use_from_dev(const char *path, ocxl_afu_h * afu, uint64_t amr,
  * An AFU can have many contexts, the device can be opened once for each
  * context that is available.
  *
- * @see ocxl_afu_open, ocxl_afu_attach, ocxl_global_mmio_map, ocxl_mmio_map
+ * @see afu_open, ocxl_afu_attach, ocxl_global_mmio_map, ocxl_mmio_map
  *
  * @param name the name of the AFU
  * @param[out] afu the AFU handle which we will allocate. This should be freed with ocxl_afu_free
@@ -783,7 +961,7 @@ ocxl_err ocxl_afu_use_from_dev(const char *path, ocxl_afu_h * afu, uint64_t amr,
  * @param per_pasid_endianess	The endianess of the per-PASID MMIO area
  * @post on success, the AFU will be opened, the context attached, and any MMIO areas available will be mapped
  * @retval OCXL_OK if we have successfully fetched the AFU
- * @retval OCXL_NO_MEM if an out of memory error occured
+ * @retval OCXL_NO_MEM if an out of memory error occurred
  * @retval OCXL_NO_DEV if no valid device was found
  * @retval OCXL_NO_MORE_CONTEXTS if maximum number of AFU contexts has been reached on all matching AFUs
  */

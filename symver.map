@@ -2,6 +2,7 @@ LIBOCXL_0 {
 	global:
 		ocxl_want_verbose_errors;
 		ocxl_set_errmsg_filehandle;
+		ocxl_afu_get_version;
 		ocxl_afu_get_fd;
 		ocxl_afu_get_global_mmio_size;
 		ocxl_afu_get_mmio_size;
@@ -9,8 +10,13 @@ LIBOCXL_0 {
 		ocxl_afu_close;
 		ocxl_afu_free;
 		ocxl_afu_open;
+		ocxl_afu_open_from_dev;
+		ocxl_afu_open_by_name;
+		ocxl_afu_open_by_id;
 		ocxl_afu_attach;
 		ocxl_afu_use;
+		ocxl_afu_use_from_dev;
+		ocxl_afu_use_by_name;
 		ocxl_afu_irq_alloc;
 		ocxl_afu_irq_get_id;
 		ocxl_afu_event_check;

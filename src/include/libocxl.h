@@ -132,11 +132,12 @@ size_t ocxl_afu_get_global_mmio_size(ocxl_afu_h afu);
 size_t ocxl_afu_get_mmio_size(ocxl_afu_h afu);
 
 /* AFU operations */
+ocxl_err ocxl_afu_open(const char *name, const char *physical_function, int16_t afu_index, ocxl_afu_h * afu);
 ocxl_err ocxl_afu_open_from_dev(const char *path, ocxl_afu_h * afu);
 ocxl_err ocxl_afu_open_by_name(const char *name, ocxl_afu_h * afu);
+ocxl_err ocxl_afu_open_by_id(const char *name, uint8_t card_index, int16_t afu_index, ocxl_afu_h * afu);
 ocxl_err ocxl_afu_close(ocxl_afu_h afu);
 void ocxl_afu_free(ocxl_afu_h afu);
-ocxl_err ocxl_afu_open(ocxl_afu_h afu);
 ocxl_err ocxl_afu_attach(ocxl_afu_h afu);
 
 /* High level wrappers */

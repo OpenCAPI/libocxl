@@ -221,7 +221,7 @@ static void test_ocxl_afu_alloc() {
 	ocxl_afu template;
 	afu_init(&template);
 
-	ocxl_afu_h afu = 0;
+	ocxl_afu_h afu = OCXL_INVALID_AFU;
 	ASSERT(OCXL_OK == ocxl_afu_alloc(&afu));
 	ASSERT(afu != 0);
 	ASSERT(!strcmp(ocxl_afu_get_device_path(afu), ""));
@@ -326,6 +326,70 @@ end:
 	ocxl_want_verbose_errors(1);
 }
 
+/**
+ * Check allocate_string_array
+ */
+static void test_allocate_string_array() {
+	test_start("AFU", "allocate_string_array");
+
+	const int strings = 7;
+	const int string_length = 13;
+
+	char **buf = allocate_string_array(strings, string_length);
+	ASSERT(buf != NULL);
+
+	bool good = true;
+
+	for (int string = 0; string < strings; string++) {
+		snprintf(buf[string], string_length, "String     %d", string);
+	}
+
+	for (int string = 0; string < strings; string++) {
+		char tmp[string_length];
+		snprintf(tmp, string_length, "String     %d", string);
+		if (memcmp(tmp, buf[string], string_length)) {
+			good = false;
+			break;
+		}
+	}
+	ASSERT(good);
+
+	test_stop(SUCCESS);
+
+end:
+	free(buf);
+}
+
+/**
+ * Check list_physical_functions
+ */
+static void test_list_physical_functions() {
+	test_start("AFU", "list_physical_functions");
+
+	char **funcs = NULL;
+	size_t func_count;
+
+	ocxl_want_verbose_errors(0);
+	ASSERT(OCXL_NO_DEV == list_physical_functions("nonexistent", &funcs, &func_count));
+	ocxl_want_verbose_errors(1);
+	ASSERT(funcs == NULL);
+	ASSERT(func_count == 0);
+
+	ASSERT(OCXL_OK == list_physical_functions("IBM,Dummy", &funcs, &func_count));
+	ASSERT(funcs != NULL);
+	ASSERT(func_count == 1);
+	ASSERT(!strcmp(funcs[0], "0001:00:00.1"));
+
+	test_stop(SUCCESS);
+
+end:
+	ocxl_want_verbose_errors(1);
+
+	if (funcs) {
+		free(funcs);
+	}
+}
+
 
 pthread_t afu_thread = 0;
 pthread_t usrirq_thread = 0;
@@ -382,7 +446,7 @@ end:
 static void test_get_afu_by_path() {
 	test_start("AFU", "get_afu_by_path");
 
-	ocxl_afu_h afu = 0;
+	ocxl_afu_h afu = OCXL_INVALID_AFU;
 	const char *symlink_path = "/tmp/ocxl-test-symlink";
 
 	ocxl_want_verbose_errors(0);
@@ -418,10 +482,10 @@ end:
 /**
  * Check ocxl_afu_open
  */
-static void test_ocxl_afu_open() {
-	test_start("AFU", "ocxl_afu_open");
+static void test_afu_open() {
+	test_start("AFU", "afu_open");
 
-	ocxl_afu_h afu = 0;
+	ocxl_afu_h afu = OCXL_INVALID_AFU;
 
 	ASSERT(OCXL_OK == get_afu_by_path("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu));
 	ocxl_afu * my_afu = (ocxl_afu *)afu;
@@ -429,7 +493,7 @@ static void test_ocxl_afu_open() {
 	ASSERT(my_afu->irq_fd == -1);
 	ASSERT(my_afu->epoll_fd == -1);
 
-	ASSERT(OCXL_OK == ocxl_afu_open(afu));
+	ASSERT(OCXL_OK == afu_open(afu));
 
 	ASSERT(my_afu->fd != -1);
 	ASSERT(my_afu->irq_fd != -1);
@@ -444,12 +508,80 @@ end:
 }
 
 /**
+ * Check ocxl_afu_open
+ */
+static void test_ocxl_afu_open() {
+	ocxl_afu_h afu = OCXL_INVALID_AFU - 1;
+
+	test_start("AFU", "ocxl_afu_open");
+
+	ocxl_want_verbose_errors(0);
+	ASSERT(OCXL_NO_DEV == ocxl_afu_open("nonexistent", NULL, -1, &afu));
+	ASSERT(afu == OCXL_INVALID_AFU);
+	ASSERT(OCXL_NO_DEV == ocxl_afu_open("IBM,Dummy", "0001:00:00.2", -1, &afu));
+	ASSERT(OCXL_NO_DEV == ocxl_afu_open("IBM,Dummy", "0001:00:00.1", 1, &afu));
+	ocxl_want_verbose_errors(1);
+	ASSERT(OCXL_OK == ocxl_afu_open("IBM,Dummy", "0001:00:00.1", 0, &afu));
+	ASSERT(afu != OCXL_INVALID_AFU);
+	ASSERT(!strcmp(ocxl_afu_get_device_path(afu), "/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0"));
+	ocxl_afu_free(afu);
+	afu = OCXL_INVALID_AFU;
+
+	ASSERT(OCXL_OK == ocxl_afu_open("IBM,Dummy", "0001:00:00.1", -1, &afu));
+	ASSERT(afu != OCXL_INVALID_AFU);
+	ASSERT(!strcmp(ocxl_afu_get_device_path(afu), "/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0"));
+
+	test_stop(SUCCESS);
+
+end:
+	ocxl_want_verbose_errors(1);
+	if (afu) {
+		ocxl_afu_free(afu);
+	}
+}
+
+
+/**
+ * Check ocxl_afu_open_by_id
+ */
+static void test_ocxl_afu_open_by_id() {
+	ocxl_afu_h afu = OCXL_INVALID_AFU;
+
+	test_start("AFU", "ocxl_afu_open_by_id");
+
+	ocxl_want_verbose_errors(0);
+	ASSERT(OCXL_NO_DEV == ocxl_afu_open_by_id("nonexistent", 0, -1, &afu));
+	ASSERT(OCXL_NO_DEV == ocxl_afu_open_by_id("IBM,Dummy", 1, -1, &afu));
+	ASSERT(OCXL_NO_DEV == ocxl_afu_open_by_id("IBM,Dummy", 0, 1, &afu));
+
+	ocxl_want_verbose_errors(1);
+	ASSERT(OCXL_OK == ocxl_afu_open("IBM,Dummy", 0, 0, &afu));
+	ASSERT(afu != OCXL_INVALID_AFU);
+	ASSERT(!strcmp(ocxl_afu_get_device_path(afu), "/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0"));
+	ocxl_afu_free(afu);
+	afu = OCXL_INVALID_AFU;
+
+	ASSERT(OCXL_OK == ocxl_afu_open("IBM,Dummy", 0, -1, &afu));
+	ASSERT(afu != OCXL_INVALID_AFU);
+	ASSERT(!strcmp(ocxl_afu_get_device_path(afu), "/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0"));
+
+	test_stop(SUCCESS);
+
+end:
+	ocxl_want_verbose_errors(1);
+	if (afu) {
+		ocxl_afu_free(afu);
+	}
+}
+
+
+/**
  * Check ocxl_afu_open_from_dev
  */
 static void test_ocxl_afu_open_from_dev() {
 	test_start("AFU", "ocxl_afu_open_from_dev");
 
-	ocxl_afu_h afu = 0;
+	ocxl_afu_h afu = OCXL_INVALID_AFU;
 
 	ocxl_want_verbose_errors(0);
 	ASSERT(OCXL_NO_DEV == ocxl_afu_open_from_dev("/nonexistent", &afu));
@@ -477,7 +609,7 @@ end:
 static void test_afu_getters() {
 	test_start("AFU", "getters");
 
-	ocxl_afu_h afu = 0;
+	ocxl_afu_h afu = OCXL_INVALID_AFU;
 	ASSERT(OCXL_OK == ocxl_afu_open_by_name("IBM,Dummy", &afu));
 	const ocxl_identifier *identifier = ocxl_afu_get_identifier(afu);
 	ASSERT(identifier->afu_index == 0);
@@ -508,7 +640,7 @@ end:
 static void test_ocxl_afu_open_by_name() {
 	test_start("AFU", "ocxl_afu_open_by_name");
 
-	ocxl_afu_h afu = 0;
+	ocxl_afu_h afu = OCXL_INVALID_AFU;
 
 	ocxl_want_verbose_errors(0);
 	ASSERT(OCXL_NO_DEV == ocxl_afu_open_by_name("nonexistent", &afu));
@@ -537,7 +669,7 @@ end:
 static void test_ocxl_afu_use_from_dev() {
 	test_start("AFU", "ocxl_afu_use_from_dev");
 
-	ocxl_afu_h afu = 0;
+	ocxl_afu_h afu = OCXL_INVALID_AFU;
 
 	ocxl_want_verbose_errors(0);
 	ASSERT(OCXL_NO_DEV == ocxl_afu_use_from_dev("/nonexistent", &afu, 0, OCXL_MMIO_HOST_ENDIAN, OCXL_MMIO_HOST_ENDIAN));
@@ -566,7 +698,7 @@ ocxl_want_verbose_errors(1);
 static void test_ocxl_afu_use_by_name() {
 	test_start("AFU", "ocxl_afu_use_by_name");
 
-	ocxl_afu_h afu = 0;
+	ocxl_afu_h afu = OCXL_INVALID_AFU;
 
 	ocxl_want_verbose_errors(0);
 	ASSERT(OCXL_NO_DEV == ocxl_afu_use_by_name("nonexistent", &afu, 0, OCXL_MMIO_HOST_ENDIAN, OCXL_MMIO_HOST_ENDIAN));
@@ -598,7 +730,7 @@ ocxl_want_verbose_errors(1);
 static void test_ocxl_afu_attach() {
 	test_start("AFU", "ocxl_afu_attach");
 
-	ocxl_afu_h afu = 0;
+	ocxl_afu_h afu = OCXL_INVALID_AFU;
 
 	ASSERT(!afu_is_attached());
 	ASSERT(OCXL_OK == ocxl_afu_open_from_dev("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu));
@@ -619,7 +751,7 @@ end:
 static void test_ocxl_afu_close_free() {
 	test_start("AFU", "ocxl_afu_close/free");
 
-	ocxl_afu_h afu = 0;
+	ocxl_afu_h afu = OCXL_INVALID_AFU;
 	ASSERT(OCXL_OK == ocxl_afu_open_from_dev("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu));
 	ASSERT(OCXL_OK == ocxl_afu_close(afu));
 	ASSERT(afu != 0);
@@ -640,7 +772,7 @@ end:
 static void test_ocxl_global_mmio_map() {
 	test_start("MMIO", "ocxl_global_mmio_map/unmap");
 
-	ocxl_afu_h afu = 0;
+	ocxl_afu_h afu = OCXL_INVALID_AFU;
 	ASSERT(OCXL_OK == ocxl_afu_open_from_dev("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu));
 	ocxl_afu * my_afu = (ocxl_afu *)afu;
 
@@ -696,7 +828,7 @@ end:
 static void test_ocxl_mmio_map() {
 	test_start("MMIO", "ocxl_mmio_map/unmap");
 
-	ocxl_afu_h afu = 0;
+	ocxl_afu_h afu = OCXL_INVALID_AFU;
 	ASSERT(OCXL_OK == ocxl_afu_open_from_dev("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu));
 	ocxl_afu * my_afu = (ocxl_afu *)afu;
 
@@ -752,7 +884,7 @@ end:
 static void test_mmio_check() {
 	test_start("MMIO", "mmio_check");
 
-	ocxl_afu_h afu = 0;
+	ocxl_afu_h afu = OCXL_INVALID_AFU;
 	ASSERT(OCXL_OK == ocxl_afu_open_from_dev("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu));
 	ocxl_afu * my_afu = (ocxl_afu *)afu;
 
@@ -783,7 +915,7 @@ end:
 static void test_read32() {
 	test_start("MMIO", "mmio_read32/write32");
 
-	ocxl_afu_h afu = 0;
+	ocxl_afu_h afu = OCXL_INVALID_AFU;
 	ASSERT(OCXL_OK == ocxl_afu_open_from_dev("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu));
 	ocxl_afu * my_afu = (ocxl_afu *)afu;
 	ASSERT(OCXL_OK == ocxl_global_mmio_map(afu, OCXL_MMIO_HOST_ENDIAN));
@@ -859,7 +991,7 @@ end:
 static void test_read64() {
 	test_start("MMIO", "mmio_read64/write64");
 
-	ocxl_afu_h afu = 0;
+	ocxl_afu_h afu = OCXL_INVALID_AFU;
 	ASSERT(OCXL_OK == ocxl_afu_open_from_dev("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu));
 	ocxl_afu * my_afu = (ocxl_afu *)afu;
 	ASSERT(OCXL_OK == ocxl_global_mmio_map(afu, OCXL_MMIO_HOST_ENDIAN));
@@ -934,7 +1066,7 @@ end:
 static void test_ocxl_global_mmio_read32() {
 	test_start("MMIO", "ocxl_global_mmio_read32/write32");
 
-	ocxl_afu_h afu = 0;
+	ocxl_afu_h afu = OCXL_INVALID_AFU;
 	uint32_t val;
 
 	ocxl_want_verbose_errors(0);
@@ -969,7 +1101,7 @@ end:
 static void test_ocxl_global_mmio_read64() {
 	test_start("MMIO", "ocxl_global_mmio_read64/write64");
 
-	ocxl_afu_h afu = 0;
+	ocxl_afu_h afu = OCXL_INVALID_AFU;
 	uint64_t val;
 
 	ocxl_want_verbose_errors(0);
@@ -1037,6 +1169,7 @@ int main(int args, const char **argv) {
 
 	test_read_sysfs_buf();
 	test_read_sysfs_uint();
+	test_allocate_string_array();
 	test_afu_init();
 	test_ocxl_afu_alloc();
 	test_device_matches();
@@ -1044,12 +1177,15 @@ int main(int args, const char **argv) {
 	create_afu();
 	sleep(1);
 
+	test_list_physical_functions();
 	test_populate_metadata();
 	test_afu_getters();
 	test_get_afu_by_path();
+	test_afu_open();
 	test_ocxl_afu_open();
 	test_ocxl_afu_open_from_dev();
 	test_ocxl_afu_open_by_name();
+	test_ocxl_afu_open_by_id();
 	test_ocxl_afu_attach();
 	test_ocxl_afu_close_free();
 #ifdef _ARCH_PPC64
