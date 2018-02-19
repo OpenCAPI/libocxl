@@ -132,6 +132,7 @@ void ocxl_afu_get_version(ocxl_afu_h afu, uint8_t *major, uint8_t *minor);
 int ocxl_afu_get_fd(ocxl_afu_h afu);
 size_t ocxl_afu_get_global_mmio_size(ocxl_afu_h afu);
 size_t ocxl_afu_get_mmio_size(ocxl_afu_h afu);
+uint32_t ocxl_afu_get_pasid(ocxl_afu_h afu);
 
 /* AFU operations */
 ocxl_err ocxl_afu_open_specific(const char *name, const char *physical_function, int16_t afu_index, ocxl_afu_h * afu);

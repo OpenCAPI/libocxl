@@ -254,76 +254,6 @@ end:
 	closedir(dev_dir);
 }
 
-#define BUF_SIZE 64
-
-/**
- * Check read_file_buf
- */
-static void test_read_file_buf() {
-	test_start("internal", "read_file_buf");
-
-	char buf[BUF_SIZE];
-
-	memset(buf, 0, sizeof(buf));
-	ASSERT(3 == read_file_buf("unittests/data/read_file_buf/10", buf, sizeof(buf)));
-	ASSERT(!strcmp(buf, "10\n"));
-
-	memset(buf, 0, sizeof(buf));
-	ASSERT(4 == read_file_buf("unittests/data/read_file_buf/100", buf, sizeof(buf)));
-	ASSERT(!strcmp(buf, "100\n"));
-
-	memset(buf, 0, sizeof(buf));
-	ASSERT(5 == read_file_buf("unittests/data/read_file_buf/1000", buf, sizeof(buf)));
-	ASSERT(!strcmp(buf, "1000\n"));
-
-	memset(buf, 0, sizeof(buf));
-	ASSERT(21 == read_file_buf("unittests/data/read_file_buf/uint64_max", buf, sizeof(buf)));
-	ASSERT(!strcmp(buf, "18446744073709551615\n"));
-
-	memset(buf, 0, sizeof(buf));
-	ASSERT(3 == read_file_buf("unittests/data/read_file_buf/negative", buf, sizeof(buf)));
-	ASSERT(!strcmp(buf, "-1\n"));
-
-	ocxl_want_verbose_errors(0);
-	ASSERT(-1 == read_file_buf("unittests/data/read_file_buf/nonexistent", buf, sizeof(buf)));
-
-
-	test_stop(SUCCESS);
-
-end:
-	ocxl_want_verbose_errors(1);
-}
-
-
-/**
- * Check read_file_uint
- */
-static void test_read_file_uint() {
-	test_start("internal", "read_file_uint");
-
-	uint64_t val;
-
-	ASSERT(!read_file_uint("unittests/data/read_file_uint/10", &val));
-	ASSERT(val == 10);
-
-	ASSERT(!read_file_uint("unittests/data/read_file_uint/100", &val));
-	ASSERT(val == 100);
-
-	ASSERT(!read_file_uint("unittests/data/read_file_uint/1000", &val));
-	ASSERT(val == 1000);
-
-	ASSERT(!read_file_uint("unittests/data/read_file_uint/uint64_max", &val));
-	ASSERT(val == UINT64_MAX);
-
-	ocxl_want_verbose_errors(0);
-	ASSERT(read_file_uint("unittests/data/read_file_uint/negative", &val));
-
-	test_stop(SUCCESS);
-
-end:
-	ocxl_want_verbose_errors(1);
-}
-
 /**
  * Check allocate_string_array
  */
@@ -420,10 +350,6 @@ static void test_populate_metadata() {
 	ASSERT(afu.identifier.afu_index == 0);
 	ASSERT(!strcmp(afu.device_path, "/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0"));
 	ASSERT(!strcmp(afu.sysfs_path, "/tmp/ocxl-test/IBM,Dummy.0001:00:00.1.0"));
-	ASSERT(afu.version_major == 5);
-	ASSERT(afu.version_minor == 10);
-	ASSERT(afu.global_mmio.length == 32*1024*1024);
-	ASSERT(afu.per_pasid_mmio.length == 16384);
 
 	test_stop(SUCCESS);
 
@@ -502,7 +428,7 @@ end:
 static void test_ocxl_afu_open_specific() {
 	ocxl_afu_h afu = OCXL_INVALID_AFU - 1;
 
-	test_start("AFU", "ocxl_afu_open");
+	test_start("AFU", "ocxl_afu_open_specific");
 
 	ocxl_want_verbose_errors(0);
 	ASSERT(OCXL_NO_DEV == ocxl_afu_open_specific("nonexistent", NULL, -1, &afu));
@@ -519,6 +445,13 @@ static void test_ocxl_afu_open_specific() {
 	ASSERT(OCXL_OK == ocxl_afu_open_specific("IBM,Dummy", "0001:00:00.1", -1, &afu));
 	ASSERT(afu != OCXL_INVALID_AFU);
 	ASSERT(!strcmp(ocxl_afu_get_device_path(afu), "/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0"));
+
+	ocxl_afu * my_afu = (ocxl_afu *)afu;
+	ASSERT(my_afu->version_major == 5);
+	ASSERT(my_afu->version_minor == 10);
+	ASSERT(my_afu->global_mmio.length == 32*1024*1024);
+	ASSERT(my_afu->per_pasid_mmio.length == 16384);
+	ASSERT(my_afu->pasid == 1234);
 
 	test_stop(SUCCESS);
 
@@ -606,6 +539,7 @@ static void test_afu_getters() {
 	char expected_path[PATH_MAX];
 	snprintf(expected_path, sizeof(expected_path), "%s/IBM,Dummy.0001:00:00.1.0", ocxl_sysfs_path);
 	ASSERT(!strcmp(ocxl_afu_get_sysfs_path(afu), expected_path));
+
 	uint8_t major, minor;
 	ocxl_afu_get_version(afu, &major, &minor);
 	ASSERT(major == 5);
@@ -613,6 +547,7 @@ static void test_afu_getters() {
 	ASSERT(ocxl_afu_get_fd(afu) >= 0);
 	ASSERT(ocxl_afu_get_global_mmio_size(afu) == 32*1024*1024);
 	ASSERT(ocxl_afu_get_mmio_size(afu) == 16384);
+	ASSERT(ocxl_afu_get_pasid(afu) == 1234);
 
 	test_stop(SUCCESS);
 
@@ -733,8 +668,8 @@ end:
 /**
  * Check ocxl_afu_close
  */
-static void test_ocxl_afu_close_free() {
-	test_start("AFU", "ocxl_afu_close/free");
+static void test_ocxl_afu_close() {
+	test_start("AFU", "ocxl_afu_close");
 
 	ocxl_afu_h afu = OCXL_INVALID_AFU;
 	ASSERT(OCXL_OK == ocxl_afu_open_from_dev("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu));
@@ -1239,6 +1174,7 @@ int main(int args, const char **argv) {
 	ocxl_set_sys_path(ocxl_sysfs_path);
 	ocxl_set_dev_path(ocxl_dev_path);
 	ocxl_want_verbose_errors(1);
+	ocxl_want_tracing(0);
 
 	struct stat sysfs_stat;
 	if (stat(ocxl_sysfs_path, &sysfs_stat)) {
@@ -1248,8 +1184,6 @@ int main(int args, const char **argv) {
 		}
 	}
 
-	test_read_file_buf();
-	test_read_file_uint();
 	test_allocate_string_array();
 	test_afu_init();
 	test_ocxl_afu_alloc();
@@ -1268,7 +1202,7 @@ int main(int args, const char **argv) {
 	test_ocxl_afu_open();
 	test_ocxl_afu_open_by_id();
 	test_ocxl_afu_attach();
-	test_ocxl_afu_close_free();
+	test_ocxl_afu_close();
 #ifdef _ARCH_PPC64
 	test_ocxl_afu_use_from_dev();
 	test_ocxl_afu_use();

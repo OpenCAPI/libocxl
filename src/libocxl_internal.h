@@ -109,6 +109,7 @@ typedef struct ocxl_afu {
 	ocxl_irq *irqs;
 	uint16_t irq_count; /**< The number of valid IRQs */
 	uint16_t irq_size; /**< The maximum number of IRQs available */
+	uint32_t pasid;
 
 #ifdef _ARCH_PPC64
 	uint64_t ppc64_amr;

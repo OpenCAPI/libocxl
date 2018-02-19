@@ -46,6 +46,21 @@
  */
 
 /**
+ * Get the PASID for the currently open context
+ * @pre ocxl_afu_use() or ocxl_afu_attach() has been successfully called
+ * @param afu the AFU instance to get the PASID of
+ * @return the PASID
+ * @retval UINT32_MAX if the context has not been attached
+ */
+uint32_t ocxl_afu_get_pasid(ocxl_afu_h afu)
+{
+       ocxl_afu *my_afu = (ocxl_afu *) afu;
+
+       return my_afu->pasid;
+}
+
+
+/**
  * Get the identifier of the AFU
  *
  * The identifier contains the PCI physical function, AFU name & AFU Index
@@ -197,6 +212,8 @@ static void afu_init(ocxl_afu * afu)
 	afu->irq_count = 0;
 	afu->irq_size = 0;
 
+	afu->pasid = UINT32_MAX;
+
 #ifdef _ARCH_PPC64
 	afu->ppc64_amr = 0;
 #endif
@@ -237,134 +254,6 @@ static bool device_matches(int dirfd, char *dev_name, dev_t dev)
 	}
 
 	return dev == sb.st_rdev;
-}
-
-/**
- * Read a buffer from a file
- *
- * @param path the to read from
- * @param[out] buf the buffer to populate
- * @param size the size of the buffer
- * @retval -1 if an error occurred
- * @return the amount of buffer that was populated
- *
- */
-static int read_file_buf(const char *path, char *buf, size_t size)
-{
-	int fd, len;
-
-	fd = open(path, O_RDONLY);
-	if (fd == -1) {
-		errmsg("Could not open '%s': %d: %s", path, errno, strerror(errno));
-		return -1;
-	}
-	len = read(fd, buf, size);
-	close(fd);
-
-	if (len == -1) {
-		errmsg("Could not read '%s': %d: %s", path, errno, strerror(errno));
-		return -1;
-	}
-
-	return len;
-}
-
-#define INT_LEN 20
-
-/**
- * Read an ASCII unsigned int from a file
- *
- * @param path the to read from
- * @param[out] val the value that was read
- * @return true if an error occurred
- */
-static bool read_file_uint(const char *path, uint64_t * val)
-{
-	int len;
-	char buf[INT_LEN + 1];
-
-	len = read_file_buf(path, buf, sizeof(buf));
-
-	if (len == -1) {
-		return true;
-	}
-
-	buf[len - 1] = '\0';
-
-	if (!isdigit(buf[0])) {
-		errmsg("Contents of '%s' ('%s') does not represent a number", path, buf);
-		return true;
-	}
-
-	*val = strtoull(buf, NULL, 10);
-
-	return false;
-}
-
-/**
- * Populate the AFU MMIO sizes
- *
- * @param afu the afu to get the sizes for
- * @return true if there was an error getting the sizes
- */
-static bool mmio_sizes(ocxl_afu * afu)
-{
-	char path[PATH_MAX + 1];
-
-	uint64_t val;
-	int pathlen = snprintf(path, sizeof(path), "%s/pp_mmio_size", afu->sysfs_path);
-	if (pathlen >= sizeof(path)) {
-		errmsg("Path truncated constructing pp_mmio_size path, base='%s'", afu->sysfs_path);
-		return true;
-	}
-	if (read_file_uint(path, &val)) {
-		return true;
-	}
-
-	afu->per_pasid_mmio.length = val;
-
-	pathlen = snprintf(path, sizeof(path), "%s/global_mmio_size", afu->sysfs_path);
-	if (pathlen >= sizeof(path)) {
-		errmsg("Path truncated constructing global_mmio_size path, base='%s'", afu->sysfs_path);
-		return true;
-	}
-
-	if (read_file_uint(path, &val)) {
-		return true;
-	}
-
-	afu->global_mmio.length = val;
-
-	return false;
-}
-
-/**
- * Populate the AFU version
- *
- * @param afu the AFU to get the version for
- * @return true if there was an error getting the sizes
- */
-static bool afu_version(ocxl_afu * afu)
-{
-	char path[PATH_MAX + 1];
-
-	int pathlen = snprintf(path, sizeof(path), "%s/afu_version", afu->sysfs_path);
-	if (pathlen >= sizeof(path)) {
-		errmsg("Path truncated constructing afu_version path, base='%s'", afu->sysfs_path);
-		return true;
-	}
-
-#define AFU_VERSION_SIZE (3+1+3+1)
-	char buf[AFU_VERSION_SIZE+1];
-	int len;
-	if ((len = read_file_buf(path, buf, sizeof(buf))) == -1) {
-		return true;
-	}
-	buf[len] = 0;
-
-	sscanf(buf, "%hhu:%hhu", &afu->version_major, &afu->version_minor);
-
-	return false;
 }
 
 /**
@@ -431,17 +320,25 @@ static bool populate_metadata(dev_t dev, ocxl_afu * afu)
 		return false;
 	}
 
-	if (afu_version(afu)) {
-		errmsg("Could not fetch AFU version information for afu '%s'", afu->identifier.afu_name);
-		return false;
-	}
-
-	if (mmio_sizes(afu)) {
-		errmsg("Could not fetch MMIO sizes for afu '%s'", afu->identifier.afu_name);
-		return false;
-	}
-
 	return true;
+}
+
+/**
+ * Output tracing information for AFU metadata
+ *
+ * @param afu the AFU to display metadata for
+ */
+static void trace_metadata(ocxl_afu *afu)
+{
+	TRACE("device path=\"%s\"", afu->device_path);
+	TRACE("sysfs path=\"%s\"", afu->sysfs_path);
+	TRACE("AFU Name=\"%s\"", afu->identifier.afu_name);
+	TRACE("AFU Index=%u", afu->identifier.afu_index);
+	TRACE("AFU Version=%u:%u", afu->version_major, afu->version_minor);
+	TRACE("Global MMIO size=%llu", afu->global_mmio.length);
+	TRACE("Per PASID MMIO size=%llu", afu->per_pasid_mmio.length);
+	TRACE("Page Size=%llu", afu->page_size);
+	TRACE("PASID=%lu", afu->pasid);
 }
 
 /**
@@ -491,6 +388,24 @@ static ocxl_err afu_open(ocxl_afu *afu)
 		       afu->fd, afu->epoll_fd, afu->identifier.afu_name,
 		       errno, strerror(errno));
 		return OCXL_NO_DEV;
+	}
+
+	struct ocxl_ioctl_metadata metadata;
+	if (ioctl(afu->fd, OCXL_IOCTL_GET_METADATA, &metadata)) {
+		errmsg("OCXL_IOCTL_GET_METADATA failed %d:%s", errno, strerror(errno));
+		return OCXL_NO_DEV;
+	}
+
+	if (metadata.version >= 0) {
+		afu->version_major = metadata.afu_version_major;
+		afu->version_minor = metadata.afu_version_minor;
+		afu->per_pasid_mmio.length = metadata.pp_mmio_size;
+		afu->global_mmio.length = metadata.global_mmio_size;
+		afu->pasid = metadata.pasid;
+	}
+
+	if (tracing) {
+		trace_metadata(afu);
 	}
 
 	return OCXL_OK;
@@ -680,7 +595,6 @@ end:
 	return ret;
 }
 
-
 /**
  * Open an AFU with a specified name on a specific card/afu index
  *
@@ -728,14 +642,18 @@ ocxl_err ocxl_afu_open_specific(const char *name, const char *physical_function,
 		goto end;
 	}
 
+
 	for (int dev = 0; dev < glob_data.gl_pathc; dev++) {
 		const char *dev_path = glob_data.gl_pathv[dev];
 		ret = ocxl_afu_open_from_dev(dev_path, afu);
+
 		switch (ret) {
 		case OCXL_OK:
 			goto end;
+
 		case OCXL_NO_MORE_CONTEXTS:
 			continue;
+
 		default:
 			goto end;
 		}
@@ -827,6 +745,7 @@ ocxl_err ocxl_afu_attach(ocxl_afu_h afu)
 #endif
 
 	if (ioctl(my_afu->fd, OCXL_IOCTL_ATTACH, &attach_args)) {
+		errmsg("OCXL_IOCTL_ATTACH failed %d:%s", errno, strerror(errno));
 		return OCXL_INTERNAL_ERROR;
 	}
 
@@ -870,7 +789,6 @@ static ocxl_err afu_use(ocxl_afu_h afu,
 	if (amr) {
 		ret = ocxl_afu_set_ppc64_amr(afu, amr);
 		if (ret != OCXL_OK) {
-			ocxl_afu_close(afu);
 			return ret;
 		}
 	}
@@ -878,19 +796,16 @@ static ocxl_err afu_use(ocxl_afu_h afu,
 
 	ret = ocxl_afu_attach(afu);
 	if (ret != OCXL_OK) {
-		ocxl_afu_close(afu);
 		return ret;
 	}
 
 	ret = ocxl_global_mmio_map(afu, global_endianess);
 	if (ret != OCXL_OK) {
-		ocxl_afu_close(afu);
 		return ret;
 	}
 
 	ret = ocxl_mmio_map(afu, per_pasid_endianess);
 	if (ret != OCXL_OK) {
-		ocxl_afu_close(afu);
 		return ret;
 	}
 

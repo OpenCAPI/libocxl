@@ -37,6 +37,12 @@ ocxl_kernel_event_xsl_fault_error translation_fault = { .addr = 0 };
 bool afu_attached = false;
 const char *sysfs_path = NULL;
 
+static uint8_t version_major = 5;
+static uint8_t version_minor = 10;
+static size_t _global_mmio_size = 0;
+static size_t _pp_mmio_size = 0;
+
+
 static void afu_open(fuse_req_t req, struct fuse_file_info *fi)
 {
 	afu_attached = false;
@@ -78,10 +84,30 @@ static void afu_ioctl(fuse_req_t req, int cmd, void *arg,
 			  struct fuse_file_info *fi, unsigned flags,
 			  const void *in_buf, size_t in_bufsz, size_t out_bufsz)
 {
+	struct ocxl_ioctl_metadata ret;
+
 	switch (cmd) {
 	case OCXL_IOCTL_ATTACH:
 		afu_attached = true;
 		fuse_reply_ioctl(req, 0, NULL, 0);
+		break;
+
+	case OCXL_IOCTL_GET_METADATA:
+		// Seems to be some sort of race which causes test AFU:ocxl_afu_open_by_id to hang
+		usleep(600000);
+
+		memset(&ret, 0, sizeof(ret));
+
+		ret.version = 1;
+
+		ret.afu_version_major = version_major;
+		ret.afu_version_minor = version_minor;
+		ret.pasid = 1234;
+		ret.pp_mmio_size = _pp_mmio_size;
+		ret.global_mmio_size = _global_mmio_size;
+
+		fuse_reply_ioctl(req, 0, &ret, sizeof(ret));
+
 		break;
 
 	default:
@@ -124,7 +150,7 @@ static void *start_afu_thread(void *arg) {
 	info->cuse.dev_minor = 0;
 	info->cuse.dev_info_argc = 1;
 	info->cuse.dev_info_argv = dev_info_argv;
-	info->cuse.flags = CUSE_UNRESTRICTED_IOCTL;
+	info->cuse.flags = 0;
 
 	char *argv[] = {
 			"testobj/unittests",
@@ -170,6 +196,8 @@ pthread_t create_ocxl_device(const char *afu_name, size_t global_mmio_size, size
 	char tmp[PATH_MAX];
 	char buf[BUF_SIZE];
 
+	_global_mmio_size = global_mmio_size;
+	_pp_mmio_size = per_pasid_mmio_size;
 
 	snprintf(afu_info.device_name, sizeof(afu_info.device_name), "ocxl-test/%s.0001:00:00.1.0", afu_name);
 	snprintf(sysfs_base, sizeof(sysfs_base), "%s/%s.0001:00:00.1.0", sys_path, afu_name);
@@ -182,44 +210,9 @@ pthread_t create_ocxl_device(const char *afu_name, size_t global_mmio_size, size
 		}
 	}
 
-	// Create global MMIO size file
-	snprintf(tmp, sizeof(tmp), "%s/global_mmio_size", sysfs_base);
-	int len = snprintf(buf, sizeof(buf), "%ld\n", global_mmio_size);
-	int fd = creat(tmp, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
-	if (fd < 0) {
-		fprintf(stderr, "Could not create global_mmio_size file '%s': %d: %s\n",
-				tmp, errno, strerror(errno));
-		return 0;
-	}
-	int written = write(fd, buf, len);
-	if (written < 0) {
-		fprintf(stderr, "Could not write global_mmio_size file '%s': %d: %s\n",
-				tmp, errno, strerror(errno));
-		return 0;
-	}
-	close(fd);
-
-	// Create AFU version file
-	snprintf(tmp, sizeof(tmp), "%s/afu_version", sysfs_base);
-	len = snprintf(buf, sizeof(buf), "5:10\n");
-	fd = creat(tmp, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
-	if (fd < 0) {
-		fprintf(stderr, "Could not create afu_version file '%s': %d: %s\n",
-				tmp, errno, strerror(errno));
-		return 0;
-	}
-
-	written = write(fd, buf, len);
-	if (written < 0) {
-		fprintf(stderr, "Could not write pp_mmio_size file '%s': %d: %s\n",
-				tmp, errno, strerror(errno));
-		return 0;
-	}
-	close(fd);
-
 	// Create global MMIO area file
 	snprintf(tmp, sizeof(tmp), "%s/global_mmio_area", sysfs_base);
-	fd = creat(tmp, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
+	int fd = creat(tmp, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
 	if (fd < 0) {
 		fprintf(stderr, "Could not create global_mmio_area file '%s': %d: %s\n",
 				tmp, errno, strerror(errno));
@@ -229,29 +222,12 @@ pthread_t create_ocxl_device(const char *afu_name, size_t global_mmio_size, size
 	memset(buf, 0, sizeof(buf));
 
 	for (size_t offset = 0; offset < global_mmio_size; offset += sizeof(buf)) {
-		written = write(fd, buf, sizeof(buf));
+		int written = write(fd, buf, sizeof(buf));
 		if (written < 0) {
 			fprintf(stderr, "Could not write global_mmio_area file '%s': %d: %s\n",
 					tmp, errno, strerror(errno));
 			return 0;
 		}
-	}
-	close(fd);
-
-	// Create per-PASID MMIO size file
-	snprintf(tmp, sizeof(tmp), "%s/pp_mmio_size", sysfs_base);
-	len = snprintf(buf, sizeof(buf), "%ld\n", per_pasid_mmio_size);
-	fd = creat(tmp, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
-	if (fd < 0) {
-		fprintf(stderr, "Could not create pp_mmio_size file '%s': %d: %s\n",
-				tmp, errno, strerror(errno));
-		return 0;
-	}
-	written = write(fd, buf, len);
-	if (written < 0) {
-		fprintf(stderr, "Could not write pp_mmio_size file '%s': %d: %s\n",
-				tmp, errno, strerror(errno));
-		return 0;
 	}
 	close(fd);
 
