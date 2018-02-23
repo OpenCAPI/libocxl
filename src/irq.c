@@ -226,6 +226,11 @@ static void populate_xsl_fault_error(ocxl_event *event, void *body)
 	event->translation_fault.addr = (void *)err->addr;
 #ifdef _ARCH_PPC64
 	event->translation_fault.dsisr = err->dsisr;
+	TRACE("Translation fault error received, addr=%p, dsisr=%llx, count=%llu",
+			event->translation_fault.addr, event->translation_fault.dsisr, err->count);
+#else
+	TRACE("Translation fault error received, addr=%p, count=%llu",
+			event->translation_fault.addr, err->count);
 #endif
 	event->translation_fault.count = err->count;
 }
@@ -278,6 +283,7 @@ static ocxl_event_action read_afu_event(ocxl_afu *afu, uint16_t max_supported_ev
 	ocxl_kernel_event_header *header = (ocxl_kernel_event_header *)buf;
 
 	if (header->type > max_supported_event) {
+		TRACE("Unknown event received from kernel of type %u", header->type);
 		*last = !! header->flags & OCXL_KERNEL_EVENT_FLAG_LAST;
 		return OCXL_EVENT_ACTION_IGNORE;
 	}
@@ -320,6 +326,8 @@ int ocxl_afu_event_check_versioned(ocxl_afu_h afu, int timeout, ocxl_event *even
                                    uint16_t max_supported_event)
 {
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
+
+	TRACE("Waiting up to %dms for AFU events", timeout);
 
 	if (event_count > my_afu->epoll_event_count) {
 		free(my_afu->epoll_events);
@@ -382,9 +390,14 @@ int ocxl_afu_event_check_versioned(ocxl_afu_h afu, int timeout, ocxl_event *even
 			events[triggered].irq.info = info->irq->info;
 			events[triggered++].irq.count = count;
 
+			TRACE("IRQ received, irq=%u id=%llx info=%p count=%llu",
+					info->irq->irq_number, (uint64_t)info->irq->addr, info->irq->info, count);
+
 			break;
 		}
 	}
+
+	TRACE("%u events reported", triggered);
 
 	return triggered;
 }
