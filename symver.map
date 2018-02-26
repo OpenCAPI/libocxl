@@ -1,9 +1,14 @@
 LIBOCXL_0 {
 	global:
 		ocxl_want_verbose_errors;
+		ocxl_want_tracing;
 		ocxl_set_errmsg_filehandle;
+		ocxl_afu_get_identifier;
+		ocxl_afu_get_device_path;
+		ocxl_afu_get_sysfs_path;
 		ocxl_afu_get_version;
 		ocxl_afu_get_fd;
+		ocxl_afu_get_pasid;
 		ocxl_afu_get_global_mmio_size;
 		ocxl_afu_get_mmio_size;
 		ocxl_afu_open_from_dev;
@@ -32,7 +37,6 @@ LIBOCXL_0 {
 		ocxl_mmio_write64;
 		ocxl_global_mmio_unmap;
 		ocxl_mmio_unmap;
-
 
 	local:
 		*;

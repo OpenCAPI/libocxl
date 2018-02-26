@@ -77,6 +77,7 @@ cppcheck-xml:
 
 precommit: clean all docs cppcheck
 	astyle --style=linux --indent=tab=8 --max-code-length=120 src/*.c src/*.h src/include/*.h
+	$(call Q, SYMVER-CHECK, nm obj/$(LIBNAME) | grep ' t ocxl' && (echo "Symbols are missing from symver.map" && exit 1) || true)
 
 docs:
 	rm -rf $(DOCDIR)
