@@ -93,7 +93,6 @@ void irq_dealloc(ocxl_afu * afu, ocxl_irq * irq)
  */
 static ocxl_err irq_allocate(ocxl_afu * afu, ocxl_irq * irq, void *info)
 {
-	ocxl_err ret = OCXL_INTERNAL_ERROR;
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 
 	irq->event.irq_offset = 0;
@@ -125,6 +124,13 @@ static ocxl_err irq_allocate(ocxl_afu * afu, ocxl_irq * irq, void *info)
 		goto errend;
 	}
 
+	irq->addr = mmap(NULL, afu->page_size, PROT_WRITE, MAP_SHARED,
+	                 my_afu->fd, irq->event.irq_offset);
+	if (irq->addr == MAP_FAILED) {
+		errmsg("mmap for IRQ for AFU '%s': %d: '%s'", afu->identifier.afu_name, errno, strerror(errno));
+		goto errend;
+	}
+
 	struct epoll_event ev;
 	ev.events = EPOLLIN;
 	ev.data.ptr = &irq->fd_info;
@@ -135,19 +141,11 @@ static ocxl_err irq_allocate(ocxl_afu * afu, ocxl_irq * irq, void *info)
 		goto errend;
 	}
 
-	irq->addr = mmap(NULL, afu->page_size, PROT_WRITE, MAP_SHARED,
-	                 my_afu->fd, irq->event.irq_offset);
-	if (irq->addr == MAP_FAILED) {
-		errmsg("mmap for IRQ for AFU '%s': %d: '%s'", afu->identifier.afu_name, errno, strerror(errno));
-		goto errend;
-	}
-
-
 	return OCXL_OK;
 
 errend:
 	irq_dealloc(my_afu, irq);
-	return ret;
+	return OCXL_INTERNAL_ERROR;
 }
 
 /**
