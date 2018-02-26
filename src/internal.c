@@ -28,10 +28,10 @@
 #include <stdlib.h>
 
 /// The base sysfs path for OCXL devices
-char sys_path[PATH_MAX] = "/sys/class/ocxl";
+const char *sys_path = NULL;
 
 /// The base device path for OCXL devices
-char dev_path[PATH_MAX] = "/dev/ocxl";
+const char *dev_path = NULL;
 
 /// Whether the user wants verbose error messages
 bool verbose_errors = false;

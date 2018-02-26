@@ -34,8 +34,7 @@
  */
 __attribute__ ((used)) static void ocxl_set_sys_path(const char *path)
 {
-	strncpy(sys_path, path, sizeof(sys_path));
-	sys_path[sizeof(sys_path) - 1] = '\0';
+	sys_path = path;
 }
 
 /**
@@ -47,8 +46,7 @@ __attribute__ ((used)) static void ocxl_set_sys_path(const char *path)
  */
 __attribute__ ((used)) static void ocxl_set_dev_path(const char *path)
 {
-	strncpy(dev_path, path, sizeof(dev_path));
-	dev_path[sizeof(dev_path) - 1] = '\0';
+	dev_path = path;
 }
 
 #endif // TEST_ENVIRONMENT

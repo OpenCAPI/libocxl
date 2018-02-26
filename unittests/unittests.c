@@ -194,8 +194,8 @@ static void test_afu_init() {
 	ASSERT(memcmp(&afu1, &afu2, sizeof(afu1)));
 
 	ocxl_afu_h afu = (ocxl_afu_h) &afu1;
-	ASSERT(!strcmp(ocxl_afu_get_device_path(afu), ""));
-	ASSERT(!strcmp(ocxl_afu_get_sysfs_path(afu), ""));
+	ASSERT(ocxl_afu_get_device_path(afu) == NULL);
+	ASSERT(ocxl_afu_get_sysfs_path(afu) == NULL);
 	uint8_t major, minor;
 	ocxl_afu_get_version(afu, &major, &minor);
 	ASSERT(major == 0);
@@ -222,8 +222,8 @@ static void test_ocxl_afu_alloc() {
 	ocxl_afu_h afu = OCXL_INVALID_AFU;
 	ASSERT(OCXL_OK == ocxl_afu_alloc(&afu));
 	ASSERT(afu != 0);
-	ASSERT(!strcmp(ocxl_afu_get_device_path(afu), ""));
-	ASSERT(!strcmp(ocxl_afu_get_sysfs_path(afu), ""));
+	ASSERT(ocxl_afu_get_device_path(afu) == NULL);
+	ASSERT(ocxl_afu_get_sysfs_path(afu) == NULL);
 	ASSERT(ocxl_afu_get_fd(afu) == -1);
 	ASSERT(ocxl_afu_get_global_mmio_size(afu) == 0);
 	ASSERT(ocxl_afu_get_mmio_size(afu) == 0);

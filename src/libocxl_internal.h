@@ -37,8 +37,14 @@ do {\
 void trace_message(const char *label, const char *file, int line, const char *function, const char *format, ...);
 void errmsg(const char *format, ...);
 
-extern char sys_path[PATH_MAX];
-extern char dev_path[PATH_MAX];
+extern const char *sys_path;
+#define SYS_PATH_DEFAULT "/sys/class/ocxl"
+#define SYS_PATH ((sys_path) ? sys_path : SYS_PATH_DEFAULT)
+
+extern const char *dev_path;
+#define DEV_PATH_DEFAULT "/dev/ocxl"
+#define DEVICE_PATH ((dev_path) ? dev_path : DEV_PATH_DEFAULT)
+
 extern bool verbose_errors;
 extern bool tracing;
 extern FILE *errmsg_filehandle;
@@ -93,8 +99,8 @@ struct ocxl_irq {
  */
 typedef struct ocxl_afu {
 	ocxl_identifier identifier; /**< The physical function, name and index of the AFU */
-	char device_path[PATH_MAX + 1];
-	char sysfs_path[PATH_MAX + 1];
+	char *device_path;
+	char *sysfs_path;
 	uint8_t version_major;
 	uint8_t version_minor;
 	int fd;	/**< A file descriptor for operating on the AFU */

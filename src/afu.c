@@ -79,7 +79,7 @@ const ocxl_identifier *ocxl_afu_get_identifier(ocxl_afu_h afu)
  * Get the canonical device path of the AFU
  *
  * @param afu The AFU to get the device path of
- * @return the device path
+ * @return the device path, or NULL if the device is invalid
  */
 const char *ocxl_afu_get_device_path(ocxl_afu_h afu)
 {
@@ -92,7 +92,7 @@ const char *ocxl_afu_get_device_path(ocxl_afu_h afu)
  * Get the canonical sysfs path of the AFU
  *
  * @param afu The AFU to get the sysfs path of
- * @return the sysfs path
+ * @return the sysfs path, or NULL if the device is invalid
  */
 const char *ocxl_afu_get_sysfs_path(ocxl_afu_h afu)
 {
@@ -186,8 +186,8 @@ size_t ocxl_afu_get_mmio_size(ocxl_afu_h afu)
 static void afu_init(ocxl_afu * afu)
 {
 	memset((char *)afu->identifier.afu_name, '\0', sizeof(afu->identifier.afu_name));
-	memset(afu->device_path, '\0', sizeof(afu->device_path));
-	memset(afu->sysfs_path, '\0', sizeof(afu->sysfs_path));
+	afu->device_path = NULL;
+	afu->sysfs_path = NULL;
 	afu->version_major = 0;
 	afu->version_minor = 0;
 	afu->fd = -1;
@@ -268,7 +268,7 @@ static bool populate_metadata(dev_t dev, ocxl_afu * afu)
 	DIR *dev_dir;
 	struct dirent *dev_ent;
 
-	dev_dir = opendir(dev_path);
+	dev_dir = opendir(DEVICE_PATH);
 
 	if (dev_dir == NULL) {
 		return false;
@@ -308,17 +308,21 @@ static bool populate_metadata(dev_t dev, ocxl_afu * afu)
 	memcpy((char *)afu->identifier.afu_name, dev_ent->d_name, afu_name_len);
 	((char *)afu->identifier.afu_name)[afu_name_len] = '\0';
 
-	int length = snprintf(afu->device_path, sizeof(afu->device_path), "%s/%s", dev_path, dev_ent->d_name);
-	if (length >= sizeof(afu->device_path)) {
-		errmsg("device path truncated for AFU '%s'", afu->identifier.afu_name);
+	size_t dev_path_len = strlen(DEVICE_PATH) + 1 + strlen(dev_ent->d_name) + 1;
+	afu->device_path = malloc(dev_path_len);
+	if (NULL == afu->device_path) {
+		errmsg("Could not allocate %llu bytes for device path", dev_path_len);
 		return false;
 	}
+	(void)snprintf(afu->device_path, dev_path_len, "%s/%s", DEVICE_PATH, dev_ent->d_name);
 
-	length = snprintf(afu->sysfs_path, sizeof(afu->sysfs_path), "%s/%s", sys_path, dev_ent->d_name);
-	if (length >= sizeof(afu->device_path)) {
-		errmsg("sysfs path truncated for AFU '%s'", afu->identifier.afu_name);
+	size_t sysfs_path_len = strlen(SYS_PATH) + 1 + strlen(dev_ent->d_name) + 1;
+	afu->sysfs_path = malloc(sysfs_path_len);
+	if (NULL == afu->sysfs_path) {
+		errmsg("Could not allocate %llu bytes for sysfs path", sysfs_path_len);
 		return false;
 	}
+	(void)snprintf(afu->sysfs_path, sysfs_path_len, "%s/%s", SYS_PATH, dev_ent->d_name);
 
 	return true;
 }
@@ -440,7 +444,7 @@ static ocxl_err get_afu_by_path(const char *path, ocxl_afu_h * afu)
 
 	if (!populate_metadata(dev_stats.st_rdev, my_afu)) {
 		errmsg("Could not find OCXL device for '%s', major=%d, minor=%d, device expected in '%s'",
-		       path, major(dev_stats.st_rdev), minor(dev_stats.st_rdev), dev_path);
+		       path, major(dev_stats.st_rdev), minor(dev_stats.st_rdev), DEVICE_PATH);
 		*afu = OCXL_INVALID_AFU;
 		return OCXL_NO_DEV;
 	}
@@ -522,7 +526,7 @@ static ocxl_err list_physical_functions(const char *name, char ***physical_funct
 	ocxl_err ret = OCXL_INTERNAL_ERROR;
 
 	snprintf(pattern, sizeof(pattern), "%s/%s.*.0",
-	         dev_path, name);
+	         DEVICE_PATH, name);
 
 	glob_t glob_data;
 	int rc = glob(pattern, GLOB_ERR, NULL, &glob_data);
@@ -534,7 +538,7 @@ static ocxl_err list_physical_functions(const char *name, char ***physical_funct
 		ret = OCXL_NO_MEM;
 		goto end;
 	case GLOB_NOMATCH:
-		errmsg("No OCXL devices found in '%s' for pattern '%s'", dev_path, pattern);
+		errmsg("No OCXL devices found in '%s' for pattern '%s'", DEVICE_PATH, pattern);
 		ret = OCXL_NO_DEV;
 		goto end;
 	default:
@@ -616,11 +620,11 @@ ocxl_err ocxl_afu_open_specific(const char *name, const char *physical_function,
 
 	if (afu_index == -1) {
 		snprintf(pattern, sizeof(pattern), "%s/%s.%s.*",
-		         dev_path, name,
+		         DEVICE_PATH, name,
 		         physical_function ? physical_function : "*");
 	} else {
 		snprintf(pattern, sizeof(pattern), "%s/%s.%s.%d",
-		         dev_path, name,
+		         DEVICE_PATH, name,
 		         physical_function ? physical_function : "*",
 		         afu_index);
 	}
@@ -634,7 +638,7 @@ ocxl_err ocxl_afu_open_specific(const char *name, const char *physical_function,
 		ret = OCXL_NO_MEM;
 		goto end;
 	case GLOB_NOMATCH:
-		errmsg("No OCXL devices found in '%s' with pattern '%s'", dev_path, pattern);
+		errmsg("No OCXL devices found in '%s' with pattern '%s'", DEVICE_PATH, pattern);
 		ret = OCXL_NO_DEV;
 		goto end;
 	default:
@@ -888,7 +892,7 @@ ocxl_err ocxl_afu_use(const char *name, ocxl_afu_h * afu,
                       ocxl_endian global_endianess, ocxl_endian per_pasid_endianess)
 {
 	char pattern[PATH_MAX];
-	snprintf(pattern, sizeof(pattern), "%s/%s.*", dev_path, name);
+	snprintf(pattern, sizeof(pattern), "%s/%s.*", DEVICE_PATH, name);
 	glob_t glob_data;
 	ocxl_err ret = OCXL_INTERNAL_ERROR;
 	*afu = OCXL_INVALID_AFU;
@@ -902,7 +906,7 @@ ocxl_err ocxl_afu_use(const char *name, ocxl_afu_h * afu,
 		ret = OCXL_NO_MEM;
 		goto end;
 	case GLOB_NOMATCH:
-		errmsg("No OCXL devices found in '%s'", dev_path);
+		errmsg("No OCXL devices found in '%s'", DEVICE_PATH);
 		ret = OCXL_NO_DEV;
 		goto end;
 	default:
@@ -970,6 +974,14 @@ ocxl_err ocxl_afu_close(ocxl_afu_h afu)
 
 	close(my_afu->fd);
 	my_afu->fd = -1;
+
+	if (my_afu->device_path) {
+		free(my_afu->device_path);
+	}
+
+	if (my_afu->sysfs_path) {
+		free(my_afu->sysfs_path);
+	}
 
 	free(my_afu);
 

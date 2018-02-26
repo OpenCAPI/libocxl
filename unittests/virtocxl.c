@@ -200,7 +200,7 @@ pthread_t create_ocxl_device(const char *afu_name, size_t global_mmio_size, size
 	_pp_mmio_size = per_pasid_mmio_size;
 
 	snprintf(afu_info.device_name, sizeof(afu_info.device_name), "ocxl-test/%s.0001:00:00.1.0", afu_name);
-	snprintf(sysfs_base, sizeof(sysfs_base), "%s/%s.0001:00:00.1.0", sys_path, afu_name);
+	snprintf(sysfs_base, sizeof(sysfs_base), "%s/%s.0001:00:00.1.0", SYS_PATH, afu_name);
 	struct stat sysfs_stat;
 
 	if (stat(sysfs_base, &sysfs_stat)) {
