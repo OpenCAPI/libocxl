@@ -972,15 +972,20 @@ ocxl_err ocxl_afu_close(ocxl_afu_h afu)
 		my_afu->epoll_event_count = 0;
 	}
 
+	close(my_afu->epoll_fd);
+	my_afu->epoll_fd = -1;
+
 	close(my_afu->fd);
 	my_afu->fd = -1;
 
 	if (my_afu->device_path) {
 		free(my_afu->device_path);
+		my_afu->device_path = NULL;
 	}
 
 	if (my_afu->sysfs_path) {
 		free(my_afu->sysfs_path);
+		my_afu->sysfs_path = NULL;
 	}
 
 	free(my_afu);

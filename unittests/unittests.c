@@ -675,8 +675,18 @@ static void test_ocxl_afu_close() {
 	ASSERT(OCXL_OK == ocxl_afu_open_from_dev("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu));
 	ASSERT(OCXL_OK == ocxl_afu_close(afu));
 	ASSERT(afu != 0);
+
+	/* We deliberately dereference the freed ocxl_afu here to ensure the contents have
+	 * been cleared appropriately. The data should not have been reallocated and overwritten yet
+	 */
 	ocxl_afu * my_afu = (ocxl_afu *)afu;
+	ASSERT(0 == my_afu->irq_count);
+	ASSERT(0 == my_afu->irq_size);
+	ASSERT(0 == my_afu->epoll_event_count);
 	ASSERT(-1 == my_afu->fd);
+	ASSERT(-1 == my_afu->epoll_fd);
+	ASSERT(NULL == my_afu->device_path);
+	ASSERT(NULL == my_afu->sysfs_path);
 
 	test_stop(SUCCESS);
 
