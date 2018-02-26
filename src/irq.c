@@ -225,10 +225,10 @@ static void populate_xsl_fault_error(ocxl_event *event, void *body)
 #ifdef _ARCH_PPC64
 	event->translation_fault.dsisr = err->dsisr;
 	TRACE("Translation fault error received, addr=%p, dsisr=%llx, count=%llu",
-			event->translation_fault.addr, event->translation_fault.dsisr, err->count);
+	      event->translation_fault.addr, event->translation_fault.dsisr, err->count);
 #else
 	TRACE("Translation fault error received, addr=%p, count=%llu",
-			event->translation_fault.addr, err->count);
+	      event->translation_fault.addr, err->count);
 #endif
 	event->translation_fault.count = err->count;
 }
@@ -247,7 +247,7 @@ static void populate_xsl_fault_error(ocxl_event *event, void *body)
  * @retval OCXL_EVENT_ACTION_IGNORE if the read was successful but should be ignored
  */
 static ocxl_event_action read_afu_event(ocxl_afu *afu, uint16_t max_supported_event,
-		ocxl_event *event, bool *last) // hack to allow static symbol extraction
+                                        ocxl_event *event, bool *last) // hack to allow static symbol extraction
 {
 	size_t event_size = sizeof(ocxl_kernel_event_header);
 	*last = true;
@@ -282,7 +282,7 @@ static ocxl_event_action read_afu_event(ocxl_afu *afu, uint16_t max_supported_ev
 
 	if (header->type > max_supported_event) {
 		TRACE("Unknown event received from kernel of type %u", header->type);
-		*last = !! header->flags & OCXL_KERNEL_EVENT_FLAG_LAST;
+		*last = !! (header->flags & OCXL_KERNEL_EVENT_FLAG_LAST);
 		return OCXL_EVENT_ACTION_IGNORE;
 	}
 
@@ -290,8 +290,8 @@ static ocxl_event_action read_afu_event(ocxl_afu *afu, uint16_t max_supported_ev
 	case OCXL_AFU_EVENT_XSL_FAULT_ERROR:
 		if (buf_used != sizeof(ocxl_kernel_event_header) + sizeof(ocxl_kernel_event_xsl_fault_error)) {
 			errmsg("Incorrectly sized buffer received from kernel for XSL fault error, expected %d, got %d",
-					sizeof(ocxl_kernel_event_header) + sizeof(ocxl_kernel_event_xsl_fault_error),
-					buf_used);
+			       sizeof(ocxl_kernel_event_header) + sizeof(ocxl_kernel_event_xsl_fault_error),
+			       buf_used);
 			return OCXL_EVENT_ACTION_FAIL;
 		}
 		populate_xsl_fault_error(event, buf + sizeof(ocxl_kernel_event_header));
@@ -303,7 +303,7 @@ static ocxl_event_action read_afu_event(ocxl_afu *afu, uint16_t max_supported_ev
 		return OCXL_EVENT_ACTION_FAIL;
 	}
 
-	*last = !! header->flags & OCXL_KERNEL_EVENT_FLAG_LAST;
+	*last = !! (header->flags & OCXL_KERNEL_EVENT_FLAG_LAST);
 	return OCXL_EVENT_ACTION_SUCCESS;
 }
 
@@ -389,7 +389,7 @@ int ocxl_afu_event_check_versioned(ocxl_afu_h afu, int timeout, ocxl_event *even
 			events[triggered++].irq.count = count;
 
 			TRACE("IRQ received, irq=%u id=%llx info=%p count=%llu",
-					info->irq->irq_number, (uint64_t)info->irq->addr, info->irq->info, count);
+			      info->irq->irq_number, (uint64_t)info->irq->addr, info->irq->info, count);
 
 			break;
 		}

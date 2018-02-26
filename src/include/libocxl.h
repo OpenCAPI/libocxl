@@ -145,12 +145,12 @@ ocxl_err ocxl_afu_attach(ocxl_afu_h afu);
 /* High level wrappers */
 ocxl_err ocxl_afu_use_from_dev(const char *path, ocxl_afu_h * afu,
 #ifdef _ARCH_PPC64
-							  uint64_t amr,
+                               uint64_t amr,
 #endif
-							  ocxl_endian global_endianess, ocxl_endian per_pasid_endianess);
+                               ocxl_endian global_endianess, ocxl_endian per_pasid_endianess);
 ocxl_err ocxl_afu_use(const char *name, ocxl_afu_h * afu,
 #ifdef _ARCH_PPC64
-					  uint64_t amr,
+                      uint64_t amr,
 #endif
                       ocxl_endian global_endianess, ocxl_endian per_pasid_endianess);
 

@@ -54,9 +54,9 @@
  */
 uint32_t ocxl_afu_get_pasid(ocxl_afu_h afu)
 {
-       ocxl_afu *my_afu = (ocxl_afu *) afu;
+	ocxl_afu *my_afu = (ocxl_afu *) afu;
 
-       return my_afu->pasid;
+	return my_afu->pasid;
 }
 
 
@@ -774,9 +774,9 @@ ocxl_err ocxl_afu_attach(ocxl_afu_h afu)
  */
 static ocxl_err afu_use(ocxl_afu_h afu,
 #ifdef _ARCH_PPC64
-						uint64_t amr,
+                        uint64_t amr,
 #endif
-						ocxl_endian global_endianess, ocxl_endian per_pasid_endianess)
+                        ocxl_endian global_endianess, ocxl_endian per_pasid_endianess)
 {
 	ocxl_err ret;
 
@@ -835,7 +835,7 @@ static ocxl_err afu_use(ocxl_afu_h afu,
  */
 ocxl_err ocxl_afu_use_from_dev(const char *path, ocxl_afu_h * afu,
 #ifdef _ARCH_PPC64
-							   uint64_t amr,
+                               uint64_t amr,
 #endif
                                ocxl_endian global_endianess, ocxl_endian per_pasid_endianess)
 {
@@ -847,9 +847,9 @@ ocxl_err ocxl_afu_use_from_dev(const char *path, ocxl_afu_h * afu,
 
 	rc = afu_use(*afu,
 #ifdef _ARCH_PPC64
-				amr,
+	             amr,
 #endif
-				global_endianess, per_pasid_endianess);
+	             global_endianess, per_pasid_endianess);
 	if (rc != OCXL_OK) {
 		ocxl_afu_close(*afu);
 		*afu = OCXL_INVALID_AFU;
@@ -883,7 +883,7 @@ ocxl_err ocxl_afu_use_from_dev(const char *path, ocxl_afu_h * afu,
  */
 ocxl_err ocxl_afu_use(const char *name, ocxl_afu_h * afu,
 #ifdef _ARCH_PPC64
-					  uint64_t amr,
+                      uint64_t amr,
 #endif
                       ocxl_endian global_endianess, ocxl_endian per_pasid_endianess)
 {
@@ -914,9 +914,9 @@ ocxl_err ocxl_afu_use(const char *name, ocxl_afu_h * afu,
 		const char *dev_path = glob_data.gl_pathv[dev];
 		ret = ocxl_afu_use_from_dev(dev_path, afu,
 #ifdef _ARCH_PPC64
-									amr,
+		                            amr,
 #endif
-									global_endianess, per_pasid_endianess);
+		                            global_endianess, per_pasid_endianess);
 		switch (ret) {
 		case OCXL_OK:
 			goto end;
