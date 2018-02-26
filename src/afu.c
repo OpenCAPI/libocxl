@@ -883,7 +883,6 @@ ocxl_err ocxl_afu_use_from_dev(const char *path, ocxl_afu_h * afu,
  *
  * @param name the name of the AFU
  * @param[out] afu the AFU handle which we will allocate. This should be freed with ocxl_afu_close
- * @param[out] afu a pointer to the AFU handle we want to open
  * @param amr the value of the PPC64 specific PSL AMR register, may be 0 if this should be left alone
  * @param global_endianess	The endianess of the global MMIO area
  * @param per_pasid_endianess	The endianess of the per-PASID MMIO area
