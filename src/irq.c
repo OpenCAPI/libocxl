@@ -357,7 +357,7 @@ int ocxl_afu_event_check_versioned(ocxl_afu_h afu, int timeout, ocxl_event *even
 		bool last;
 
 		switch (info->type) {
-		case EPOLL_SOURCE_AFU:
+		case EPOLL_SOURCE_OCXL:
 			while ((ret = read_afu_event(my_afu, max_supported_event, &events[triggered], &last)),
 			       ret == OCXL_EVENT_ACTION_SUCCESS || ret == OCXL_EVENT_ACTION_IGNORE) {
 				if (ret == OCXL_EVENT_ACTION_SUCCESS) {

@@ -191,7 +191,7 @@ static void afu_init(ocxl_afu * afu)
 	afu->version_major = 0;
 	afu->version_minor = 0;
 	afu->fd = -1;
-	afu->fd_info.type = EPOLL_SOURCE_AFU;
+	afu->fd_info.type = EPOLL_SOURCE_OCXL;
 	afu->fd_info.irq = NULL;
 	afu->epoll_fd = -1;
 	afu->epoll_events = NULL;

@@ -71,8 +71,8 @@ typedef struct ocxl_irq ocxl_irq;
  */
 typedef struct epoll_fd_source {
 	enum {
-		EPOLL_SOURCE_AFU,
-		EPOLL_SOURCE_IRQ,
+		EPOLL_SOURCE_OCXL, /**< Source is the OpenCAPI infrastructure */
+		EPOLL_SOURCE_IRQ, /**< Source is an AFU generated IRQ */
 	} type;
 	union {
 		ocxl_irq *irq;
