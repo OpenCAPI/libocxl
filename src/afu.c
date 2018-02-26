@@ -525,7 +525,7 @@ static ocxl_err list_physical_functions(const char *name, char ***physical_funct
 	char **funcs = NULL;
 	ocxl_err ret = OCXL_INTERNAL_ERROR;
 
-	snprintf(pattern, sizeof(pattern), "%s/%s.*.0",
+	snprintf(pattern, sizeof(pattern), "%s/%s.*.?",
 	         DEVICE_PATH, name);
 
 	glob_t glob_data;
@@ -546,7 +546,7 @@ static ocxl_err list_physical_functions(const char *name, char ***physical_funct
 		goto end;
 	}
 
-#define PHYS_FUNC_LEN (4+1+2+12+1+1 + 1) // 0001:00:00.1
+#define PHYS_FUNC_LEN (4+1+2+1+2+1+1 + 1) // 0001:00:00.1
 	funcs = allocate_string_array(glob_data.gl_pathc, PHYS_FUNC_LEN);
 	if (funcs == NULL) {
 		errmsg("Could not allocate output physical function array");
@@ -554,6 +554,7 @@ static ocxl_err list_physical_functions(const char *name, char ***physical_funct
 		goto end;
 	}
 
+	size_t func_found = 0;
 	for (size_t func = 0; func < glob_data.gl_pathc; func++) {
 		char *dev_name = glob_data.gl_pathv[func];
 
@@ -577,11 +578,17 @@ static ocxl_err list_physical_functions(const char *name, char ***physical_funct
 			errmsg("Excessively long physical function length detected in device path '%s'");
 			goto end;
 		}
-		memcpy(funcs[func], physical_function, len);
-		funcs[func][len] = '\0';
+
+		/* glob() returns a sorted list, so just checking against the previous function
+		 * for duplicates is sufficient
+		 */
+		if (!func_found || memcmp(funcs[func_found-1], physical_function, len)) {
+			memcpy(funcs[func_found], physical_function, len);
+			funcs[func_found++][len] = '\0';
+		}
 	}
 
-	*count = glob_data.gl_pathc;
+	*count = func_found;
 	*physical_functions = funcs;
 
 	ret = OCXL_OK;
@@ -593,6 +600,7 @@ end:
 		}
 		*count = 0;
 		*physical_functions = NULL;
+
 	}
 
 	globfree(&glob_data);

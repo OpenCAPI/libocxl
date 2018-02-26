@@ -23,6 +23,7 @@
 #include <errno.h>
 #include <pthread.h>
 #include <signal.h>
+#include <fcntl.h>
 
 #include <misc/ocxl.h>
 
@@ -297,6 +298,19 @@ static void test_list_physical_functions() {
 	char **funcs = NULL;
 	size_t func_count;
 
+#define DUMMY_PATH_COUNT 5
+	char dummy_paths[DUMMY_PATH_COUNT][PATH_MAX];
+	memset(dummy_paths, 0, sizeof(dummy_paths));
+
+	for (uint8_t i = 0; i < DUMMY_PATH_COUNT; i++) {
+		// Confirm that we don't assume that AFU index 0 exists
+		(void)snprintf(dummy_paths[i], PATH_MAX, "%s/IBM,Dummy.0001:00:00.2.%d", DEVICE_PATH, i+1);
+		if (creat(dummy_paths[i], 0660) < 0) {
+			fprintf(stderr, "file creation of '%s' failed, %d: %s\n",
+					dummy_paths[i], errno, strerror(errno));
+		}
+	}
+
 	ocxl_want_verbose_errors(0);
 	ASSERT(OCXL_NO_DEV == list_physical_functions("nonexistent", &funcs, &func_count));
 	ocxl_want_verbose_errors(1);
@@ -305,8 +319,9 @@ static void test_list_physical_functions() {
 
 	ASSERT(OCXL_OK == list_physical_functions("IBM,Dummy", &funcs, &func_count));
 	ASSERT(funcs != NULL);
-	ASSERT(func_count == 1);
+	ASSERT(func_count == 2);
 	ASSERT(!strcmp(funcs[0], "0001:00:00.1"));
+	ASSERT(!strcmp(funcs[1], "0001:00:00.2"));
 
 	test_stop(SUCCESS);
 
@@ -315,6 +330,12 @@ end:
 
 	if (funcs) {
 		free(funcs);
+	}
+
+	for (uint8_t i = 0; i < DUMMY_PATH_COUNT; i++) {
+		if (dummy_paths[i][0]) {
+			(void)unlink(dummy_paths[i]);
+		}
 	}
 }
 
