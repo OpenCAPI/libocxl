@@ -42,7 +42,8 @@ FILE *errmsg_filehandle = NULL;
 /// True if we want tracing
 bool tracing = false;
 
-pthread_mutex_t errmsg_mutex;
+pthread_mutex_t errmsg_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t trace_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /**
  * Output a trace message
@@ -58,9 +59,13 @@ void trace_message(const char *label, const char *file, int line, const char *fu
 	va_list ap;
 	va_start(ap, format);
 
+	pthread_mutex_lock(&trace_mutex);
+
 	fprintf(stderr, "%s: %s:%d\t%s():\t\t", label, file, line, function);
 	vfprintf(stderr, format, ap);
 	fprintf(stderr, "\n");
+
+	pthread_mutex_unlock(&trace_mutex);
 
 	va_end(ap);
 }
@@ -76,16 +81,13 @@ void errmsg(const char *format, ...)
 	va_start(ap, format);
 
 	if (verbose_errors) {
-		int rc;
-		while ((rc = pthread_mutex_lock(&errmsg_mutex)) == EAGAIN) {
-		}
+		pthread_mutex_lock(&errmsg_mutex);
 
-		if (rc == 0) {
-			fprintf(errmsg_filehandle, "ERROR: ");
-			vfprintf(errmsg_filehandle, format, ap);
-			fprintf(errmsg_filehandle, "\n");
-			pthread_mutex_unlock(&errmsg_mutex);
-		}
+		fprintf(errmsg_filehandle, "ERROR: ");
+		vfprintf(errmsg_filehandle, format, ap);
+		fprintf(errmsg_filehandle, "\n");
+
+		pthread_mutex_unlock(&errmsg_mutex);
 	}
 
 	va_end(ap);
