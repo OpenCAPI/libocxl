@@ -47,7 +47,7 @@
 
 /**
  * Get the PASID for the currently open context
- * @pre ocxl_afu_use() or ocxl_afu_attach() has been successfully called
+ * @pre ocxl_afu_open() has been successfully called
  * @param afu the AFU instance to get the PASID of
  * @return the PASID
  * @retval UINT32_MAX if the context has not been attached
@@ -166,9 +166,6 @@ size_t ocxl_afu_get_mmio_size(ocxl_afu_h afu)
  * - ocxl_afu_attach() - Attach the device to the process's address space
  * - ocxl_global_mmio_map() - Map the AFU Global MMIO space
  * - ocxl_mmio_map() - Map the Per-PASID MMIO space
- *
- * The ocxl_afu_use() and ocxl_afu_use_from_dev() calls provide wrappers around
- * these calls.
  *
  * Subsequently, you will need to write information to the AFU's MMIO space (see ocxl_mmio)
  * and also configure and handle interrupts (see ocxl_irq)
@@ -763,186 +760,6 @@ ocxl_err ocxl_afu_attach(ocxl_afu_h afu)
 
 	return OCXL_OK;
 }
-
-/**
- * Open and attach a context on an AFU
- *
- * Opens an AFU, attaches the context to the current process and memory maps the MMIO regions
- *
- * An AFU can have many contexts, the device can be opened once for each
- * context that is available.
- *
- * @see ocxl_afu_open, ocxl_afu_attach, ocxl_global_mmio_map, ocxl_mmio_map
- *
- * @param afu a pointer to the AFU handle we want to open
- * @param amr the value of the PPC64 specific PSL AMR register, may be 0 if this should be left alone
- * @param global_endianess	The endianess of the global MMIO area
- * @param per_pasid_endianess	The endianess of the per-PASID MMIO area
- * @post on success, the AFU will be opened, the context attached, and any MMIO areas available will be mapped
- * @retval OCXL_OK on success
- * @retval OCXL_NO_MEM if we could not allocate memory
- * @retval OCXL_NO_DEV if the AFU is invalid
- * @retval OCXL_NO_MORE_CONTEXTS if maximum number of AFU contexts has been reached
- */
-static ocxl_err afu_use(ocxl_afu_h afu,
-#ifdef _ARCH_PPC64
-                        uint64_t amr,
-#endif
-                        ocxl_endian global_endianess, ocxl_endian per_pasid_endianess)
-{
-	ocxl_err ret;
-
-	ret = afu_open(afu);
-	if (ret != OCXL_OK) {
-		return ret;
-	}
-
-#ifdef _ARCH_PPC64
-	if (amr) {
-		ret = ocxl_afu_set_ppc64_amr(afu, amr);
-		if (ret != OCXL_OK) {
-			return ret;
-		}
-	}
-#endif
-
-	ret = ocxl_afu_attach(afu);
-	if (ret != OCXL_OK) {
-		return ret;
-	}
-
-	ret = ocxl_global_mmio_map(afu, global_endianess);
-	if (ret != OCXL_OK) {
-		return ret;
-	}
-
-	ret = ocxl_mmio_map(afu, per_pasid_endianess);
-	if (ret != OCXL_OK) {
-		return ret;
-	}
-
-	return OCXL_OK;
-}
-
-/**
- * Open and attach a context on an AFU, given the path to the AFU device
- *
- * Opens an AFU, attaches the context to the current process and memory maps the MMIO regions
- *
- * An AFU can have many contexts, the device can be opened once for each
- * context that is available.
- *
- * @see ocxl_afu_open, ocxl_afu_attach, ocxl_global_mmio_map, ocxl_mmio_map
- *
- * @param path the path of the AFU device
- * @param[out] afu a pointer to the AFU handle we want to open
- * @param amr the value of the PPC64 specific PSL AMR register, may be 0 if this should be left alone
- * @param global_endianess	The endianess of the global MMIO area
- * @param per_pasid_endianess	The endianess of the per-PASID MMIO area
- * @post on success, the AFU will be opened, the context attached, and any MMIO areas available will be mapped
- * @retval OCXL_OK on success
- * @retval OCXL_NO_MEM if we could not allocate memory
- * @retval OCXL_NO_DEV if the AFU is invalid
- * @retval OCXL_NO_MORE_CONTEXTS if maximum number of AFU contexts has been reached
- */
-ocxl_err ocxl_afu_use_from_dev(const char *path, ocxl_afu_h * afu,
-#ifdef _ARCH_PPC64
-                               uint64_t amr,
-#endif
-                               ocxl_endian global_endianess, ocxl_endian per_pasid_endianess)
-{
-	ocxl_err rc = get_afu_by_path(path, afu);
-
-	if (rc != OCXL_OK) {
-		return rc;
-	}
-
-	rc = afu_use(*afu,
-#ifdef _ARCH_PPC64
-	             amr,
-#endif
-	             global_endianess, per_pasid_endianess);
-	if (rc != OCXL_OK) {
-		ocxl_afu_close(*afu);
-		*afu = OCXL_INVALID_AFU;
-		return rc;
-	}
-
-	return OCXL_OK;
-}
-
-/**
- * Open and attach a context on an AFU, given the name of the AFU
- *
- * Opens an AFU, attaches the context to the current process and memory maps the MMIO regions
- *
- * An AFU can have many contexts, the device can be opened once for each
- * context that is available.
- *
- * @see afu_open, ocxl_afu_attach, ocxl_global_mmio_map, ocxl_mmio_map
- *
- * @param name the name of the AFU
- * @param[out] afu the AFU handle which we will allocate. This should be freed with ocxl_afu_close
- * @param amr the value of the PPC64 specific PSL AMR register, may be 0 if this should be left alone
- * @param global_endianess	The endianess of the global MMIO area
- * @param per_pasid_endianess	The endianess of the per-PASID MMIO area
- * @post on success, the AFU will be opened, the context attached, and any MMIO areas available will be mapped
- * @retval OCXL_OK if we have successfully fetched the AFU
- * @retval OCXL_NO_MEM if an out of memory error occurred
- * @retval OCXL_NO_DEV if no valid device was found
- * @retval OCXL_NO_MORE_CONTEXTS if maximum number of AFU contexts has been reached on all matching AFUs
- */
-ocxl_err ocxl_afu_use(const char *name, ocxl_afu_h * afu,
-#ifdef _ARCH_PPC64
-                      uint64_t amr,
-#endif
-                      ocxl_endian global_endianess, ocxl_endian per_pasid_endianess)
-{
-	char pattern[PATH_MAX];
-	snprintf(pattern, sizeof(pattern), "%s/%s.*", DEVICE_PATH, name);
-	glob_t glob_data;
-	ocxl_err ret = OCXL_INTERNAL_ERROR;
-	*afu = OCXL_INVALID_AFU;
-
-	int rc = glob(pattern, GLOB_ERR, NULL, &glob_data);
-	switch (rc) {
-	case 0:
-		break;
-	case GLOB_NOSPACE:
-		errmsg("No memory for glob while listing AFUs");
-		ret = OCXL_NO_MEM;
-		goto end;
-	case GLOB_NOMATCH:
-		errmsg("No OCXL devices found in '%s'", DEVICE_PATH);
-		ret = OCXL_NO_DEV;
-		goto end;
-	default:
-		errmsg("Glob error %d while listing AFUs", rc);
-		goto end;
-	}
-
-	for (int dev = 0; dev < glob_data.gl_pathc; dev++) {
-		const char *dev_path = glob_data.gl_pathv[dev];
-		ret = ocxl_afu_use_from_dev(dev_path, afu,
-#ifdef _ARCH_PPC64
-		                            amr,
-#endif
-		                            global_endianess, per_pasid_endianess);
-		switch (ret) {
-		case OCXL_OK:
-			goto end;
-		case OCXL_NO_MORE_CONTEXTS:
-			continue;
-		default:
-			goto end;
-		}
-	}
-
-end:
-	globfree(&glob_data);
-	return ret;
-}
-
 
 /**
  * Close an AFU and detach it from the context

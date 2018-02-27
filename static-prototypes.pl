@@ -8,7 +8,5 @@ if (/static/) {
 	s/\)/\);/;
 	s#//.*##;
 
-	if (!/afu_use/) {
-	   print;
-	}
+    print;
 }

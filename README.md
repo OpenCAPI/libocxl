@@ -43,29 +43,32 @@ areas on the the AFU. Endian conversion is handled automatically.
 A typical use of libocxl will follow this pattern:
 
 1. **Setup:** optionally turn on error reporting within the library: ocxl\_want\_verbose\_errors().
-2. **Open the device:** ocxl\_afu\_use() if an AFU name is used, or ocxl\_afu\_use\_from\_dev() if
+2. **Open the device:** ocxl\_afu\_open() if an AFU name is used, or ocxl\_afu\_open\_from\_dev() if
    a device path is used.
 3. **Allocate IRQs:** ocxl\_afu\_irq\_alloc(). This returns a sequential per-AFU IRQ number.
    An opaque pointer is associated with the
    handle in which the caller can store additional information. This is not used by OpenCAPI,
    but is passed as part of the event information to provide additional context to the IRQ handler.
 4. **Configure global MMIO:** Some AFUs may have a global MMIO area, which will contain configuration
-   information that will affect all PASIDs on the AFU. Use ocxl\_global\_mmio\_write32() and
-   ocxl\_global\_mmio\_write64() to write the information.
+   information that will affect all PASIDs on the AFU. Use ocxl\_global\_mmio\_map to make the area available,
+   then use ocxl\_global\_mmio\_write32() and ocxl\_global\_mmio\_write64() to write the information.
 5. **Configure the per-PASID MMIO:** Some AFUs support multiple contexts, and each context will
    get it's own MMIO area for configuration and communication. Typical information that may
    be communicated across the MMIO interface include IRQ handles (obtained with
    ocxl\_afu\_irq\_get\_id()), and pointers to AFU-specific
-   data structures. Use ocxl\_mmio\_write32() and ocxl\_mmio\_write64() to write the information.
-6. **Signal the AFU to do some work:** This is typically done via a write into the per-PASID MMIO area.
-7. **Handle AFU IRQs:** Pending IRQs can be queried using ocxl\_afu\_event\_check(). An IRQ event
+   data structures. Use ocxl\_mmio\_map to make the area available, then use
+   ocxl\_mmio\_write32() and ocxl\_mmio\_write64() to write the information.
+6. **Attach the AFU context to the process:** Use ocxl\_afu\_attach() to make the process's address space available
+   to the AFU context, allowing it to read & write to the process's memory.
+7. **Signal the AFU to do some work:** This is typically done via a write into the per-PASID MMIO area.
+8. **Handle AFU IRQs:** Pending IRQs can be queried using ocxl\_afu\_event\_check(). An IRQ event
    contains the IRQ number, the info pointer assigned when activated, the 64 bit IRQ handle, and
    the number of times the IRQ has been triggered since last checked.
-8. **Read results:** Work completion may be signally by the AFU via an IRQ, or by writing to
+9. **Read results:** Work completion may be signally by the AFU via an IRQ, or by writing to
    the MMIO area. Typically, bulk data should be written to a pointer passed to the AFU, however,
    small quantities of data may be read from the MMIO area using ocxl\_global\_mmio\_read32() and
    ocxl\_global\_mmio\_read64().
-9. **Termination:** ocxl\_afu\_free() will free all resources associated with an AFU handle.
+10. **Termination:** ocxl\_afu\_free() will free all resources associated with an AFU handle.
 
 # Development
 Patches may be submitted via Github pull requests. Please prepare your patches

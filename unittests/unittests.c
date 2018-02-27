@@ -605,66 +605,6 @@ end:
 	}
 }
 
-#ifdef _ARCH_PPC64
-/**
- * Check ocxl_afu_use_from_dev
- */
-static void test_ocxl_afu_use_from_dev() {
-	test_start("AFU", "ocxl_afu_use_from_dev");
-
-	ocxl_afu_h afu = OCXL_INVALID_AFU;
-
-	ocxl_want_verbose_errors(0);
-	ASSERT(OCXL_NO_DEV == ocxl_afu_use_from_dev("/nonexistent", &afu, 0, OCXL_MMIO_HOST_ENDIAN, OCXL_MMIO_HOST_ENDIAN));
-	ocxl_want_verbose_errors(1);
-
-	ASSERT(OCXL_OK == ocxl_afu_use_from_dev("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu, 0, OCXL_MMIO_HOST_ENDIAN, OCXL_MMIO_HOST_ENDIAN));
-	ocxl_afu * my_afu = (ocxl_afu *)afu;
-	ASSERT(my_afu->fd != -1);
-	ASSERT(my_afu->epoll_fd != -1);
-	ASSERT(my_afu->global_mmio.start != NULL);
-	ASSERT(!strcmp(ocxl_afu_get_device_path(afu), "/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0"));
-
-	test_stop(SUCCESS);
-
-end:
-ocxl_want_verbose_errors(1);
-	if (afu) {
-		ocxl_afu_close(afu);
-	}
-}
-
-/**
- * Check ocxl_afu_use_by_name
- */
-static void test_ocxl_afu_use() {
-	test_start("AFU", "ocxl_afu_use");
-
-	ocxl_afu_h afu = OCXL_INVALID_AFU;
-
-	ocxl_want_verbose_errors(0);
-	ASSERT(OCXL_NO_DEV == ocxl_afu_use("nonexistent", &afu, 0, OCXL_MMIO_HOST_ENDIAN, OCXL_MMIO_HOST_ENDIAN));
-	ocxl_want_verbose_errors(1);
-
-	ASSERT(OCXL_OK == ocxl_afu_use("IBM,Dummy", &afu, 0, OCXL_MMIO_HOST_ENDIAN, OCXL_MMIO_HOST_ENDIAN));
-	ocxl_afu * my_afu = (ocxl_afu *)afu;
-	ASSERT(my_afu->fd != -1);
-	ASSERT(my_afu->epoll_fd != -1);
-	ASSERT(my_afu->global_mmio.start != NULL);
-	ASSERT(!strcmp(ocxl_afu_get_device_path(afu), "/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0"));
-
-	test_stop(SUCCESS);
-
-end:
-ocxl_want_verbose_errors(1);
-	if (afu) {
-		ocxl_afu_close(afu);
-	}
-}
-
-#endif
-
-
 /**
  * Check ocxl_afu_attach
  */
@@ -1234,10 +1174,6 @@ int main(int args, const char **argv) {
 	test_ocxl_afu_open_by_id();
 	test_ocxl_afu_attach();
 	test_ocxl_afu_close();
-#ifdef _ARCH_PPC64
-	test_ocxl_afu_use_from_dev();
-	test_ocxl_afu_use();
-#endif
 
 	test_ocxl_global_mmio_map();
 	// Disabled as we need MMAP support in CUSE to test this
@@ -1249,7 +1185,7 @@ int main(int args, const char **argv) {
 	test_ocxl_global_mmio_read64();
 
 	test_read_afu_event();
-	// Disabled as we neeh epoll support in CUSE to test this
+	// Disabled as we need epoll support in CUSE to test this
 	// test_ocxl_afu_event_check_versioned();
 
 	exit_handler();

@@ -142,18 +142,6 @@ ocxl_err ocxl_afu_open_by_id(const char *name, uint8_t card_index, int16_t afu_i
 ocxl_err ocxl_afu_close(ocxl_afu_h afu);
 ocxl_err ocxl_afu_attach(ocxl_afu_h afu);
 
-/* High level wrappers */
-ocxl_err ocxl_afu_use_from_dev(const char *path, ocxl_afu_h * afu,
-#ifdef _ARCH_PPC64
-                               uint64_t amr,
-#endif
-                               ocxl_endian global_endianess, ocxl_endian per_pasid_endianess);
-ocxl_err ocxl_afu_use(const char *name, ocxl_afu_h * afu,
-#ifdef _ARCH_PPC64
-                      uint64_t amr,
-#endif
-                      ocxl_endian global_endianess, ocxl_endian per_pasid_endianess);
-
 /* irq.c */
 /* AFU IRQ functions */
 ocxl_err ocxl_afu_irq_alloc(ocxl_afu_h afu, void *info, ocxl_irq_h * irq_handle);
