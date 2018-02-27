@@ -51,12 +51,11 @@
  *
  * @param afu the AFU to operate on
  * @param endian the endianess of the MMIO area
- * @pre the AFU has been opened and attached
+ * @pre the AFU has been opened
  * @post the area struct is populated with the MMIO information
  * @retval OCXL_OK on success
  * @retval OCXL_NO_MEM if there is insufficient memory
  * @retval OCXL_NO_DEV if the MMIO device could not be opened
- * @retval OCXL_NO_CONTEXT if the AFU has not been opened & attached
  * @retval OCXL_ALREADY_DONE if the global MMIO area has already been mapped
  */
 ocxl_err ocxl_global_mmio_map(ocxl_afu_h afu, ocxl_endian endian)
@@ -115,11 +114,11 @@ ocxl_err ocxl_global_mmio_map(ocxl_afu_h afu, ocxl_endian endian)
  *
  * @param afu the AFU to operate on
  * @param endian the endianess of the MMIO area
- * @pre the AFU has been opened and attached
+ * @pre the AFU has been opened
  * @post the area struct is populated with the MMIO information
  * @retval OCXL_OK on success
  * @retval OCXL_NO_MEM if the map failed
- * @retval OCXL_NO_CONTEXT if the AFU has not been opened & attached
+ * @retval OCXL_NO_CONTEXT if the AFU has not been opened
  */
 ocxl_err ocxl_mmio_map(ocxl_afu_h afu, ocxl_endian endian)
 {
@@ -148,7 +147,7 @@ ocxl_err ocxl_mmio_map(ocxl_afu_h afu, ocxl_endian endian)
 /**
  * Unmap an AFU Global MMIO area
  *
- * @pre the AFU has been opened and attached, and the global MMIO area mapped
+ * @pre the AFU has been opened, and the global MMIO area mapped
  * @param afu the AFU whose global MMIO should be unmapped
  */
 void ocxl_global_mmio_unmap(ocxl_afu_h afu)
@@ -169,7 +168,7 @@ void ocxl_global_mmio_unmap(ocxl_afu_h afu)
 /**
  * Unmap an AFU per-PASID MMIO area
  *
- * @pre the AFU has been opened and attached, and the per-PASID MMIO area mapped
+ * @pre the AFU has been opened, and the per-PASID MMIO area mapped
  * @param afu the AFU whose per-PASID MMIO should be unmapped
  */
 void ocxl_mmio_unmap(ocxl_afu_h afu)
@@ -324,7 +323,7 @@ inline static void write64(ocxl_mmio_area * mmio, size_t offset, uint64_t value)
  * space. The return value will include byte swapping if the AFU endianness
  * declared to ocxl_global_mmio_map() differs from the host endianness.
  *
- * @pre the AFU has been opened and attached, and the global MMIO area mapped
+ * @pre the AFU has been opened, and the global MMIO area mapped
  * @param afu the AFU to operate on
  * @param offset A byte address that is aligned on a word (4 byte) boundary. It
  * must be lower than the MMIO size (-4 bytes) reported by ocxl_afu_get_global_mmio_size
@@ -357,7 +356,7 @@ ocxl_err ocxl_global_mmio_read32(ocxl_afu_h afu, size_t offset, uint32_t * out)
  * space. The return value will include byte swapping if the AFU endianness
  * declared to ocxl_global_mmio_map() differs from the host endianness.
  *
- * @pre the AFU has been opened and attached, and the global MMIO area mapped
+ * @pre the AFU has been opened, and the global MMIO area mapped
  * @param afu the AFU to operate on
  * @param offset A byte address that is aligned on a double word (8 byte) boundary. It
  * must be lower than the MMIO size (-8 bytes) reported by ocxl_afu_get_mmio_size()
@@ -390,7 +389,7 @@ ocxl_err ocxl_global_mmio_read64(ocxl_afu_h afu, size_t offset, uint64_t * out)
  * space. The write will include byte swapping if the AFU endianness declared to
  * ocxl_global_mmio_map() differs from the host endianness.
  *
- * @pre the AFU has been opened and attached, and the global MMIO area mapped
+ * @pre the AFU has been opened, and the global MMIO area mapped
  * @param afu the AFU to operate on
  * @param offset A byte address that is aligned on a word (4 byte) boundary. It
  * must be lower than the MMIO size (-4 bytes) reported by ocxl_afu_get_global_mmio_size
@@ -423,7 +422,7 @@ ocxl_err ocxl_global_mmio_write32(ocxl_afu_h afu, size_t offset, uint32_t value)
  * space. The write will include byte swapping if the AFU endianness declared to
  * ocxl_global_mmio_map() differs from the host endianness.
  *
- * @pre the AFU has been opened and attached, and the global MMIO area mapped
+ * @pre the AFU has been opened, and the global MMIO area mapped
  * @param afu the AFU to operate on
  * @param offset A byte address that is aligned on a double word (8 byte) boundary. It
  * must be lower than the MMIO size (-8 bytes) reported by ocxl_afu_get_mmio_size()
@@ -456,7 +455,7 @@ ocxl_err ocxl_global_mmio_write64(ocxl_afu_h afu, size_t offset, uint64_t value)
  * space. The return value will include byte swapping if the AFU endianness
  * declared to ocxl_mmio_map() differs from the host endianness.
  *
- * @pre the AFU has been opened and attached, and the per-PASID MMIO area mapped
+ * @pre the AFU has been opened, and the per-PASID MMIO area mapped
  * @param afu the AFU to operate on
  * @param offset A byte address that is aligned on a word (4 byte) boundary. It
  * must be lower than the MMIO size (-4 bytes) reported by ocxl_afu_get_global_mmio_size
@@ -489,7 +488,7 @@ ocxl_err ocxl_mmio_read32(ocxl_afu_h afu, size_t offset, uint32_t * out)
  * space. The return value will include byte swapping if the AFU endianness
  * declared to ocxl_mmio_map() differs from the host endianness.
  *
- * @pre the AFU has been opened and attached, and the per-PASID MMIO area mapped
+ * @pre the AFU has been opened, and the per-PASID MMIO area mapped
  * @param afu the AFU to operate on
  * @param offset A byte address that is aligned on a double word (8 byte) boundary. It
  * must be lower than the MMIO size (-8 bytes) reported by ocxl_afu_get_mmio_size()
@@ -522,7 +521,7 @@ ocxl_err ocxl_mmio_read64(ocxl_afu_h afu, size_t offset, uint64_t * out)
  * space. The write will include byte swapping if the AFU endianness declared to
  * ocxl_global_mmio_map() differs from the host endianness.
  *
- * @pre the AFU has been opened and attached, and the per-PASID MMIO area mapped
+ * @pre the AFU has been opened, and the per-PASID MMIO area mapped
  * @param afu the AFU to operate on
  * @param offset A byte address that is aligned on a word (4 byte) boundary. It
  * must be lower than the MMIO size (-4 bytes) reported by ocxl_afu_get_global_mmio_size
@@ -555,7 +554,7 @@ ocxl_err ocxl_mmio_write32(ocxl_afu_h afu, size_t offset, uint32_t value)
  * space. The write will include byte swapping if the AFU endianness declared to
  * ocxl_mmio_map() differs from the host endianness.
  *
- * @pre the AFU has been opened and attached, and the per-PASID MMIO area mapped
+ * @pre the AFU has been opened, and the per-PASID MMIO area mapped
  * @param afu the AFU to operate on
  * @param offset A byte address that is aligned on a double word (8 byte) boundary. It
  * must be lower than the MMIO size (-8 bytes) reported by ocxl_afu_get_mmio_size()
