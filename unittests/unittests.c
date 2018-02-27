@@ -504,6 +504,8 @@ static void test_ocxl_afu_open_by_id() {
 	ocxl_afu_close(afu);
 	afu = OCXL_INVALID_AFU;
 
+	sleep(1);
+
 	ASSERT(OCXL_OK == ocxl_afu_open_specific("IBM,Dummy", 0, -1, &afu));
 	ASSERT(afu != OCXL_INVALID_AFU);
 	ASSERT(!strcmp(ocxl_afu_get_device_path(afu), "/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0"));

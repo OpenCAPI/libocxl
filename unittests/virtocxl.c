@@ -93,9 +93,6 @@ static void afu_ioctl(fuse_req_t req, int cmd, void *arg,
 		break;
 
 	case OCXL_IOCTL_GET_METADATA:
-		// Seems to be some sort of race which causes test AFU:ocxl_afu_open_by_id to hang
-		usleep(600000);
-
 		memset(&ret, 0, sizeof(ret));
 
 		ret.version = 1;
