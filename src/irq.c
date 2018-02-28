@@ -253,7 +253,7 @@ static ocxl_event_action read_afu_event(ocxl_afu *afu, uint16_t max_supported_ev
 	*last = true;
 
 	switch (max_supported_event) {
-	case 0:
+	case OCXL_AFU_EVENT_XSL_FAULT_ERROR:
 		event_size += sizeof(ocxl_kernel_event_xsl_fault_error);
 		break;
 	default:
@@ -315,15 +315,26 @@ static ocxl_event_action read_afu_event(ocxl_afu *afu, uint16_t max_supported_ev
  * @param timeout how long to wait (in milliseconds) for interrupts to arrive, set to -1 to wait indefinitely, or 0 to return immediately if no events are available
  * @param[out] events the triggered events (caller allocated)
  * @param event_count the number of events that can fit into the events array
- * @param max_supported_event the id of the maximum supported kernel event, events with an ID higher than this will be ignored
+ * @param event_api_version the version of the event API that the caller wants to see
  * @return the number of events triggered, if this is the same as event_count, you should call ocxl_afu_event_check again
  * @see ocxl_afu_event_check
  * @retval -1 if an error occurred
  */
 int ocxl_afu_event_check_versioned(ocxl_afu_h afu, int timeout, ocxl_event *events, uint16_t event_count,
-                                   uint16_t max_supported_event)
+                                   uint16_t event_api_version)
 {
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
+	uint16_t max_supported_event;
+
+	switch (event_api_version) {
+	case 0:
+		max_supported_event = OCXL_AFU_EVENT_XSL_FAULT_ERROR;
+		break;
+
+	default:
+		errmsg("Unsupported event API version %u, your libocxl library may be too old", event_api_version);
+		return -1;
+	}
 
 	TRACE("Waiting up to %dms for AFU events", timeout);
 

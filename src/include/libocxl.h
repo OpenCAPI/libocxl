@@ -147,7 +147,7 @@ ocxl_err ocxl_afu_attach(ocxl_afu_h afu);
 ocxl_err ocxl_afu_irq_alloc(ocxl_afu_h afu, void *info, ocxl_irq_h * irq_handle);
 uint64_t ocxl_afu_irq_get_id(ocxl_afu_h afu, ocxl_irq_h irq);
 int ocxl_afu_event_check_versioned(ocxl_afu_h afu, int timeout, ocxl_event *events, uint16_t event_count,
-                                   uint16_t max_supported_event);
+                                   uint16_t event_api_version);
 
 /**
  * @addtogroup ocxl_irq
@@ -166,8 +166,8 @@ int ocxl_afu_event_check_versioned(ocxl_afu_h afu, int timeout, ocxl_event *even
  */
 static inline int ocxl_afu_event_check(ocxl_afu_h afu, int timeout, ocxl_event *events, uint16_t event_count)
 {
-	uint16_t max_supported_event = 0;
-	return ocxl_afu_event_check_versioned(afu, timeout, events, event_count, max_supported_event);
+	uint16_t event_api_version = 0;
+	return ocxl_afu_event_check_versioned(afu, timeout, events, event_count, event_api_version);
 }
 
 /**
