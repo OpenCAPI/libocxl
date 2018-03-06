@@ -131,3 +131,29 @@ void ocxl_default_afu_error_handler(ocxl_afu_h afu, ocxl_err error, const char *
 	fprintf(stderr, "ERROR: %s\t%s: %s\n", dev, ocxl_err_to_string(error), message);
 	pthread_mutex_unlock(&stderr_mutex);
 }
+
+/**
+ * Grow a buffer geometrically
+ *
+ * @param afu the AFU that owns the buffer
+ * @param buffer [in/out] the buffer to grow
+ * @param [in/out] the number of elements in the buffer
+ * @param size the size of a buffer element
+ * @param initial_count the initial number of elements in the buffer
+ */
+ocxl_err grow_buffer(ocxl_afu *afu, void **buffer, uint16_t *count, size_t size, size_t initial_count)
+{
+	size_t new_count = (*count > 0) ? 2 * *count : initial_count;
+	void *temp = realloc(*buffer, new_count * size);
+	if (temp == NULL) {
+		ocxl_err rc = OCXL_NO_MEM;
+		errmsg(afu, rc, "Could not realloc buffer to %lu elements of %lu bytes (%lu bytes total): %d '%s'",
+		       new_count, size, new_count * size, errno, strerror(errno));
+		return rc;
+	}
+
+	*buffer = temp;
+	*count = new_count;
+
+	return OCXL_OK;
+}

@@ -123,6 +123,9 @@ const char *ocxl_err_to_string(ocxl_err err)
 	case OCXL_NO_MORE_CONTEXTS:
 		return "No more contexts";
 
+	case OCXL_INVALID_ARGS:
+		return "Invalid arguments";
+
 	default:
 		return "Unknown error";
 	}

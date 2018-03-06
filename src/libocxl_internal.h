@@ -63,6 +63,8 @@ void trace_message(const char *label, const char *file, int line, const char *fu
 void errmsg(ocxl_afu *afu, ocxl_err error, const char *format, ...);
 void ocxl_default_error_handler(ocxl_err error, const char *message);
 void ocxl_default_afu_error_handler(ocxl_afu_h afu, ocxl_err error, const char *message);
+ocxl_err grow_buffer(ocxl_afu *afu, void **buffer, uint16_t *count, size_t size, size_t initial_count);
+ocxl_err global_mmio_open(ocxl_afu *afu);
 
 extern const char *sys_path;
 #define SYS_PATH_DEFAULT "/sys/class/ocxl"
@@ -73,6 +75,7 @@ extern const char *dev_path;
 #define DEVICE_PATH ((UNLIKELY(dev_path != NULL)) ? dev_path : DEV_PATH_DEFAULT)
 
 #define INITIAL_IRQ_COUNT 64
+#define INITIAL_MMIO_COUNT 4
 
 /**
  * @internal
@@ -81,7 +84,8 @@ extern const char *dev_path;
 typedef struct ocxl_mmio_area {
 	char *start; /**< The first addressable byte of the area */
 	size_t length; /**< The size of the area in bytes */
-	ocxl_endian endianess; /**< The endianess of the MMIO area */
+	ocxl_mmio_type type; /**< The type of the area */
+	ocxl_afu *afu; /**< The AFU this MMIO area belongs to */
 } ocxl_mmio_area;
 
 
@@ -109,7 +113,7 @@ typedef struct epoll_fd_source {
 struct ocxl_irq {
 	struct ocxl_ioctl_irq_fd event; /**< The event descriptor */
 	uint16_t irq_number; /**< The 0 indexed IRQ number */
-	void *addr; /**< The mmaped address of the IRQ page */
+	void *addr; /**< The mmapped address of the IRQ page */
 	void *info; /**< Additional info to pass to the user */
 	epoll_fd_source fd_info; /**< Epoll information for this IRQ */
 };
@@ -137,7 +141,12 @@ struct ocxl_afu {
 	size_t page_size;
 	ocxl_irq *irqs;
 	uint16_t irq_count; /**< The number of valid IRQs */
-	uint16_t irq_size; /**< The maximum number of IRQs available */
+	uint16_t irq_max_count; /**< The maximum number of IRQs available */
+
+	ocxl_mmio_area *mmios;
+	uint16_t mmio_count; /**< The number of valid MMIO regions */
+	uint16_t mmio_max_count; /**< The maximum number of MMIO regions available */
+
 	uint32_t pasid;
 
 	bool verbose_errors;
@@ -162,7 +171,6 @@ typedef enum ocxl_event_action {
 	OCXL_EVENT_ACTION_IGNORE,	/**< The event read was successful, but should be ignored */
 } ocxl_event_action;
 
-bool ocxl_afu_mmio_sizes(ocxl_afu * afu);
 void irq_dealloc(ocxl_afu * afu, ocxl_irq * irq);
 
 #endif				/* _LIBOCXL_INTERNAL_H */

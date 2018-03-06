@@ -11,10 +11,7 @@ LIBOCXL_0 {
 		ocxl_afu_get_device_path;
 		ocxl_afu_get_sysfs_path;
 		ocxl_afu_get_version;
-		ocxl_afu_get_fd;
 		ocxl_afu_get_pasid;
-		ocxl_afu_get_global_mmio_size;
-		ocxl_afu_get_mmio_size;
 		ocxl_afu_open_from_dev;
 		ocxl_afu_close;
 		ocxl_afu_open;
@@ -23,21 +20,20 @@ LIBOCXL_0 {
 		ocxl_afu_attach;
 		ocxl_afu_irq_alloc;
 		ocxl_afu_irq_get_id;
+        ocxl_afu_get_event_fd;
 		ocxl_afu_event_check;
 		ocxl_afu_event_check_versioned;
 		ocxl_afu_set_ppc64_amr;
-		ocxl_global_mmio_map;
 		ocxl_mmio_map;
-		ocxl_global_mmio_read32;
-		ocxl_global_mmio_read64;
-		ocxl_global_mmio_write32;
-		ocxl_global_mmio_write64;
+		ocxl_mmio_map_advanced;
+		ocxl_mmio_unmap;
+		ocxl_mmio_get_fd;
+		ocxl_mmio_size;
+		ocxl_mmio_get_info;
 		ocxl_mmio_read32;
 		ocxl_mmio_read64;
 		ocxl_mmio_write32;
 		ocxl_mmio_write64;
-		ocxl_global_mmio_unmap;
-		ocxl_mmio_unmap;
 
 	local:
 		*;

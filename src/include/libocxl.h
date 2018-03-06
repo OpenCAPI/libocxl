@@ -21,6 +21,8 @@
 #include <stdio.h>
 #include <limits.h>
 #include <sys/select.h>
+#include <sys/mman.h>  // Required for PROT_* for MMIO map calls
+#include <endian.h> // Required for htobe32 & friends in MMIO access wrappers
 
 #ifdef __cplusplus
 extern "C" {
@@ -39,6 +41,14 @@ typedef enum {
 	OCXL_MMIO_LITTLE_ENDIAN = 1,	/**< AFU data is little-endian */
 	OCXL_MMIO_HOST_ENDIAN = 2,		/**< AFU data is the same endianess as the host */
 } ocxl_endian;
+
+/**
+ * Defines the type of an MMIO area
+ */
+typedef enum {
+	OCXL_GLOBAL_MMIO,
+	OCXL_PER_PASID_MMIO
+} ocxl_mmio_type;
 
 #define AFU_NAME_MAX	24 /**< The maximum length of an AFU name */
 
@@ -63,6 +73,12 @@ typedef void *ocxl_afu_h;
 typedef uint16_t ocxl_irq_h;
 
 /**
+ * A handle for an MMIO region on an AFU
+ */
+typedef void *ocxl_mmio_h;
+
+
+/**
  * Potential return values from ocxl_* functions
  */
 typedef enum {
@@ -75,6 +91,7 @@ typedef enum {
 	OCXL_ALREADY_DONE = -6,		/**< The action requested has already been performed */
 	OCXL_OUT_OF_BOUNDS = -7,	/**< The action requested falls outside the permitted area */
 	OCXL_NO_MORE_CONTEXTS = -8, /**< No more contexts can be opened on the AFU */
+	OCXL_INVALID_ARGS = -9,		/**< One or more arguments are invalid */
 	/* Adding something? Update setup.c: ocxl_err_to_string too */
 } ocxl_err;
 
@@ -134,9 +151,6 @@ const ocxl_identifier *ocxl_afu_get_identifier(ocxl_afu_h afu);
 const char *ocxl_afu_get_device_path(ocxl_afu_h afu);
 const char *ocxl_afu_get_sysfs_path(ocxl_afu_h afu);
 void ocxl_afu_get_version(ocxl_afu_h afu, uint8_t *major, uint8_t *minor);
-int ocxl_afu_get_fd(ocxl_afu_h afu);
-size_t ocxl_afu_get_global_mmio_size(ocxl_afu_h afu);
-size_t ocxl_afu_get_mmio_size(ocxl_afu_h afu);
 uint32_t ocxl_afu_get_pasid(ocxl_afu_h afu);
 
 /* AFU operations */
@@ -154,6 +168,7 @@ ocxl_err ocxl_afu_attach(ocxl_afu_h afu);
 /* AFU IRQ functions */
 ocxl_err ocxl_afu_irq_alloc(ocxl_afu_h afu, void *info, ocxl_irq_h * irq_handle);
 uint64_t ocxl_afu_irq_get_id(ocxl_afu_h afu, ocxl_irq_h irq);
+int ocxl_afu_get_event_fd(ocxl_afu_h afu);
 int ocxl_afu_event_check_versioned(ocxl_afu_h afu, int timeout, ocxl_event *events, uint16_t event_count,
                                    uint16_t event_api_version);
 
@@ -188,22 +203,18 @@ ocxl_err ocxl_afu_set_ppc64_amr(ocxl_afu_h afu, uint64_t amr);
 #endif
 
 /* mmio.c */
-ocxl_err ocxl_global_mmio_map(ocxl_afu_h afu, ocxl_endian endian);
-ocxl_err ocxl_mmio_map(ocxl_afu_h afu, ocxl_endian endian);
-
-ocxl_err ocxl_global_mmio_read32(ocxl_afu_h afu, size_t offset, uint32_t * out);
-ocxl_err ocxl_global_mmio_read64(ocxl_afu_h afu, size_t offset, uint64_t * out);
-ocxl_err ocxl_global_mmio_write32(ocxl_afu_h afu, size_t offset, uint32_t val);
-ocxl_err ocxl_global_mmio_write64(ocxl_afu_h afu, size_t offset, uint64_t val);
-
-ocxl_err ocxl_mmio_read32(ocxl_afu_h afu, size_t offset, uint32_t * out);
-ocxl_err ocxl_mmio_read64(ocxl_afu_h afu, size_t offset, uint64_t * out);
-ocxl_err ocxl_mmio_write32(ocxl_afu_h afu, size_t offset, uint32_t val);
-ocxl_err ocxl_mmio_write64(ocxl_afu_h afu, size_t offset, uint64_t val);
-
-/* MMIO low level API */
-void ocxl_global_mmio_unmap(ocxl_afu_h afu);
-void ocxl_mmio_unmap(ocxl_afu_h afu);
+size_t ocxl_afu_get_mmio_size(ocxl_afu_h afu, ocxl_mmio_type type);
+ocxl_err ocxl_mmio_map_advanced(ocxl_afu_h afu, ocxl_mmio_type type, size_t size, int prot, uint64_t flags,
+                                off_t offset, ocxl_mmio_h *region);
+ocxl_err ocxl_mmio_map(ocxl_afu_h afu, ocxl_mmio_type type, ocxl_mmio_h *region);
+void ocxl_mmio_unmap(ocxl_mmio_h region);
+int ocxl_mmio_get_fd(ocxl_afu_h afu, ocxl_mmio_type type);
+size_t ocxl_mmio_size(ocxl_afu_h afu, ocxl_mmio_type type);
+ocxl_err ocxl_mmio_get_info(ocxl_mmio_h region, void **address, size_t *size);
+ocxl_err ocxl_mmio_read32(ocxl_mmio_h mmio, off_t offset, ocxl_endian endian, uint32_t * out);
+ocxl_err ocxl_mmio_read64(ocxl_mmio_h mmio, off_t offset, ocxl_endian endian, uint64_t * out);
+ocxl_err ocxl_mmio_write32(ocxl_mmio_h mmio, off_t offset, ocxl_endian endian, uint32_t value);
+ocxl_err ocxl_mmio_write64(ocxl_mmio_h mmio, off_t offset, ocxl_endian endian, uint64_t value);
 
 #ifdef __cplusplus
 }

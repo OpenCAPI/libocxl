@@ -117,44 +117,6 @@ void ocxl_afu_get_version(ocxl_afu_h afu, uint8_t *major, uint8_t *minor)
 }
 
 /**
- * Get the file descriptor of an opened AFU
- * @param afu The AFU to get the descriptor of
- * @return the file descriptor
- */
-int ocxl_afu_get_fd(ocxl_afu_h afu)
-{
-	ocxl_afu *my_afu = (ocxl_afu *) afu;
-
-	return my_afu->fd;
-}
-
-/**
- * Get the size of the global MMIO region for an AFU
- *
- * @param afu the AFU to get the MMIO size of
- * @return the size of the global MMIO region
- */
-size_t ocxl_afu_get_global_mmio_size(ocxl_afu_h afu)
-{
-	ocxl_afu *my_afu = (ocxl_afu *) afu;
-
-	return my_afu->global_mmio.length;
-}
-
-/**
- * Get the size of the per-PASID MMIO region for an AFU
- *
- * @param afu the AFU to get the MMIO size of
- * @return the size of the per-PASID MMIO region
- */
-size_t ocxl_afu_get_mmio_size(ocxl_afu_h afu)
-{
-	ocxl_afu *my_afu = (ocxl_afu *) afu;
-
-	return my_afu->per_pasid_mmio.length;
-}
-
-/**
  * @}
  *
  * @defgroup ocxl_afu_messages OpenCAPI AFU messages
@@ -250,19 +212,23 @@ static void afu_init(ocxl_afu * afu)
 	afu->epoll_event_count = 0;
 	afu->global_mmio_fd = -1;
 
-	afu->global_mmio.endianess = OCXL_MMIO_HOST_ENDIAN;
 	afu->global_mmio.start = NULL;
 	afu->global_mmio.length = 0;
+	afu->global_mmio.type = OCXL_GLOBAL_MMIO;
 
-	afu->per_pasid_mmio.endianess = OCXL_MMIO_HOST_ENDIAN;
 	afu->per_pasid_mmio.start = NULL;
 	afu->per_pasid_mmio.length = 0;
+	afu->per_pasid_mmio.type = OCXL_PER_PASID_MMIO;
 
 	afu->page_size = sysconf(_SC_PAGESIZE);
 
 	afu->irqs = NULL;
 	afu->irq_count = 0;
-	afu->irq_size = 0;
+	afu->irq_max_count = 0;
+
+	afu->mmios = NULL;
+	afu->mmio_count = 0;
+	afu->mmio_max_count = 0;
 
 	afu->pasid = UINT32_MAX;
 
@@ -422,21 +388,29 @@ static ocxl_err afu_open(ocxl_afu *afu)
 		return OCXL_ALREADY_DONE;
 	}
 
+	ocxl_err rc;
+
 	int fd = open(afu->device_path, O_RDWR | O_CLOEXEC | O_NONBLOCK);
 	if (fd < 0) {
 		if (errno == ENOSPC) {
-			ocxl_err rc = OCXL_NO_MORE_CONTEXTS;
+			rc = OCXL_NO_MORE_CONTEXTS;
 			errmsg(afu, rc, "Could not open AFU device '%s', the maximum number of contexts has been reached: Error %d: %s",
 			       afu->device_path, errno, strerror(errno));
 			return rc;
 		}
 
-		ocxl_err rc = OCXL_NO_DEV;
+		rc = OCXL_NO_DEV;
 		errmsg(afu, rc, "Could not open AFU device '%s': Error %d: %s", afu->device_path, errno, strerror(errno));
 		return rc;
 	}
 
 	afu->fd = fd;
+
+	rc = global_mmio_open(afu);
+	if (rc != OCXL_OK) {
+		errmsg(afu, rc, "Could not open global MMIO descriptor");
+		return rc;
+	}
 
 	fd = epoll_create1(EPOLL_CLOEXEC);
 	if (fd < 0) {
@@ -597,7 +571,6 @@ ocxl_err ocxl_afu_open_specific(const char *name, const char *physical_function,
 		goto end;
 	}
 
-
 	for (int dev = 0; dev < glob_data.gl_pathc; dev++) {
 		const char *dev_path = glob_data.gl_pathv[dev];
 		ret = ocxl_afu_open_from_dev(dev_path, afu);
@@ -684,8 +657,14 @@ ocxl_err ocxl_afu_close(ocxl_afu_h afu)
 		return OCXL_ALREADY_DONE;
 	}
 
-	ocxl_mmio_unmap(afu);
-	ocxl_global_mmio_unmap(afu);
+	for (uint16_t mmio_idx = 0; mmio_idx < my_afu->mmio_count; mmio_idx++) {
+		ocxl_mmio_unmap((ocxl_mmio_h)&my_afu->mmios[mmio_idx]);
+	}
+
+	if (my_afu->global_mmio_fd) {
+		close(my_afu->global_mmio_fd);
+		my_afu->global_mmio_fd = -1;
+	}
 
 	if (my_afu->irqs) {
 		for (uint16_t irq = 0; irq < my_afu->irq_count; irq++) {
@@ -695,7 +674,7 @@ ocxl_err ocxl_afu_close(ocxl_afu_h afu)
 		free(my_afu->irqs);
 		my_afu->irqs = NULL;
 		my_afu->irq_count = 0;
-		my_afu->irq_size = 0;
+		my_afu->irq_max_count = 0;
 	}
 
 	if (my_afu->epoll_events) {

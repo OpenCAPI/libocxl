@@ -163,17 +163,12 @@ ocxl_err ocxl_afu_irq_alloc(ocxl_afu_h afu, void *info, ocxl_irq_h * irq)
 {
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 
-	if (my_afu->irq_count == my_afu->irq_size) {
-		size_t new_size = (my_afu->irq_size > 0) ? 2 * my_afu->irq_size : INITIAL_IRQ_COUNT;
-		ocxl_irq *irqs = realloc(my_afu->irqs, new_size * sizeof(ocxl_irq));
-		if (irqs == NULL) {
-			ocxl_err rc = OCXL_NO_MEM;
-			errmsg(my_afu, rc, "Could not realloc IRQs for afu '%s' to %d IRQs",
-			       my_afu->identifier.afu_name, new_size);
+	if (my_afu->irq_count == my_afu->irq_max_count) {
+		ocxl_err rc = grow_buffer(my_afu, (void **)&my_afu->irqs, &my_afu->irq_max_count, sizeof(ocxl_irq), INITIAL_IRQ_COUNT);
+		if (rc != OCXL_OK) {
+			errmsg(my_afu, rc, "Could not grow IRQ buffer for AFU '%s'", my_afu->identifier.afu_name);
 			return rc;
 		}
-		my_afu->irqs = irqs;
-		my_afu->irq_size = new_size;
 	}
 
 	ocxl_err rc = irq_allocate(my_afu, &my_afu->irqs[my_afu->irq_count], info);
@@ -207,6 +202,23 @@ uint64_t ocxl_afu_irq_get_id(ocxl_afu_h afu, ocxl_irq_h irq)
 	}
 
 	return (uint64_t)my_afu->irqs[irq].addr;
+}
+
+/**
+ * Get a descriptor that will trigger a poll when an AFU event occurs
+ *
+ * When triggered, call ocxl_read_afu_event() to extract the event information
+ *
+ * @pre the AFU has been opened
+ * @see ocxl_afu_event_check()
+ * @param afu the AFU the IRQ belongs to
+ * @return the handle
+ */
+int ocxl_afu_get_event_fd(ocxl_afu_h afu)
+{
+	ocxl_afu *my_afu = (ocxl_afu *) afu;
+
+	return my_afu->fd;
 }
 
 typedef struct ocxl_kernel_event_header ocxl_kernel_event_header;

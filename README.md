@@ -50,8 +50,8 @@ A typical use of libocxl will follow this pattern:
    handle in which the caller can store additional information. This is not used by OpenCAPI,
    but is passed as part of the event information to provide additional context to the IRQ handler.
 4. **Configure global MMIO:** Some AFUs may have a global MMIO area, which will contain configuration
-   information that will affect all PASIDs on the AFU. Use ocxl\_global\_mmio\_map to make the area available,
-   then use ocxl\_global\_mmio\_write32() and ocxl\_global\_mmio\_write64() to write the information.
+   information that will affect all PASIDs on the AFU. Use ocxl\_mmio\_map to make the area available,
+   then use ocxl\_mmio\_write32() and ocxl\_mmio\_write64() to write the information.
 5. **Configure the per-PASID MMIO:** Some AFUs support multiple contexts, and each context will
    get it's own MMIO area for configuration and communication. Typical information that may
    be communicated across the MMIO interface include IRQ handles (obtained with
@@ -64,10 +64,10 @@ A typical use of libocxl will follow this pattern:
 8. **Handle AFU IRQs:** Pending IRQs can be queried using ocxl\_afu\_event\_check(). An IRQ event
    contains the IRQ number, the info pointer assigned when activated, the 64 bit IRQ handle, and
    the number of times the IRQ has been triggered since last checked.
-9. **Read results:** Work completion may be signally by the AFU via an IRQ, or by writing to
+9. **Read results:** Work completion may be signalled by the AFU via an IRQ, or by writing to
    the MMIO area. Typically, bulk data should be written to a pointer passed to the AFU, however,
-   small quantities of data may be read from the MMIO area using ocxl\_global\_mmio\_read32() and
-   ocxl\_global\_mmio\_read64().
+   small quantities of data may be read from an MMIO area using ocxl\_mmio\_read32() and
+   ocxl\_mmio\_read64().
 10. **Termination:** ocxl\_afu\_free() will free all resources associated with an AFU handle.
 
 # Development
