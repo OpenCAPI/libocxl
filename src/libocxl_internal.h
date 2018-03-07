@@ -94,6 +94,20 @@ typedef struct ocxl_irq ocxl_irq;
 
 /**
  * @internal
+ *
+ * The type of action to be taken upon return from the ocxl_read_afu_event() function
+ */
+typedef enum ocxl_event_action {
+	OCXL_EVENT_ACTION_SUCCESS,	/**< The event read was successful and should be handled */
+	OCXL_EVENT_ACTION_FAIL,		/**< The event read failed */
+	OCXL_EVENT_ACTION_NONE,		/**< There was no event to read */
+	OCXL_EVENT_ACTION_IGNORE,	/**< The event read was successful, but should be ignored */
+} ocxl_event_action;
+
+
+/**
+ * @internal
+ *
  * Metadata for determining which source triggered an epoll fd
  */
 typedef struct epoll_fd_source {
@@ -108,6 +122,7 @@ typedef struct epoll_fd_source {
 
 /**
  * @internal
+ *
  * AFU IRQ information
  */
 struct ocxl_irq {
@@ -122,6 +137,7 @@ struct ocxl_irq {
 
 /**
  * @internal
+ *
  * Represents an AFU
  */
 struct ocxl_afu {
@@ -159,17 +175,6 @@ struct ocxl_afu {
 	uint64_t ppc64_amr;
 #endif
 };
-
-/**
- * @internal
- * The type of action of the read_afu_event() function
- */
-typedef enum ocxl_event_action {
-	OCXL_EVENT_ACTION_SUCCESS,	/**< The event read was successful and should be handled */
-	OCXL_EVENT_ACTION_FAIL,		/**< The event read failed */
-	OCXL_EVENT_ACTION_NONE,		/**< There was no event to read */
-	OCXL_EVENT_ACTION_IGNORE,	/**< The event read was successful, but should be ignored */
-} ocxl_event_action;
 
 void irq_dealloc(ocxl_afu * afu, ocxl_irq * irq);
 

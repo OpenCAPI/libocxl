@@ -839,7 +839,7 @@ static void test_read_afu_event() {
 
 	ocxl_afu * my_afu = (ocxl_afu *)afu;
 	ocxl_event event;
-	bool last = false;
+	int last = 0;
 	ASSERT(OCXL_EVENT_ACTION_NONE == read_afu_event(my_afu, 0, &event, &last));
 	ASSERT(last);
 
@@ -849,7 +849,7 @@ static void test_read_afu_event() {
 	force_translation_fault((void *)0xfeeddeadbeeff00d, 16);
 #endif
 
-	last = false;
+	last = 0;
 	ASSERT(OCXL_EVENT_ACTION_SUCCESS == read_afu_event(my_afu, 0, &event, &last));
 	ASSERT(last);
 	ASSERT(event.type == OCXL_EVENT_TRANSLATION_FAULT);
@@ -865,7 +865,7 @@ static void test_read_afu_event() {
 	force_translation_fault((void *)0xfeeddeadbeeff00d, 16);
 #endif
 
-	last = false;
+	last = 0;
 	ASSERT(OCXL_EVENT_ACTION_SUCCESS == read_afu_event(my_afu, 0, &event, &last));
 	ASSERT(last);
 	ASSERT(event.type == OCXL_EVENT_TRANSLATION_FAULT);
@@ -875,7 +875,7 @@ static void test_read_afu_event() {
 #endif
 	ASSERT(event.translation_fault.count == 16);
 
-	last = false;
+	last = 0;
 	ASSERT(OCXL_EVENT_ACTION_NONE == read_afu_event(my_afu, 0, &event, &last));
 	ASSERT(last);
 
