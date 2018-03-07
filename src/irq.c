@@ -185,15 +185,15 @@ ocxl_err ocxl_afu_irq_alloc(ocxl_afu_h afu, void *info, ocxl_irq_h * irq)
 }
 
 /**
- * Get the 64 bit IRQ ID for an IRQ
+ * Get the 64 bit IRQ handle for an IRQ
  *
- * This ID can be written to the AFU to allow the AFU to trigger the IRQ.
+ * This handle can be written to the AFU to allow the AFU to trigger the IRQ.
  *
  * @param afu the AFU the IRQ belongs to
  * @param irq the IRQ to get the handle of
  * @return the handle, or 0 if the handle is invalid
  */
-uint64_t ocxl_afu_irq_get_id(ocxl_afu_h afu, ocxl_irq_h irq)
+uint64_t ocxl_afu_irq_get_handle(ocxl_afu_h afu, ocxl_irq_h irq)
 {
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 

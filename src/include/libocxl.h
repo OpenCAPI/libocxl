@@ -167,7 +167,7 @@ ocxl_err ocxl_afu_attach(ocxl_afu_h afu);
 /* irq.c */
 /* AFU IRQ functions */
 ocxl_err ocxl_afu_irq_alloc(ocxl_afu_h afu, void *info, ocxl_irq_h * irq_handle);
-uint64_t ocxl_afu_irq_get_id(ocxl_afu_h afu, ocxl_irq_h irq);
+uint64_t ocxl_afu_irq_get_handle(ocxl_afu_h afu, ocxl_irq_h irq);
 int ocxl_afu_get_event_fd(ocxl_afu_h afu);
 int ocxl_afu_event_check_versioned(ocxl_afu_h afu, int timeout, ocxl_event *events, uint16_t event_count,
                                    uint16_t event_api_version);
