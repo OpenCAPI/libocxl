@@ -255,91 +255,6 @@ end:
 	closedir(dev_dir);
 }
 
-/**
- * Check allocate_string_array
- */
-static void test_allocate_string_array() {
-	test_start("AFU", "allocate_string_array");
-
-	const int strings = 7;
-	const int string_length = 13;
-
-	char **buf = allocate_string_array(strings, string_length);
-	ASSERT(buf != NULL);
-
-	bool good = true;
-
-	for (int string = 0; string < strings; string++) {
-		snprintf(buf[string], string_length, "String     %d", string);
-	}
-
-	for (int string = 0; string < strings; string++) {
-		char tmp[string_length];
-		snprintf(tmp, string_length, "String     %d", string);
-		if (memcmp(tmp, buf[string], string_length)) {
-			good = false;
-			break;
-		}
-	}
-	ASSERT(good);
-
-	test_stop(SUCCESS);
-
-end:
-	free(buf);
-}
-
-/**
- * Check list_physical_functions
- */
-static void test_list_physical_functions() {
-	test_start("AFU", "list_physical_functions");
-
-	char **funcs = NULL;
-	size_t func_count;
-
-#define DUMMY_PATH_COUNT 5
-	char dummy_paths[DUMMY_PATH_COUNT][PATH_MAX];
-	memset(dummy_paths, 0, sizeof(dummy_paths));
-
-	for (uint8_t i = 0; i < DUMMY_PATH_COUNT; i++) {
-		// Confirm that we don't assume that AFU index 0 exists
-		(void)snprintf(dummy_paths[i], PATH_MAX, "%s/IBM,Dummy.0001:00:00.2.%d", DEVICE_PATH, i+1);
-		if (creat(dummy_paths[i], 0660) < 0) {
-			fprintf(stderr, "file creation of '%s' failed, %d: %s\n",
-					dummy_paths[i], errno, strerror(errno));
-		}
-	}
-
-	ocxl_want_verbose_errors(0);
-	ASSERT(OCXL_NO_DEV == list_physical_functions("nonexistent", &funcs, &func_count));
-	ocxl_want_verbose_errors(1);
-	ASSERT(funcs == NULL);
-	ASSERT(func_count == 0);
-
-	ASSERT(OCXL_OK == list_physical_functions("IBM,Dummy", &funcs, &func_count));
-	ASSERT(funcs != NULL);
-	ASSERT(func_count == 2);
-	ASSERT(!strcmp(funcs[0], "0001:00:00.1"));
-	ASSERT(!strcmp(funcs[1], "0001:00:00.2"));
-
-	test_stop(SUCCESS);
-
-end:
-	ocxl_want_verbose_errors(1);
-
-	if (funcs) {
-		free(funcs);
-	}
-
-	for (uint8_t i = 0; i < DUMMY_PATH_COUNT; i++) {
-		if (dummy_paths[i][0]) {
-			(void)unlink(dummy_paths[i]);
-		}
-	}
-}
-
-
 pthread_t afu_thread = 0;
 
 /**
@@ -482,43 +397,6 @@ end:
 		ocxl_afu_close(afu);
 	}
 }
-
-
-/**
- * Check ocxl_afu_open_by_id
- */
-static void test_ocxl_afu_open_by_id() {
-	ocxl_afu_h afu = OCXL_INVALID_AFU;
-
-	test_start("AFU", "ocxl_afu_open_by_id");
-
-	ocxl_want_verbose_errors(0);
-	ASSERT(OCXL_NO_DEV == ocxl_afu_open_by_id("nonexistent", 0, -1, &afu));
-	ASSERT(OCXL_NO_DEV == ocxl_afu_open_by_id("IBM,Dummy", 1, -1, &afu));
-	ASSERT(OCXL_NO_DEV == ocxl_afu_open_by_id("IBM,Dummy", 0, 1, &afu));
-
-	ocxl_want_verbose_errors(1);
-	ASSERT(OCXL_OK == ocxl_afu_open_specific("IBM,Dummy", 0, 0, &afu));
-	ASSERT(afu != OCXL_INVALID_AFU);
-	ASSERT(!strcmp(ocxl_afu_get_device_path(afu), "/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0"));
-	ocxl_afu_close(afu);
-	afu = OCXL_INVALID_AFU;
-
-	sleep(1);
-
-	ASSERT(OCXL_OK == ocxl_afu_open_specific("IBM,Dummy", 0, -1, &afu));
-	ASSERT(afu != OCXL_INVALID_AFU);
-	ASSERT(!strcmp(ocxl_afu_get_device_path(afu), "/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0"));
-
-	test_stop(SUCCESS);
-
-end:
-	ocxl_want_verbose_errors(1);
-	if (afu) {
-		ocxl_afu_close(afu);
-	}
-}
-
 
 /**
  * Check ocxl_afu_open_from_dev
@@ -1157,7 +1035,6 @@ int main(int args, const char **argv) {
 		}
 	}
 
-	test_allocate_string_array();
 	test_afu_init();
 	test_ocxl_afu_alloc();
 	test_device_matches();
@@ -1165,7 +1042,6 @@ int main(int args, const char **argv) {
 	create_afu();
 	sleep(1);
 
-	test_list_physical_functions();
 	test_populate_metadata();
 	test_afu_getters();
 	test_get_afu_by_path();
@@ -1173,7 +1049,6 @@ int main(int args, const char **argv) {
 	test_ocxl_afu_open_specific();
 	test_ocxl_afu_open_from_dev();
 	test_ocxl_afu_open();
-	test_ocxl_afu_open_by_id();
 	test_ocxl_afu_attach();
 	test_ocxl_afu_close();
 
