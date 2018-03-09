@@ -157,6 +157,61 @@ size_t ocxl_afu_get_mmio_size(ocxl_afu_h afu)
 /**
  * @}
  *
+ * @defgroup ocxl_afu_messages OpenCAPI AFU messages
+ *
+ * These functions control messages from libocxl, such as error messages and tracing
+ *
+ * @{
+ */
+
+/**
+ * Enable messages from libocxl
+ *
+ * Error messages, if enabled, are emitted by default on STDERR. This behaviour may be
+ * overidden by ocxl_afu_set_error_message_handler().
+ *
+ * Tracing, if enabled, is always emitted on STDERR. It assists a developer by showing
+ * detailed AFU information, as well as MMIO & IRQ interactions between the application
+ * and the AFU. It does not show direct accesses to memory from the AFU.
+ *
+ * @param afu the AFU to enable message on
+ * @param sources a bitwise OR of the message sources to enable (OCXL_ERRORS, OCXL_TRACING)
+ * @see ocxl_afu_set_error_message_handler()
+ */
+void ocxl_afu_enable_messages(ocxl_afu_h afu, uint64_t sources)
+{
+	ocxl_afu *my_afu = (ocxl_afu *) afu;
+
+	my_afu->verbose_errors = !!(sources & OCXL_ERRORS);
+	my_afu->tracing = !!(sources & OCXL_TRACING);
+}
+
+/**
+ * Override the default handler for emitting error messages for an AFU
+ *
+ * The default error handler emits messages on STDERR, to override this behavior,
+ * pass a callback to this function.
+ *
+ * The callback is responsible for prefixing and line termination.
+ *
+ * Typical use cases would be redirecting error messages to the application's own
+ * logging/reporting mechanisms, and adding additional application-specific context
+ * to the error messages.
+ *
+ * @param afu the AFU to override the error handler for
+ * @param handler the new error message handler
+ */
+void ocxl_afu_set_error_message_handler(ocxl_afu_h afu, void (*handler)(ocxl_afu_h afu, ocxl_err error,
+                                        const char *message))
+{
+	ocxl_afu *my_afu = (ocxl_afu *) afu;
+
+	my_afu->error_handler = handler;
+}
+
+/**
+ * @}
+ *
  * @defgroup ocxl_afu OpenCAPI AFU Management
  *
  * These functions provide access to open and close the AFU.
@@ -211,6 +266,11 @@ static void afu_init(ocxl_afu * afu)
 
 	afu->pasid = UINT32_MAX;
 
+	afu->verbose_errors = false;
+	afu->error_handler = ocxl_default_afu_error_handler;
+
+	afu->tracing = false;
+
 #ifdef _ARCH_PPC64
 	afu->ppc64_amr = 0;
 #endif
@@ -227,8 +287,9 @@ static ocxl_err ocxl_afu_alloc(ocxl_afu_h * afu_out)
 {
 	ocxl_afu *afu = malloc(sizeof(ocxl_afu));
 	if (afu == NULL) {
-		errmsg("Could not allocate %d bytes for AFU", sizeof(ocxl_afu));
-		return OCXL_NO_MEM;
+		ocxl_err rc = OCXL_NO_MEM;
+		errmsg(NULL, rc, "Could not allocate %d bytes for AFU", sizeof(ocxl_afu));
+		return rc;
 	}
 
 	afu_init(afu);
@@ -281,13 +342,13 @@ static bool populate_metadata(dev_t dev, ocxl_afu * afu)
 
 	char *physical_function = strchr(dev_ent->d_name, '.');
 	if (physical_function == NULL) {
-		errmsg("Could not extract physical function from device name '%s', missing initial '.'",
+		errmsg(NULL, OCXL_INTERNAL_ERROR, "Could not extract physical function from device name '%s', missing initial '.'",
 		       dev_ent->d_name);
 		return false;
 	}
 	int afu_name_len = physical_function - dev_ent->d_name;
 	if (afu_name_len > AFU_NAME_MAX) {
-		errmsg("AFU name '%-.*s' exceeds maximum length of %d", afu_name_len, dev_ent->d_name);
+		errmsg(NULL, OCXL_INTERNAL_ERROR,"AFU name '%-.*s' exceeds maximum length of %d", afu_name_len, dev_ent->d_name);
 		return false;
 	}
 
@@ -298,7 +359,8 @@ static bool populate_metadata(dev_t dev, ocxl_afu * afu)
 	                   &domain, &bus, &device, &function, &afu->identifier.afu_index);
 
 	if (found != 5) {
-		errmsg("Could not parse physical function '%s', only got %d components", physical_function, found);
+		errmsg(NULL, OCXL_INTERNAL_ERROR, "Could not parse physical function '%s', only got %d components", physical_function,
+		       found);
 		return false;
 	}
 
@@ -308,7 +370,7 @@ static bool populate_metadata(dev_t dev, ocxl_afu * afu)
 	size_t dev_path_len = strlen(DEVICE_PATH) + 1 + strlen(dev_ent->d_name) + 1;
 	afu->device_path = malloc(dev_path_len);
 	if (NULL == afu->device_path) {
-		errmsg("Could not allocate %llu bytes for device path", dev_path_len);
+		errmsg(NULL, OCXL_INTERNAL_ERROR, "Could not allocate %llu bytes for device path", dev_path_len);
 		return false;
 	}
 	(void)snprintf(afu->device_path, dev_path_len, "%s/%s", DEVICE_PATH, dev_ent->d_name);
@@ -316,7 +378,7 @@ static bool populate_metadata(dev_t dev, ocxl_afu * afu)
 	size_t sysfs_path_len = strlen(SYS_PATH) + 1 + strlen(dev_ent->d_name) + 1;
 	afu->sysfs_path = malloc(sysfs_path_len);
 	if (NULL == afu->sysfs_path) {
-		errmsg("Could not allocate %llu bytes for sysfs path", sysfs_path_len);
+		errmsg(NULL, OCXL_INTERNAL_ERROR, "Could not allocate %llu bytes for sysfs path", sysfs_path_len);
 		return false;
 	}
 	(void)snprintf(afu->sysfs_path, sysfs_path_len, "%s/%s", SYS_PATH, dev_ent->d_name);
@@ -331,15 +393,15 @@ static bool populate_metadata(dev_t dev, ocxl_afu * afu)
  */
 static void trace_metadata(ocxl_afu *afu)
 {
-	TRACE("device path=\"%s\"", afu->device_path);
-	TRACE("sysfs path=\"%s\"", afu->sysfs_path);
-	TRACE("AFU Name=\"%s\"", afu->identifier.afu_name);
-	TRACE("AFU Index=%u", afu->identifier.afu_index);
-	TRACE("AFU Version=%u:%u", afu->version_major, afu->version_minor);
-	TRACE("Global MMIO size=%llu", afu->global_mmio.length);
-	TRACE("Per PASID MMIO size=%llu", afu->per_pasid_mmio.length);
-	TRACE("Page Size=%llu", afu->page_size);
-	TRACE("PASID=%lu", afu->pasid);
+	TRACE(afu, "device path=\"%s\"", afu->device_path);
+	TRACE(afu, "sysfs path=\"%s\"", afu->sysfs_path);
+	TRACE(afu, "AFU Name=\"%s\"", afu->identifier.afu_name);
+	TRACE(afu, "AFU Index=%u", afu->identifier.afu_index);
+	TRACE(afu, "AFU Version=%u:%u", afu->version_major, afu->version_minor);
+	TRACE(afu, "Global MMIO size=%llu", afu->global_mmio.length);
+	TRACE(afu, "Per PASID MMIO size=%llu", afu->per_pasid_mmio.length);
+	TRACE(afu, "Page Size=%llu", afu->page_size);
+	TRACE(afu, "PASID=%lu", afu->pasid);
 }
 
 /**
@@ -363,21 +425,25 @@ static ocxl_err afu_open(ocxl_afu *afu)
 	int fd = open(afu->device_path, O_RDWR | O_CLOEXEC | O_NONBLOCK);
 	if (fd < 0) {
 		if (errno == ENOSPC) {
-			errmsg("Could not open AFU device '%s', the maximum number of contexts has been reached: Error %d: %s",
+			ocxl_err rc = OCXL_NO_MORE_CONTEXTS;
+			errmsg(afu, rc, "Could not open AFU device '%s', the maximum number of contexts has been reached: Error %d: %s",
 			       afu->device_path, errno, strerror(errno));
-			return OCXL_NO_MORE_CONTEXTS;
+			return rc;
 		}
-		errmsg("Could not open AFU device '%s': Error %d: %s", afu->device_path, errno, strerror(errno));
-		return OCXL_NO_DEV;
+
+		ocxl_err rc = OCXL_NO_DEV;
+		errmsg(afu, rc, "Could not open AFU device '%s': Error %d: %s", afu->device_path, errno, strerror(errno));
+		return rc;
 	}
 
 	afu->fd = fd;
 
 	fd = epoll_create1(EPOLL_CLOEXEC);
 	if (fd < 0) {
-		errmsg("Could not create epoll descriptor. Error %d: %s",
+		ocxl_err rc = OCXL_NO_DEV;
+		errmsg(afu, rc, "Could not create epoll descriptor. Error %d: %s",
 		       errno, strerror(errno));
-		return OCXL_NO_DEV;
+		return rc;
 	}
 	afu->epoll_fd = fd;
 
@@ -385,16 +451,18 @@ static ocxl_err afu_open(ocxl_afu *afu)
 	ev.events = EPOLLIN;
 	ev.data.ptr = &afu->fd_info; // Already set up in afu_init
 	if (epoll_ctl(afu->epoll_fd, EPOLL_CTL_ADD, afu->fd, &ev) == -1) {
-		errmsg("Could not add device fd %d to epoll fd %d for AFU '%s': %d: '%s'",
+		ocxl_err rc = OCXL_NO_DEV;
+		errmsg(afu, rc, "Could not add device fd %d to epoll fd %d for AFU '%s': %d: '%s'",
 		       afu->fd, afu->epoll_fd, afu->identifier.afu_name,
 		       errno, strerror(errno));
-		return OCXL_NO_DEV;
+		return rc;
 	}
 
 	struct ocxl_ioctl_metadata metadata;
 	if (ioctl(afu->fd, OCXL_IOCTL_GET_METADATA, &metadata)) {
-		errmsg("OCXL_IOCTL_GET_METADATA failed %d:%s", errno, strerror(errno));
-		return OCXL_NO_DEV;
+		ocxl_err rc = OCXL_NO_DEV;
+		errmsg(afu, rc, "OCXL_IOCTL_GET_METADATA failed %d:%s", errno, strerror(errno));
+		return rc;
 	}
 
 	if (metadata.version >= 0) {
@@ -405,7 +473,7 @@ static ocxl_err afu_open(ocxl_afu *afu)
 		afu->pasid = metadata.pasid;
 	}
 
-	if (tracing) {
+	if (afu->tracing) {
 		trace_metadata(afu);
 	}
 
@@ -434,16 +502,18 @@ static ocxl_err get_afu_by_path(const char *path, ocxl_afu_h * afu)
 
 	struct stat dev_stats;
 	if (stat(path, &dev_stats)) {
-		errmsg("Could not stat AFU device '%s': Error %d: %s", path, errno, strerror(errno));
+		ocxl_err rc = OCXL_NO_DEV;
+		errmsg(NULL, rc, "Could not stat AFU device '%s': Error %d: %s", path, errno, strerror(errno));
 		*afu = OCXL_INVALID_AFU;
-		return OCXL_NO_DEV;
+		return rc;
 	}
 
 	if (!populate_metadata(dev_stats.st_rdev, my_afu)) {
-		errmsg("Could not find OCXL device for '%s', major=%d, minor=%d, device expected in '%s'",
+		ocxl_err rc = OCXL_NO_DEV;
+		errmsg(NULL, rc, "Could not find OCXL device for '%s', major=%d, minor=%d, device expected in '%s'",
 		       path, major(dev_stats.st_rdev), minor(dev_stats.st_rdev), DEVICE_PATH);
 		*afu = OCXL_INVALID_AFU;
-		return OCXL_NO_DEV;
+		return rc;
 	}
 
 	*afu = afu_h;
@@ -515,15 +585,15 @@ ocxl_err ocxl_afu_open_specific(const char *name, const char *physical_function,
 	case 0:
 		break;
 	case GLOB_NOSPACE:
-		errmsg("No memory for glob while listing AFUs");
 		ret = OCXL_NO_MEM;
+		errmsg(NULL, ret, "No memory for glob while listing AFUs");
 		goto end;
 	case GLOB_NOMATCH:
-		errmsg("No OCXL devices found in '%s' with pattern '%s'", DEVICE_PATH, pattern);
 		ret = OCXL_NO_DEV;
+		errmsg(NULL, ret, "No OCXL devices found in '%s' with pattern '%s'", DEVICE_PATH, pattern);
 		goto end;
 	default:
-		errmsg("Glob error %d while listing AFUs", rc);
+		errmsg(NULL, ret, "Glob error %d while listing AFUs", rc);
 		goto end;
 	}
 
@@ -590,8 +660,9 @@ ocxl_err ocxl_afu_attach(ocxl_afu_h afu)
 #endif
 
 	if (ioctl(my_afu->fd, OCXL_IOCTL_ATTACH, &attach_args)) {
-		errmsg("OCXL_IOCTL_ATTACH failed %d:%s", errno, strerror(errno));
-		return OCXL_INTERNAL_ERROR;
+		ocxl_err rc = OCXL_INTERNAL_ERROR;
+		errmsg(my_afu, rc, "OCXL_IOCTL_ATTACH failed %d:%s", errno, strerror(errno));
+		return rc;
 	}
 
 	return OCXL_OK;

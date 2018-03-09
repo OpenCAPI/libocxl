@@ -1,8 +1,12 @@
 LIBOCXL_0 {
 	global:
-		ocxl_want_verbose_errors;
-		ocxl_want_tracing;
-		ocxl_set_errmsg_filehandle;
+		ocxl_afu_enable_messages;
+		ocxl_afu_set_error_message_handler;
+		ocxl_default_afu_error_handler;
+		ocxl_default_error_handler;
+		ocxl_enable_messages;
+		ocxl_set_error_message_handler;
+		ocxl_err_to_string;
 		ocxl_afu_get_identifier;
 		ocxl_afu_get_device_path;
 		ocxl_afu_get_sysfs_path;

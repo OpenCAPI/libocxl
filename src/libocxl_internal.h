@@ -20,34 +20,41 @@
 #include <misc/ocxl.h>
 #include "libocxl.h"
 #include <stdbool.h>
+#include <pthread.h>
+
+#define LIKELY(condition) __builtin_expect((condition), 1)
+#define UNLIKELY(condition) __builtin_expect((condition), 0)
 
 #define DEBUG(__dbg_format, __dbg_args...) \
 do {\
         trace_message("Debug", __FILE__, __LINE__, __FUNCTION__, __dbg_format, ## __dbg_args); \
 } while (0)
 
-#define TRACE(__trc_format, __trc_args...) \
+#define TRACE(afu, __trc_format, __trc_args...) \
 do {\
-        if (tracing) { \
+        if (UNLIKELY(afu->tracing)) { \
         	trace_message("Trace", __FILE__, __LINE__, __FUNCTION__, __trc_format, ## __trc_args); \
         } \
 } while (0)
 
+extern bool verbose_errors;
+extern bool tracing;
+extern void (*error_handler)(ocxl_err error, const char *message);
+
+typedef struct ocxl_afu ocxl_afu;
 
 void trace_message(const char *label, const char *file, int line, const char *function, const char *format, ...);
-void errmsg(const char *format, ...);
+void errmsg(ocxl_afu *afu, ocxl_err error, const char *format, ...);
+void ocxl_default_error_handler(ocxl_err error, const char *message);
+void ocxl_default_afu_error_handler(ocxl_afu_h afu, ocxl_err error, const char *message);
 
 extern const char *sys_path;
 #define SYS_PATH_DEFAULT "/sys/class/ocxl"
-#define SYS_PATH ((sys_path) ? sys_path : SYS_PATH_DEFAULT)
+#define SYS_PATH ((UNLIKELY(sys_path != NULL)) ? sys_path : SYS_PATH_DEFAULT)
 
 extern const char *dev_path;
 #define DEV_PATH_DEFAULT "/dev/ocxl"
-#define DEVICE_PATH ((dev_path) ? dev_path : DEV_PATH_DEFAULT)
-
-extern bool verbose_errors;
-extern bool tracing;
-extern FILE *errmsg_filehandle;
+#define DEVICE_PATH ((UNLIKELY(dev_path != NULL)) ? dev_path : DEV_PATH_DEFAULT)
 
 #define INITIAL_IRQ_COUNT 64
 
@@ -97,7 +104,7 @@ struct ocxl_irq {
  * @internal
  * Represents an AFU
  */
-typedef struct ocxl_afu {
+struct ocxl_afu {
 	ocxl_identifier identifier; /**< The physical function, name and index of the AFU */
 	char *device_path;
 	char *sysfs_path;
@@ -117,10 +124,16 @@ typedef struct ocxl_afu {
 	uint16_t irq_size; /**< The maximum number of IRQs available */
 	uint32_t pasid;
 
+	bool verbose_errors;
+	void (*error_handler)(ocxl_afu_h afu, ocxl_err error, const char *message);
+
+	bool tracing;
+	pthread_mutex_t trace_mutex;
+
 #ifdef _ARCH_PPC64
 	uint64_t ppc64_amr;
 #endif
-} ocxl_afu;
+};
 
 /**
  * @internal

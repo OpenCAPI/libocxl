@@ -26,6 +26,10 @@
 extern "C" {
 #endif
 
+#define OCXL_NO_MESSAGES 0
+#define OCXL_ERRORS		(1 << 0)
+#define OCXL_TRACING	(1 << 1)
+
 
 /**
  * Defines the endianess of an AFU MMIO area
@@ -71,6 +75,7 @@ typedef enum {
 	OCXL_ALREADY_DONE = -6,		/**< The action requested has already been performed */
 	OCXL_OUT_OF_BOUNDS = -7,	/**< The action requested falls outside the permitted area */
 	OCXL_NO_MORE_CONTEXTS = -8, /**< No more contexts can be opened on the AFU */
+	/* Adding something? Update setup.c: ocxl_err_to_string too */
 } ocxl_err;
 
 /**
@@ -119,9 +124,9 @@ typedef struct ocxl_event {
 
 
 /* setup.c */
-void ocxl_want_verbose_errors(int verbose);
-void ocxl_want_tracing(int want_tracing);
-void ocxl_set_errmsg_filehandle(FILE * handle);
+void ocxl_enable_messages(uint64_t sources);
+void ocxl_set_error_message_handler(void (*handler)(ocxl_err error, const char *message));
+const char *ocxl_err_to_string(ocxl_err err);
 
 /* afu.c */
 /* AFU getters */
@@ -139,6 +144,9 @@ ocxl_err ocxl_afu_open_specific(const char *name, const char *physical_function,
 ocxl_err ocxl_afu_open_from_dev(const char *path, ocxl_afu_h * afu);
 ocxl_err ocxl_afu_open(const char *name, ocxl_afu_h * afu);
 ocxl_err ocxl_afu_open_by_id(const char *name, uint8_t card_index, int16_t afu_index, ocxl_afu_h * afu);
+void ocxl_afu_enable_messages(ocxl_afu_h afu, uint64_t sources);
+void ocxl_afu_set_error_message_handler(ocxl_afu_h afu, void (*handler)(ocxl_afu_h afu, ocxl_err error,
+                                        const char *message));
 ocxl_err ocxl_afu_close(ocxl_afu_h afu);
 ocxl_err ocxl_afu_attach(ocxl_afu_h afu);
 

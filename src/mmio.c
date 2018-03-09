@@ -73,14 +73,16 @@ ocxl_err ocxl_global_mmio_map(ocxl_afu_h afu, ocxl_endian endian)
 	char path[PATH_MAX + 1];
 	int length = snprintf(path, sizeof(path), "%s/global_mmio_area", my_afu->sysfs_path);
 	if (length >= sizeof(path)) {
-		errmsg("global MMIO path truncated for AFU '%s'", my_afu->identifier.afu_name);
-		return OCXL_NO_DEV;
+		ocxl_err rc = OCXL_NO_DEV;
+		errmsg(my_afu, rc, "global MMIO path truncated for AFU '%s'", my_afu->identifier.afu_name);
+		return rc;
 	}
 
 	int fd = open(path, O_RDWR | O_CLOEXEC);
 	if (fd < 0) {
-		errmsg("Could not open global MMIO for AFU '%s': Error %d: %s", path, errno, strerror(errno));
-		return OCXL_NO_DEV;
+		ocxl_err rc = OCXL_NO_DEV;
+		errmsg(my_afu, rc, "Could not open global MMIO for AFU '%s': Error %d: %s", path, errno, strerror(errno));
+		return rc;
 	}
 
 	my_afu->global_mmio_fd = fd;
@@ -90,9 +92,10 @@ ocxl_err ocxl_global_mmio_map(ocxl_afu_h afu, ocxl_endian endian)
 	if (addr == MAP_FAILED) {
 		close(my_afu->global_mmio_fd);
 		my_afu->global_mmio_fd = -1;
-		errmsg("Could not map global MMIO on AFU '%s', %d: %s",
+		ocxl_err rc = OCXL_NO_MEM;
+		errmsg(my_afu, rc, "Could not map global MMIO on AFU '%s', %d: %s",
 		       my_afu->identifier.afu_name, errno, strerror(errno));
-		return OCXL_NO_MEM;
+		return rc;
 	}
 
 	my_afu->global_mmio.start = addr;
@@ -125,17 +128,19 @@ ocxl_err ocxl_mmio_map(ocxl_afu_h afu, ocxl_endian endian)
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 
 	if (my_afu->fd < 0) {
-		errmsg("Could not map per-PASID MMIO on AFU '%s' as it has not been opened",
+		ocxl_err rc = OCXL_NO_CONTEXT;
+		errmsg(my_afu, rc, "Could not map per-PASID MMIO on AFU '%s' as it has not been opened",
 		       my_afu->identifier.afu_name);
-		return OCXL_NO_CONTEXT;
+		return rc;
 	}
 
 	void *addr = mmap(NULL, my_afu->per_pasid_mmio.length, PROT_READ | PROT_WRITE,
 	                  MAP_SHARED, my_afu->fd, 0);
 	if (addr == MAP_FAILED) {
-		errmsg("Could not map per-PASID MMIO on AFU '%s', %d: %s",
+		ocxl_err rc = OCXL_NO_MEM;
+		errmsg(my_afu, rc, "Could not map per-PASID MMIO on AFU '%s', %d: %s",
 		       my_afu->identifier.afu_name, errno, strerror(errno));
-		return OCXL_NO_MEM;
+		return rc;
 	}
 
 	my_afu->per_pasid_mmio.start = addr;
@@ -196,15 +201,17 @@ inline static ocxl_err mmio_check(ocxl_afu * afu, bool global, size_t offset, si
 	ocxl_mmio_area *mmio = global ? &afu->global_mmio : &afu->per_pasid_mmio;
 
 	if (mmio->start == NULL) {
-		errmsg("%s MMIO area for AFU '%s' has not been mapped",
+		ocxl_err rc = OCXL_NO_CONTEXT;
+		errmsg(afu, rc, "%s MMIO area for AFU '%s' has not been mapped",
 		       global ? "Global" : "Per-PASID", afu->identifier.afu_name);
-		return OCXL_NO_CONTEXT;
+		return rc;
 	}
 
 	if (offset >= mmio->length - (size - 1)) {
-		errmsg("%s MMIO access of 0x%016lx for AFU '%s' exceeds limit of 0x%016lx",
+		ocxl_err rc = OCXL_OUT_OF_BOUNDS;
+		errmsg(afu, rc, "%s MMIO access of 0x%016lx for AFU '%s' exceeds limit of 0x%016lx",
 		       global ? "Global" : "Per-PASID", offset, afu->identifier.afu_name, mmio->length);
-		return OCXL_OUT_OF_BOUNDS;
+		return rc;
 	}
 
 	return OCXL_OK;
@@ -344,7 +351,7 @@ ocxl_err ocxl_global_mmio_read32(ocxl_afu_h afu, size_t offset, uint32_t * out)
 
 	*out = read32(&my_afu->global_mmio, offset);
 
-	TRACE("Global MMIO Read32@0x%04lx=0x%08x", offset, *out);
+	TRACE(my_afu, "Global MMIO Read32@0x%04lx=0x%08x", offset, *out);
 
 	return OCXL_OK;
 }
@@ -377,7 +384,7 @@ ocxl_err ocxl_global_mmio_read64(ocxl_afu_h afu, size_t offset, uint64_t * out)
 
 	*out = read64(&my_afu->global_mmio, offset);
 
-	TRACE("Global MMIO Read64@0x%04lx=0x%016lx", offset, *out);
+	TRACE(my_afu, "Global MMIO Read64@0x%04lx=0x%016lx", offset, *out);
 
 	return OCXL_OK;
 }
@@ -408,7 +415,7 @@ ocxl_err ocxl_global_mmio_write32(ocxl_afu_h afu, size_t offset, uint32_t value)
 		return ret;
 	}
 
-	TRACE("Global MMIO Write32@0x%04lx=0x%08x", offset, value);
+	TRACE(my_afu, "Global MMIO Write32@0x%04lx=0x%08x", offset, value);
 
 	write32(&my_afu->global_mmio, offset, value);
 
@@ -441,7 +448,7 @@ ocxl_err ocxl_global_mmio_write64(ocxl_afu_h afu, size_t offset, uint64_t value)
 		return ret;
 	}
 
-	TRACE("Global MMIO Write64@0x%04lx=0x%016lx", offset, value);
+	TRACE(my_afu, "Global MMIO Write64@0x%04lx=0x%016lx", offset, value);
 
 	write64(&my_afu->global_mmio, offset, value);
 
@@ -476,7 +483,7 @@ ocxl_err ocxl_mmio_read32(ocxl_afu_h afu, size_t offset, uint32_t * out)
 
 	*out = read32(&my_afu->per_pasid_mmio, offset);
 
-	TRACE("Per PASID MMIO Read32@0x%04lx=0x%08x", offset, *out);
+	TRACE(my_afu, "Per PASID MMIO Read32@0x%04lx=0x%08x", offset, *out);
 
 	return OCXL_OK;
 }
@@ -509,7 +516,7 @@ ocxl_err ocxl_mmio_read64(ocxl_afu_h afu, size_t offset, uint64_t * out)
 
 	*out = read64(&my_afu->per_pasid_mmio, offset);
 
-	TRACE("Per PASID MMIO Read64@0x%04lx=0x%016lx", offset, *out);
+	TRACE(my_afu, "Per PASID MMIO Read64@0x%04lx=0x%016lx", offset, *out);
 
 	return OCXL_OK;
 }
@@ -540,7 +547,7 @@ ocxl_err ocxl_mmio_write32(ocxl_afu_h afu, size_t offset, uint32_t value)
 		return ret;
 	}
 
-	TRACE("Per PASID MMIO Write32@0x%04lx=0x%08x", offset, value);
+	TRACE(my_afu, "Per PASID MMIO Write32@0x%04lx=0x%08x", offset, value);
 
 	write32(&my_afu->per_pasid_mmio, offset, value);
 
@@ -573,7 +580,7 @@ ocxl_err ocxl_mmio_write64(ocxl_afu_h afu, size_t offset, uint64_t value)
 		return ret;
 	}
 
-	TRACE("Per PASID MMIO Write64@0x%04lx=0x%016lx", offset, value);
+	TRACE(my_afu, "Per PASID MMIO Write64@0x%04lx=0x%016lx", offset, value);
 
 	write64(&my_afu->per_pasid_mmio, offset, value);
 

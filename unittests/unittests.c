@@ -302,9 +302,9 @@ static void test_get_afu_by_path() {
 	ocxl_afu_h afu = OCXL_INVALID_AFU;
 	const char *symlink_path = "/tmp/ocxl-test-symlink";
 
-	ocxl_want_verbose_errors(0);
+	ocxl_enable_messages(OCXL_NO_MESSAGES);
 	ASSERT(OCXL_NO_DEV == get_afu_by_path("/nonexistent", &afu));
-	ocxl_want_verbose_errors(1);
+	ocxl_enable_messages(OCXL_ERRORS);
 	ASSERT(0 == afu);
 
 	afu = 0;
@@ -324,7 +324,7 @@ static void test_get_afu_by_path() {
 	test_stop(SUCCESS);
 
 end:
-	ocxl_want_verbose_errors(1);
+	ocxl_enable_messages(OCXL_ERRORS);
 	if (afu) {
 		ocxl_afu_close(afu);
 	}
@@ -359,19 +359,19 @@ end:
 }
 
 /**
- * Check ocxl_afu_open
+ * Check ocxl_afu_open_specific
  */
 static void test_ocxl_afu_open_specific() {
 	ocxl_afu_h afu = OCXL_INVALID_AFU - 1;
 
 	test_start("AFU", "ocxl_afu_open_specific");
 
-	ocxl_want_verbose_errors(0);
+	ocxl_enable_messages(OCXL_NO_MESSAGES);
 	ASSERT(OCXL_NO_DEV == ocxl_afu_open_specific("nonexistent", NULL, -1, &afu));
 	ASSERT(afu == OCXL_INVALID_AFU);
 	ASSERT(OCXL_NO_DEV == ocxl_afu_open_specific("IBM,Dummy", "0001:00:00.2", -1, &afu));
 	ASSERT(OCXL_NO_DEV == ocxl_afu_open_specific("IBM,Dummy", "0001:00:00.1", 1, &afu));
-	ocxl_want_verbose_errors(1);
+	ocxl_enable_messages(OCXL_ERRORS);
 	ASSERT(OCXL_OK == ocxl_afu_open_specific("IBM,Dummy", "0001:00:00.1", 0, &afu));
 	ASSERT(afu != OCXL_INVALID_AFU);
 	ASSERT(!strcmp(ocxl_afu_get_device_path(afu), "/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0"));
@@ -392,7 +392,7 @@ static void test_ocxl_afu_open_specific() {
 	test_stop(SUCCESS);
 
 end:
-	ocxl_want_verbose_errors(1);
+	ocxl_enable_messages(OCXL_ERRORS);
 	if (afu) {
 		ocxl_afu_close(afu);
 	}
@@ -406,9 +406,9 @@ static void test_ocxl_afu_open_from_dev() {
 
 	ocxl_afu_h afu = OCXL_INVALID_AFU;
 
-	ocxl_want_verbose_errors(0);
+	ocxl_enable_messages(OCXL_NO_MESSAGES);
 	ASSERT(OCXL_NO_DEV == ocxl_afu_open_from_dev("/nonexistent", &afu));
-	ocxl_want_verbose_errors(1);
+	ocxl_enable_messages(OCXL_ERRORS);
 
 	ASSERT(OCXL_OK == ocxl_afu_open_from_dev("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu));
 	ocxl_afu * my_afu = (ocxl_afu *)afu;
@@ -419,7 +419,7 @@ static void test_ocxl_afu_open_from_dev() {
 	test_stop(SUCCESS);
 
 end:
-	ocxl_want_verbose_errors(1);
+	ocxl_enable_messages(OCXL_ERRORS);
 	if (afu) {
 		ocxl_afu_close(afu);
 	}
@@ -466,9 +466,9 @@ static void test_ocxl_afu_open() {
 
 	ocxl_afu_h afu = OCXL_INVALID_AFU;
 
-	ocxl_want_verbose_errors(0);
+	ocxl_enable_messages(OCXL_NO_MESSAGES);
 	ASSERT(OCXL_NO_DEV == ocxl_afu_open("nonexistent", &afu));
-	ocxl_want_verbose_errors(1);
+	ocxl_enable_messages(OCXL_ERRORS);
 
 	ASSERT(OCXL_OK == ocxl_afu_open("IBM,Dummy", &afu));
 	ocxl_afu * my_afu = (ocxl_afu *)afu;
@@ -479,7 +479,7 @@ static void test_ocxl_afu_open() {
 	test_stop(SUCCESS);
 
 end:
-	ocxl_want_verbose_errors(1);
+	ocxl_enable_messages(OCXL_ERRORS);
 	if (afu) {
 		ocxl_afu_close(afu);
 	}
@@ -495,6 +495,7 @@ static void test_ocxl_afu_attach() {
 
 	ASSERT(!afu_is_attached());
 	ASSERT(OCXL_OK == ocxl_afu_open_from_dev("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu));
+	ocxl_afu_enable_messages(afu, OCXL_ERRORS);
 	ASSERT(OCXL_OK == ocxl_afu_attach(afu));
 	ASSERT(afu_is_attached());
 
@@ -514,6 +515,7 @@ static void test_ocxl_afu_close() {
 
 	ocxl_afu_h afu = OCXL_INVALID_AFU;
 	ASSERT(OCXL_OK == ocxl_afu_open_from_dev("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu));
+	ocxl_afu_enable_messages(afu, OCXL_ERRORS);
 	ASSERT(OCXL_OK == ocxl_afu_close(afu));
 	ASSERT(afu != 0);
 
@@ -545,6 +547,7 @@ static void test_ocxl_global_mmio_map() {
 
 	ocxl_afu_h afu = OCXL_INVALID_AFU;
 	ASSERT(OCXL_OK == ocxl_afu_open_from_dev("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu));
+	ocxl_afu_enable_messages(afu, OCXL_ERRORS);
 	ocxl_afu * my_afu = (ocxl_afu *)afu;
 
 	ASSERT(my_afu->global_mmio_fd == -1);
@@ -592,63 +595,6 @@ end:
 	}
 }
 
-#ifdef __UNUSED
-/**
- * Check ocxl_mmio_map/unmap
- */
-static void test_ocxl_mmio_map() {
-	test_start("MMIO", "ocxl_mmio_map/unmap");
-
-	ocxl_afu_h afu = OCXL_INVALID_AFU;
-	ASSERT(OCXL_OK == ocxl_afu_open_from_dev("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu));
-	ocxl_afu * my_afu = (ocxl_afu *)afu;
-
-	ASSERT(my_afu->fd != -1);
-	ASSERT(my_afu->per_pasid_mmio.start == NULL);
-	ASSERT(my_afu->per_pasid_mmio.length == PER_PASID_MMIO_SIZE);
-
-	ASSERT(OCXL_OK == ocxl_mmio_map(afu, OCXL_MMIO_HOST_ENDIAN));
-	ASSERT(my_afu->fd != -1);
-	ASSERT(my_afu->per_pasid_mmio.start != NULL);
-	ASSERT(my_afu->per_pasid_mmio.length == PER_PASID_MMIO_SIZE);
-	ASSERT(my_afu->per_pasid_mmio.endianess == OCXL_MMIO_HOST_ENDIAN);
-
-	ocxl_mmio_unmap(afu);
-	ASSERT(my_afu->fd != -1);
-	ASSERT(my_afu->per_pasid_mmio.start == NULL);
-	ASSERT(my_afu->per_pasid_mmio.length == PER_PASID_MMIO_SIZE);
-
-	ASSERT(OCXL_OK == ocxl_mmio_map(afu, OCXL_MMIO_BIG_ENDIAN));
-	ASSERT(my_afu->fd != -1);
-	ASSERT(my_afu->per_pasid_mmio.start != NULL);
-	ASSERT(my_afu->per_pasid_mmio.length == PER_PASID_MMIO_SIZE);
-	ASSERT(my_afu->per_pasid_mmio.endianess == OCXL_MMIO_BIG_ENDIAN);
-
-	ocxl_mmio_unmap(afu);
-	ASSERT(my_afu->fd != -1);
-	ASSERT(my_afu->per_pasid_mmio.start == NULL);
-	ASSERT(my_afu->per_pasid_mmio.length == PER_PASID_MMIO_SIZE);
-
-	ASSERT(OCXL_OK == ocxl_mmio_map(afu, OCXL_MMIO_LITTLE_ENDIAN));
-	ASSERT(my_afu->fd != -1);
-	ASSERT(my_afu->per_pasid_mmio.start != NULL);
-	ASSERT(my_afu->per_pasid_mmio.length == PER_PASID_MMIO_SIZE);
-	ASSERT(my_afu->per_pasid_mmio.endianess == OCXL_MMIO_LITTLE_ENDIAN);
-
-	ASSERT(OCXL_OK == ocxl_afu_close(afu));
-	ASSERT(my_afu->fd != -1);
-	ASSERT(my_afu->per_pasid_mmio.start == NULL);
-	ASSERT(my_afu->per_pasid_mmio.length == PER_PASID_MMIO_SIZE);
-
-	test_stop(SUCCESS);
-
-end:
-	if (afu) {
-		ocxl_afu_close(afu);
-	}
-}
-#endif
-
 /**
  * Check mmio_check
  */
@@ -657,24 +603,25 @@ static void test_mmio_check() {
 
 	ocxl_afu_h afu = OCXL_INVALID_AFU;
 	ASSERT(OCXL_OK == ocxl_afu_open_from_dev("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu));
+	ocxl_afu_enable_messages(afu, OCXL_ERRORS);
 	ocxl_afu * my_afu = (ocxl_afu *)afu;
 
 	ASSERT(my_afu->global_mmio_fd == -1);
 	ASSERT(my_afu->global_mmio.start == NULL);
 	ASSERT(my_afu->global_mmio.length == GLOBAL_MMIO_SIZE);
 
-	ocxl_want_verbose_errors(0);
+	ocxl_afu_enable_messages(afu, OCXL_NO_MESSAGES);
 	ASSERT(OCXL_NO_CONTEXT == mmio_check(my_afu, true, 0, 4));
 	ASSERT(OCXL_OK == ocxl_global_mmio_map(afu, OCXL_MMIO_HOST_ENDIAN));
 	ASSERT(OCXL_OUT_OF_BOUNDS == mmio_check(my_afu, true, GLOBAL_MMIO_SIZE + 8, 4));
-	ocxl_want_verbose_errors(1);
 
+	ocxl_afu_enable_messages(afu, OCXL_ERRORS);
 	ASSERT(OCXL_OK == mmio_check(my_afu, true, 0, 4));
 
 	test_stop(SUCCESS);
 
 end:
-	ocxl_want_verbose_errors(1);
+	ocxl_afu_enable_messages(afu, OCXL_ERRORS);
 	if (afu) {
 		ocxl_afu_close(afu);
 	}
@@ -688,6 +635,7 @@ static void test_read32() {
 
 	ocxl_afu_h afu = OCXL_INVALID_AFU;
 	ASSERT(OCXL_OK == ocxl_afu_open_from_dev("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu));
+	ocxl_afu_enable_messages(afu, OCXL_ERRORS);
 	ocxl_afu * my_afu = (ocxl_afu *)afu;
 	ASSERT(OCXL_OK == ocxl_global_mmio_map(afu, OCXL_MMIO_HOST_ENDIAN));
 
@@ -764,6 +712,7 @@ static void test_read64() {
 
 	ocxl_afu_h afu = OCXL_INVALID_AFU;
 	ASSERT(OCXL_OK == ocxl_afu_open_from_dev("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu));
+	ocxl_afu_enable_messages(afu, OCXL_ERRORS);
 	ocxl_afu * my_afu = (ocxl_afu *)afu;
 	ASSERT(OCXL_OK == ocxl_global_mmio_map(afu, OCXL_MMIO_HOST_ENDIAN));
 
@@ -840,9 +789,8 @@ static void test_ocxl_global_mmio_read32() {
 	ocxl_afu_h afu = OCXL_INVALID_AFU;
 	uint32_t val;
 
-	ocxl_want_verbose_errors(0);
-
 	ASSERT(OCXL_OK == ocxl_afu_open_from_dev("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu));
+	ocxl_afu_enable_messages(afu, OCXL_NO_MESSAGES);
 	ASSERT(OCXL_NO_CONTEXT == ocxl_global_mmio_write32(afu, 0, 0));
 	ASSERT(OCXL_NO_CONTEXT == ocxl_global_mmio_read32(afu, 0, &val));
 
@@ -852,7 +800,7 @@ static void test_ocxl_global_mmio_read32() {
 	ASSERT(OCXL_OUT_OF_BOUNDS == ocxl_global_mmio_read32(afu, GLOBAL_MMIO_SIZE + 4, &val));
 
 	// Already did rigorous tests for read/write32, so just do a quick test for the wrappers
-	ocxl_want_verbose_errors(1);
+	ocxl_afu_enable_messages(afu, OCXL_ERRORS);
 	ASSERT(OCXL_OK == ocxl_global_mmio_write32(afu, 0, 12345678));
 	ASSERT(OCXL_OK == ocxl_global_mmio_read32(afu, 0, &val));
 	ASSERT(val == 12345678);
@@ -860,7 +808,7 @@ static void test_ocxl_global_mmio_read32() {
 	test_stop(SUCCESS);
 
 end:
-	ocxl_want_verbose_errors(1);
+	ocxl_afu_enable_messages(afu, OCXL_ERRORS);
 	if (afu) {
 		ocxl_afu_close(afu);
 	}
@@ -875,9 +823,8 @@ static void test_ocxl_global_mmio_read64() {
 	ocxl_afu_h afu = OCXL_INVALID_AFU;
 	uint64_t val;
 
-	ocxl_want_verbose_errors(0);
-
 	ASSERT(OCXL_OK == ocxl_afu_open_from_dev("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu));
+	ocxl_afu_enable_messages(afu, OCXL_NO_MESSAGES);
 	ASSERT(OCXL_NO_CONTEXT == ocxl_global_mmio_write64(afu, 0, 0));
 	ASSERT(OCXL_NO_CONTEXT == ocxl_global_mmio_read64(afu, 0, &val));
 
@@ -887,7 +834,7 @@ static void test_ocxl_global_mmio_read64() {
 	ASSERT(OCXL_OUT_OF_BOUNDS == ocxl_global_mmio_read64(afu, GLOBAL_MMIO_SIZE + 8, &val));
 
 	// Already did rigorous tests for read/write64, so just do a quick test for the wrappers
-	ocxl_want_verbose_errors(1);
+	ocxl_afu_enable_messages(afu, OCXL_ERRORS);
 	ASSERT(OCXL_OK == ocxl_global_mmio_write64(afu, 0, 12345678));
 	ASSERT(OCXL_OK == ocxl_global_mmio_read64(afu, 0, &val));
 	ASSERT(val == 12345678);
@@ -909,6 +856,7 @@ static void test_read_afu_event() {
 	ocxl_afu_h afu = OCXL_INVALID_AFU;
 
 	ASSERT(OCXL_OK == ocxl_afu_open_from_dev("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu));
+	ocxl_afu_enable_messages(afu, OCXL_ERRORS);
 	ASSERT(OCXL_OK == ocxl_afu_attach(afu));
 
 	ocxl_afu * my_afu = (ocxl_afu *)afu;
@@ -1004,6 +952,71 @@ end:
 }
 #endif
 
+#define MAX_MESSAGE_LENGTH 255 // From internal.c
+char err_buf[MAX_MESSAGE_LENGTH];
+static void copy_to_err_buf(ocxl_err error, const char *message) {
+	snprintf(err_buf, sizeof(err_buf), "%s: %s", ocxl_err_to_string(error), message);
+}
+
+/**
+ * Test the error reporting callback (open calls)
+ */
+static void test_ocxl_set_error_message_handler() {
+	test_start("ERR", "ocxl_set_error_message_handler");
+
+	memset(err_buf, '\0', sizeof(err_buf));
+	ocxl_set_error_message_handler(copy_to_err_buf);
+	ocxl_enable_messages(OCXL_ERRORS);
+
+	const char *message = "error message test";
+	errmsg(NULL, OCXL_INTERNAL_ERROR, "%s", message);
+
+	ASSERT(!strcmp("Internal error: error message test", err_buf));
+
+	test_stop(SUCCESS);
+
+end:
+	ocxl_set_error_message_handler(ocxl_default_error_handler);
+}
+
+static void copy_to_err_buf_afu(ocxl_afu_h afu, ocxl_err error, const char *message) {
+	const ocxl_identifier *id = ocxl_afu_get_identifier(afu);
+	uint8_t major, minor;
+
+	ocxl_afu_get_version(afu, &major, &minor);
+
+	snprintf(err_buf, sizeof(err_buf), "%s(%d,%d): %s: %s",
+			id->afu_name, major, minor, ocxl_err_to_string(error), message);
+}
+
+/**
+ * Test the error reporting callback (AFU calls)
+ */
+static void test_ocxl_set_afu_error_message_handler() {
+	test_start("ERR", "ocxl_set_afu_error_message_handler");
+
+	memset(err_buf, '\0', sizeof(err_buf));
+
+	ocxl_afu_h afu = OCXL_INVALID_AFU;
+	ASSERT(OCXL_OK == ocxl_afu_open_from_dev("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu));
+	ocxl_afu * my_afu = (ocxl_afu *)afu;
+
+	ocxl_afu_set_error_message_handler(afu, copy_to_err_buf_afu);
+	ocxl_afu_enable_messages(afu, OCXL_ERRORS);
+
+	const char *message = "error message test";
+	errmsg(my_afu, OCXL_INTERNAL_ERROR, "%s", message);
+
+	ASSERT(!strcmp("IBM,Dummy(5,10): Internal error: error message test", err_buf));
+
+	test_stop(SUCCESS);
+
+end:
+	if (afu) {
+		ocxl_afu_close(afu);
+	}
+}
+
 static void exit_handler() {
 	void *ret;
 
@@ -1024,8 +1037,8 @@ int main(int args, const char **argv) {
 
 	ocxl_set_sys_path(ocxl_sysfs_path);
 	ocxl_set_dev_path(ocxl_dev_path);
-	ocxl_want_verbose_errors(1);
-	ocxl_want_tracing(0);
+
+	ocxl_enable_messages(OCXL_ERRORS);
 
 	struct stat sysfs_stat;
 	if (stat(ocxl_sysfs_path, &sysfs_stat)) {
@@ -1051,6 +1064,9 @@ int main(int args, const char **argv) {
 	test_ocxl_afu_open();
 	test_ocxl_afu_attach();
 	test_ocxl_afu_close();
+
+	test_ocxl_set_error_message_handler();
+	test_ocxl_set_afu_error_message_handler();
 
 	test_ocxl_global_mmio_map();
 	// Disabled as we need MMAP support in CUSE to test this

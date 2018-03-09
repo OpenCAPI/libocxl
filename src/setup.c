@@ -51,46 +51,81 @@ __attribute__ ((used)) static void ocxl_set_dev_path(const char *path)
 
 #endif // TEST_ENVIRONMENT
 
+/**
+ * Enable messages from libocxl open calls.
+ *
+ * Subsequent messages
+ *
+ * Error messages, if enabled, are emitted by default on STDERR. This behaviour may be
+ * overidden by ocxl_afu_set_error_message_handler().
+ *
+ * Tracing, if enabled, is always emitted on STDERR. It assists a developer by showing
+ * detailed AFU information, as well as MMIO & IRQ interactions between the application
+ * and the AFU. It does not show direct accesses to memory from the AFU.
+ *
+ * @param sources a bitwise OR of the message sources to enable (OCXL_ERRORS, OCXL_TRACING)
+ * @see ocxl_afu_set_error_message_handler()
+ */
+void ocxl_enable_messages(uint64_t sources)
+{
+	verbose_errors = !!(sources & OCXL_ERRORS);
+	tracing = !!(sources & OCXL_TRACING);
+}
 
 /**
- * Indicate that we want verbose error messages
+ * Override the default handler for emitting error messages from open calls
  *
- * Error messages will be printed to stderr, or a filehandle specified by ocxl_set_errmsg_filehandle
+ * The default error handler emits messages on STDERR, to override this behavior,
+ * pass a callback to this function.
  *
- * @see ocxl_set_errmsg_filehandle
+ * The callback is responsible for prefixing and line termination.
  *
- * @param verbose true if we want verbose errors
+ * Typical use cases would be redirecting error messages to the application's own
+ * logging/reporting mechanisms, and adding additional application-specific context
+ * to the error messages.
+ *
+ * @param handler the new error message handler
  */
-void ocxl_want_verbose_errors(int verbose)
+void ocxl_set_error_message_handler(void (*handler)(ocxl_err error, const char *message))
 {
-	verbose_errors = ! !verbose;
+	error_handler = handler;
+}
 
-	if (verbose_errors && errmsg_filehandle == NULL) {
-		errmsg_filehandle = stderr;
+/**
+ * Convert an error value to a string
+ * @param err the error value
+ * @return a string value of the error
+ */
+const char *ocxl_err_to_string(ocxl_err err)
+{
+	switch (err) {
+	case OCXL_OK:
+		return "OK";
+
+	case OCXL_NO_MEM:
+		return "No memory";
+
+	case OCXL_NO_CONTEXT:
+		return "AFU context not available";
+
+	case OCXL_NO_IRQ:
+		return "AFU interrupt not available";
+
+	case OCXL_INTERNAL_ERROR:
+		return "Internal error";
+
+	case OCXL_ALREADY_DONE:
+		return "Already done";
+
+	case OCXL_OUT_OF_BOUNDS:
+		return "Out of bounds";
+
+	case OCXL_NO_MORE_CONTEXTS:
+		return "No more contexts";
+
+	default:
+		return "Unknown error";
 	}
-}
-
-/**
- * Indicate that we want tracing messages
- *
- * @param want_tracing true if we want tracing
- */
-void ocxl_want_tracing(int want_tracing)
-{
-	tracing = ! !want_tracing;
-}
-
-
-/**
- * Set which filehandle to use for verbose errors
- *
- * If not called, defaults to stderr.
- *
- * @param handle the filehandle to use
- */
-void ocxl_set_errmsg_filehandle(FILE * handle)
-{
-	errmsg_filehandle = handle;
 }
 
 /**
