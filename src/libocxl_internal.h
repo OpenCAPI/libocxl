@@ -22,6 +22,22 @@
 #include <stdbool.h>
 #include <pthread.h>
 
+/* LibOCXL is only tested with the following compilers:
+ * GCC 6
+ * GCC 7
+ *
+ * Use of other compilers may result in the MMIO functions emitting instructions
+ * that do not result in a 32/64 bit transfer across the OpenCAPI link.
+ *
+ * The above compilers have been manually verified to produce the following
+ * instructions in the mmio_*_native functions:
+ *   lwz/ld
+ *   stw/std
+ */
+#if !defined(__GNUC__) || __GNUC__ < 6
+#error LibOCXL is only tested with GCC 6 & GCC 7, remove this error at your own peril
+#endif
+
 #define LIKELY(condition) __builtin_expect((condition), 1)
 #define UNLIKELY(condition) __builtin_expect((condition), 0)
 
