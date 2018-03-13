@@ -159,7 +159,7 @@ errend:
  * @retval OCXL_OK if the IRQs have been allocated
  * @retval OCXL_NO_MEM if a memory allocation error occurred
  */
-ocxl_err ocxl_afu_irq_alloc(ocxl_afu_h afu, void *info, ocxl_irq_h * irq)
+ocxl_err ocxl_irq_alloc(ocxl_afu_h afu, void *info, ocxl_irq_h * irq)
 {
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 
@@ -193,7 +193,7 @@ ocxl_err ocxl_afu_irq_alloc(ocxl_afu_h afu, void *info, ocxl_irq_h * irq)
  * @param irq the IRQ to get the handle of
  * @return the handle, or 0 if the handle is invalid
  */
-uint64_t ocxl_afu_irq_get_handle(ocxl_afu_h afu, ocxl_irq_h irq)
+uint64_t ocxl_irq_get_handle(ocxl_afu_h afu, ocxl_irq_h irq)
 {
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 
@@ -213,7 +213,7 @@ uint64_t ocxl_afu_irq_get_handle(ocxl_afu_h afu, ocxl_irq_h irq)
  * @param irq the IRQ to get the descriptor of
  * @return the handle, or -1 if the descriptor is invalid
  */
-int ocxl_afu_irq_get_descriptor(ocxl_afu_h afu, ocxl_irq_h irq)
+int ocxl_irq_get_descriptor(ocxl_afu_h afu, ocxl_irq_h irq)
 {
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 
@@ -228,13 +228,7 @@ int ocxl_afu_irq_get_descriptor(ocxl_afu_h afu, ocxl_irq_h irq)
 /**
  * Get a descriptor that will trigger a poll when an AFU event occurs
  *
-<<<<<<< HEAD
- * When triggered, call ocxl_read_afu_event() to extract the event information
-=======
  * When triggered, call ocxl_afu_event_check() to extract the event information.
- *
- * @see ocxl_afu_event_check()
->>>>>>> 4339b2e... Make ocxl_read_afu_event internal
  *
  * @pre the AFU has been opened
  * @see ocxl_afu_event_check()
