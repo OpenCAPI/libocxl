@@ -176,6 +176,6 @@ struct ocxl_afu {
 #endif
 };
 
-void irq_dealloc(ocxl_afu * afu, ocxl_irq * irq);
+void irq_dealloc(ocxl_afu *afu, ocxl_irq *irq);
 
 #endif				/* _LIBOCXL_INTERNAL_H */

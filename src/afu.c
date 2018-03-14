@@ -38,7 +38,7 @@
  * @defgroup ocxl_afu_getters OpenCAPI AFU Getters
  *
  * The AFU getter functions provide access to AFU metadata, such as the identifier,
- * paths, and MMIO sizes.
+ * paths, and PASID.
  *
  * These operate on any valid AFU handle, even if it has not been opened.
  *
@@ -46,9 +46,14 @@
  */
 
 /**
- * Get the PASID for the currently open context
+ * Get the PASID for the currently open context.
+ *
+ * While not commonly used, some AFU implementations may need their PASID written back
+ * to MMIO registers, or shared with other AFUs.
+ *
  * @pre ocxl_afu_open() has been successfully called
  * @param afu the AFU instance to get the PASID of
+ *
  * @return the PASID
  * @retval UINT32_MAX if the context has not been attached
  */
@@ -61,11 +66,12 @@ uint32_t ocxl_afu_get_pasid(ocxl_afu_h afu)
 
 
 /**
- * Get the identifier of the AFU
+ * Get the identifier of the AFU.
  *
- * The identifier contains the PCI physical function, AFU name & AFU Index
+ * The identifier contains the AFU name & index.
  *
  * @param afu The AFU to find the identifier of
+ *
  * @return the identifier of the AFU
  */
 const ocxl_identifier *ocxl_afu_get_identifier(ocxl_afu_h afu)
@@ -76,9 +82,14 @@ const ocxl_identifier *ocxl_afu_get_identifier(ocxl_afu_h afu)
 }
 
 /**
- * Get the canonical device path of the AFU
+ * Get the canonical device path of the AFU.
+ *
+ * Returns the 'true' device path of the AFU from (within /dev), which may or may
+ * not be the same as the path passed to the library. It will differ when the specified
+ * path is a symlink or duplicate device.
  *
  * @param afu The AFU to get the device path of
+ *
  * @return the device path, or NULL if the device is invalid
  */
 const char *ocxl_afu_get_device_path(ocxl_afu_h afu)
@@ -89,9 +100,12 @@ const char *ocxl_afu_get_device_path(ocxl_afu_h afu)
 }
 
 /**
- * Get the canonical sysfs path of the AFU
+ * Get the canonical sysfs path of the AFU.
+ *
+ * Returns the 'true' sysfs path of the AFU (within /sys/class/ocxl).
  *
  * @param afu The AFU to get the sysfs path of
+ *
  * @return the sysfs path, or NULL if the device is invalid
  */
 const char *ocxl_afu_get_sysfs_path(ocxl_afu_h afu)
@@ -102,7 +116,11 @@ const char *ocxl_afu_get_sysfs_path(ocxl_afu_h afu)
 }
 
 /**
- * Get the version of the AFU
+ * Get the version of the AFU.
+ *
+ * Returns the version of the AFU, as specified by the AFU implementation.
+ * See Section 4.3.3.1 AFU Descriptor Template 0 of the OpenCAPI Data Link Specification
+ * Offset 0x1C, AFU Version Major/Minor.
  *
  * @param afu The AFU to get the sysfs path of
  * @param[out] major the major version number
@@ -119,26 +137,26 @@ void ocxl_afu_get_version(ocxl_afu_h afu, uint8_t *major, uint8_t *minor)
 /**
  * @}
  *
- * @defgroup ocxl_afu_messages OpenCAPI AFU messages
- *
- * These functions control messages from libocxl, such as error messages and tracing
+ * @addtogroup ocxl_messages
  *
  * @{
  */
 
 /**
- * Enable messages from libocxl
+ * Enable messages from an AFU.
  *
- * Error messages, if enabled, are emitted by default on STDERR. This behaviour may be
- * overidden by ocxl_afu_set_error_message_handler().
+ * Error messages, if enabled, are emitted by default on STDERR. This behavior may be
+ * overridden by ocxl_afu_set_error_message_handler().
  *
  * Tracing, if enabled, is always emitted on STDERR. It assists a developer by showing
  * detailed AFU information, as well as MMIO & IRQ interactions between the application
  * and the AFU. It does not show direct accesses to memory from the AFU.
  *
+ * @see ocxl_afu_set_error_message_handler()
+ * @see ocxl_enable_messages()
+ *
  * @param afu the AFU to enable message on
  * @param sources a bitwise OR of the message sources to enable (OCXL_ERRORS, OCXL_TRACING)
- * @see ocxl_afu_set_error_message_handler()
  */
 void ocxl_afu_enable_messages(ocxl_afu_h afu, uint64_t sources)
 {
@@ -149,7 +167,7 @@ void ocxl_afu_enable_messages(ocxl_afu_h afu, uint64_t sources)
 }
 
 /**
- * Override the default handler for emitting error messages for an AFU
+ * Override the default handler for emitting error messages for an AFU.
  *
  * The default error handler emits messages on STDERR, to override this behavior,
  * pass a callback to this function.
@@ -159,6 +177,9 @@ void ocxl_afu_enable_messages(ocxl_afu_h afu, uint64_t sources)
  * Typical use cases would be redirecting error messages to the application's own
  * logging/reporting mechanisms, and adding additional application-specific context
  * to the error messages.
+ *
+ * @see ocxl_afu_enable_messages()
+ * @see ocxl_err_to_string()
  *
  * @param afu the AFU to override the error handler for
  * @param handler the new error message handler
@@ -181,8 +202,7 @@ void ocxl_afu_set_error_message_handler(ocxl_afu_h afu, void (*handler)(ocxl_afu
  * A typical workflow involves the following:
  * - ocxl_afu_open_from_dev(), ocxl_afu_open() - Open the device by device or name
  * - ocxl_afu_attach() - Attach the device to the process's address space
- * - ocxl_global_mmio_map() - Map the AFU Global MMIO space
- * - ocxl_mmio_map() - Map the Per-PASID MMIO space
+ * - ocxl_mmio_map() - Map the MMIO space
  *
  * Subsequently, you will need to write information to the AFU's MMIO space (see ocxl_mmio)
  * and also configure and handle interrupts (see ocxl_irq)
@@ -193,11 +213,13 @@ void ocxl_afu_set_error_message_handler(ocxl_afu_h afu, void (*handler)(ocxl_afu
  */
 
 /**
- * Initialize a new AFU structure
  * @internal
+ *
+ * Initialize a new AFU structure.
+ *
  * @param afu a pointer to the structure to initialize
  */
-static void afu_init(ocxl_afu * afu)
+static void afu_init(ocxl_afu *afu)
 {
 	memset((char *)afu->identifier.afu_name, '\0', sizeof(afu->identifier.afu_name));
 	afu->device_path = NULL;
@@ -243,13 +265,16 @@ static void afu_init(ocxl_afu * afu)
 }
 
 /**
- * Allocate an AFU handle (should be freed with ocxl_afu_close)
+ * Allocate an AFU handle.
+ *
+ * On success, the handle should be freed with ocxl_afu_close().
  *
  * @param[out] afu_out a pointer to an AFU handle to set
+ *
  * @retval OCXL_OK if the AFU was allocated
  * @retval OCXL_NO_MEM if memory could not be allocated
  */
-static ocxl_err ocxl_afu_alloc(ocxl_afu_h * afu_out)
+static ocxl_err afu_alloc(ocxl_afu_h *afu_out)
 {
 	ocxl_afu *afu = malloc(sizeof(ocxl_afu));
 	if (afu == NULL) {
@@ -265,6 +290,15 @@ static ocxl_err ocxl_afu_alloc(ocxl_afu_h * afu_out)
 	return OCXL_OK;
 }
 
+/**
+ * Report if a device file in a directory points to the same device as dev.
+ *
+ * @param dirfd the fd of the directory to look in
+ * @param dev_name the name of the file
+ * @param dev the device to compare against
+ *
+ * @return true if the file & device represent the same device
+ */
 static bool device_matches(int dirfd, char *dev_name, dev_t dev)
 {
 	struct stat sb;
@@ -281,13 +315,14 @@ static bool device_matches(int dirfd, char *dev_name, dev_t dev)
 }
 
 /**
- * Find the matching device for a given device major & minor, populate the AFU accordingly
+ * Find the matching device for a given device major & minor, populate the AFU accordingly.
+ *
  * @param dev the device number
  * @param afu the afu to set the name & device paths
  *
  * @retval true if the device was found
  */
-static bool populate_metadata(dev_t dev, ocxl_afu * afu)
+static bool populate_metadata(dev_t dev, ocxl_afu *afu)
 {
 	DIR *dev_dir;
 	struct dirent *dev_ent;
@@ -353,7 +388,7 @@ static bool populate_metadata(dev_t dev, ocxl_afu * afu)
 }
 
 /**
- * Output tracing information for AFU metadata
+ * Output tracing information for AFU metadata.
  *
  * @param afu the AFU to display metadata for
  */
@@ -371,12 +406,10 @@ static void trace_metadata(ocxl_afu *afu)
 }
 
 /**
- * Open a context on a closed AFU
- *
- * An AFU can have many contexts, the device can be opened once for each
- * context that is available. A seperate afu handle is required for each context.
+ * Open a new context on an AFU.
  *
  * @param afu the AFU instance we want to open
+ *
  * @retval OCXL_OK on success
  * @retval OCXL_NO_DEV if the AFU is invalid
  * @retval OCXL_ALREADY_DONE if the AFU is already open
@@ -454,18 +487,19 @@ static ocxl_err afu_open(ocxl_afu *afu)
 }
 
 /**
- * Get an AFU at the specified device path
+ * Get an AFU instance at the specified device path.
  *
  * @param path the path of the AFU
  * @param[out] afu the afu handle
+ *
  * @retval OCXL_OK if we have successfully fetched the AFU
  * @retval OCXL_NO_MEM if an out of memory error occurred
  * @retval OCXL_NO_DEV if the device is invalid
  */
-static ocxl_err get_afu_by_path(const char *path, ocxl_afu_h * afu)
+static ocxl_err get_afu_by_path(const char *path, ocxl_afu_h *afu)
 {
 	ocxl_afu_h afu_h;
-	ocxl_err rc = ocxl_afu_alloc(&afu_h);
+	ocxl_err rc = afu_alloc(&afu_h);
 	if (rc != OCXL_OK) {
 		*afu = OCXL_INVALID_AFU;
 		return rc;
@@ -495,16 +529,17 @@ static ocxl_err get_afu_by_path(const char *path, ocxl_afu_h * afu)
 }
 
 /**
- * Open an AFU at a specified path
+ * Open an AFU context at a specified path.
  *
  * @param path the path of the AFU
  * @param[out] afu the AFU handle which we will allocate. This should be freed with ocxl_afu_close
+ *
  * @retval OCXL_OK if we have successfully fetched the AFU
  * @retval OCXL_NO_MEM if an out of memory error occurred
  * @retval OCXL_NO_DEV if the device is invalid
  * @retval OCXL_NO_MORE_CONTEXTS if maximum number of AFU contexts has been reached
  */
-ocxl_err ocxl_afu_open_from_dev(const char *path, ocxl_afu_h * afu)
+ocxl_err ocxl_afu_open_from_dev(const char *path, ocxl_afu_h *afu)
 {
 	ocxl_err rc = get_afu_by_path(path, afu);
 
@@ -524,18 +559,19 @@ ocxl_err ocxl_afu_open_from_dev(const char *path, ocxl_afu_h * afu)
 }
 
 /**
- * Open an AFU with a specified name on a specific card/afu index
+ * Open an AFU context with a specified name on a specific card/afu index.
  *
  * @param name the name of the AFU
  * @param physical_function the PCI physical function of the card (as a string, or NULL for any)
  * @param afu_index the AFU index (or -1 for any)
  * @param[out] afu the AFU handle which we will allocate. This should be freed with ocxl_afu_close
+ *
  * @retval OCXL_OK if we have successfully fetched the AFU
  * @retval OCXL_NO_MEM if an out of memory error occurred
  * @retval OCXL_NO_DEV if no valid device was found
  * @retval OCXL_NO_MORE_CONTEXTS if maximum number of AFU contexts has been reached on all matching AFUs
  */
-ocxl_err ocxl_afu_open_specific(const char *name, const char *physical_function, int16_t afu_index, ocxl_afu_h * afu)
+ocxl_err ocxl_afu_open_specific(const char *name, const char *physical_function, int16_t afu_index, ocxl_afu_h *afu)
 {
 	char pattern[PATH_MAX];
 	glob_t glob_data;
@@ -592,27 +628,33 @@ end:
 }
 
 /**
- * Open an AFU with a specified name
+ * Open an AFU context with a specified name.
  *
  * @param name the name of the AFU
  * @param[out] afu the AFU handle which we will allocate. This should be freed with ocxl_afu_close
+ *
  * @retval OCXL_OK if we have successfully fetched the AFU
  * @retval OCXL_NO_MEM if an out of memory error occurred
  * @retval OCXL_NO_DEV if no valid device was found
  * @retval OCXL_NO_MORE_CONTEXTS if maximum number of AFU contexts has been reached on all matching AFUs
  */
-ocxl_err ocxl_afu_open(const char *name, ocxl_afu_h * afu)
+ocxl_err ocxl_afu_open(const char *name, ocxl_afu_h *afu)
 {
 	return ocxl_afu_open_specific(name, NULL, -1, afu);
 }
 
 /**
- * Attach the calling process's memory to an open AFU
+ * Attach the calling process's memory to an open AFU context.
  *
- * If specified, also sets the value of the PPC specific PSL AMR, and finally, starts the AFU context.
+ * An open AFU context is sufficient to configure the AFU, but in order for it to access
+ * application memory, the context must be attached to the current process.
+ *
+ * If specified, also sets the value of the PPC specific PSL AMR.
+ *
+ * @pre the AFU is opened
  *
  * @param afu the AFU to attach
- * @pre the AFU is opened
+ *
  * @retval OCXL_OK if the AFU was successful attached
  * @retval OCXL_NO_CONTEXT if the AFU was not opened
  * @retval OCXL_INTERNAL_ERROR if the AFU was unable to attach (check dmesg)
@@ -622,7 +664,9 @@ ocxl_err ocxl_afu_attach(ocxl_afu_h afu)
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 
 	if (my_afu->fd == -1) {
-		return OCXL_NO_CONTEXT;
+		ocxl_err rc = OCXL_NO_CONTEXT;
+		errmsg(my_afu, rc, "Attempted to attach a closed AFU context");
+		return rc;
 	}
 
 	struct ocxl_ioctl_attach attach_args;
@@ -641,11 +685,16 @@ ocxl_err ocxl_afu_attach(ocxl_afu_h afu)
 }
 
 /**
- * Close an AFU and detach it from the context
+ * Close an AFU and detach it from the context.
+ *
+ * This will free all resources allocated to the AFU, including MMIO areas and IRQs.
+ * The AFU handle may not be used after it is closed.
  *
  * @param afu a pointer to the AFU handle we want to close
+ *
  * @retval OCXL_OK if the AFU was freed
  * @retval OCXL_ALREADY_DONE if the AFU was not open
+
  * @post All resources associated with the handle are closed and freed, the handle is no longer usable
  */
 ocxl_err ocxl_afu_close(ocxl_afu_h afu)
@@ -714,7 +763,7 @@ ocxl_err ocxl_afu_close(ocxl_afu_h afu)
 
 #ifdef _ARCH_PPC64
 /**
- * Set the PPC64-specific PSL AMR register value for restricting access to the AFU
+ * Set the PPC64-specific PSL AMR register value for restricting access to the AFU.
  *
  * This register is documented in the Power ISA, Book III.
  *

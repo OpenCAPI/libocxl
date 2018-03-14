@@ -28,9 +28,9 @@
 extern "C" {
 #endif
 
-#define OCXL_NO_MESSAGES 0
-#define OCXL_ERRORS		(1 << 0)
-#define OCXL_TRACING	(1 << 1)
+#define OCXL_NO_MESSAGES 0			/**< No messages requested */
+#define OCXL_ERRORS		(1 << 0)	/**< Error messages requested */
+#define OCXL_TRACING	(1 << 1)	/**< Tracing requested */
 
 
 /**
@@ -65,7 +65,7 @@ typedef struct ocxl_identifier {
  */
 typedef void *ocxl_afu_h;
 
-#define OCXL_INVALID_AFU NULL //< An invalid AFU handle
+#define OCXL_INVALID_AFU NULL /**< An invalid AFU handle */
 
 /**
  * A handle for an IRQ on an AFU
@@ -109,7 +109,7 @@ typedef enum {
  */
 typedef struct {
 	uint16_t irq; /**< The IRQ number of the AFU */
-	uint64_t id; /**< The 64 bit ID of the triggered IRQ */
+	uint64_t handle; /**< The 64 bit handle of the triggered IRQ */
 	void *info; /**< An opaque pointer associated with the IRQ */
 	uint64_t count; /**< The number of times the interrupt has been triggered since last checked */
 } ocxl_event_irq;
@@ -128,7 +128,9 @@ typedef struct {
 /**
  * An OCXL event
  *
- * This may be an AFU interrupt, or a translation error
+ * This may be an AFU interrupt, or a translation error, as determined by ocxl_event.type.
+ *
+ * Once the type in known, the appropriate member of the anonymous union may be accessed.
  */
 typedef struct ocxl_event {
 	ocxl_event_type type;
@@ -153,10 +155,9 @@ void ocxl_afu_get_version(ocxl_afu_h afu, uint8_t *major, uint8_t *minor);
 uint32_t ocxl_afu_get_pasid(ocxl_afu_h afu);
 
 /* AFU operations */
-ocxl_err ocxl_afu_open_specific(const char *name, const char *physical_function, int16_t afu_index, ocxl_afu_h * afu);
-ocxl_err ocxl_afu_open_from_dev(const char *path, ocxl_afu_h * afu);
-ocxl_err ocxl_afu_open(const char *name, ocxl_afu_h * afu);
-ocxl_err ocxl_afu_open_by_id(const char *name, uint8_t card_index, int16_t afu_index, ocxl_afu_h * afu);
+ocxl_err ocxl_afu_open_specific(const char *name, const char *physical_function, int16_t afu_index, ocxl_afu_h *afu);
+ocxl_err ocxl_afu_open_from_dev(const char *path, ocxl_afu_h *afu);
+ocxl_err ocxl_afu_open(const char *name, ocxl_afu_h *afu);
 void ocxl_afu_enable_messages(ocxl_afu_h afu, uint64_t sources);
 void ocxl_afu_set_error_message_handler(ocxl_afu_h afu, void (*handler)(ocxl_afu_h afu, ocxl_err error,
                                         const char *message));
@@ -165,11 +166,10 @@ ocxl_err ocxl_afu_attach(ocxl_afu_h afu);
 
 /* irq.c */
 /* AFU IRQ functions */
-ocxl_err ocxl_irq_alloc(ocxl_afu_h afu, void *info, ocxl_irq_h * irq_handle);
+ocxl_err ocxl_irq_alloc(ocxl_afu_h afu, void *info, ocxl_irq_h *irq_handle);
 uint64_t ocxl_irq_get_handle(ocxl_afu_h afu, ocxl_irq_h irq);
 int ocxl_afu_get_event_fd(ocxl_afu_h afu);
-int ocxl_irq_get_descriptor(ocxl_afu_h afu, ocxl_irq_h irq);
-int ocxl_afu_get_event_descriptor(ocxl_afu_h afu);
+int ocxl_irq_get_fd(ocxl_afu_h afu, ocxl_irq_h irq);
 int ocxl_afu_event_check_versioned(ocxl_afu_h afu, int timeout, ocxl_event *events, uint16_t event_count,
                                    uint16_t event_api_version);
 
@@ -180,16 +180,28 @@ int ocxl_afu_event_check_versioned(ocxl_afu_h afu, int timeout, ocxl_event *even
  */
 
 /**
- * Check for pending IRQs and other events
+ * Check for pending IRQs and other events.
+ *
+ * Waits for the AFU to report an event or IRQs. On return, events will be populated
+ * with the reported number of events. Each event may be either an AFU event, or an IRQ,
+ * which can be determined by checking the value of events[i].type:
+ *   Value							| Action
+ *   ------------------------------ | -------
+ *   OCXL_EVENT_IRQ					| An IRQ was triggered, and events[i].irq is populated with the IRQ information identifying which IRQ was triggered
+ *   OCXL_EVENT_TRANSLATION_FAULT	| An OpenCAPI translation fault error has been issued, that is, the system has been unable to resolve an effective address. Events[i].translation_fault will be populated with the details of the error
  *
  * @param afu the AFU holding the interrupts
  * @param timeout how long to wait (in milliseconds) for interrupts to arrive, set to -1 to wait indefinitely, or 0 to return immediately if no events are available
  * @param[out] events the triggered events (caller allocated)
  * @param event_count the number of triggered events
+ *
  * @return the number of events triggered, if this is the same as event_count, you should call ocxl_afu_event_check again
  * @retval -1 if an error occurred
  */
-static inline int ocxl_afu_event_check(ocxl_afu_h afu, int timeout, ocxl_event *events, uint16_t event_count)
+#ifndef _DOXYGEN_
+static
+#endif
+inline int ocxl_afu_event_check(ocxl_afu_h afu, int timeout, ocxl_event *events, uint16_t event_count)
 {
 	uint16_t event_api_version = 0;
 	return ocxl_afu_event_check_versioned(afu, timeout, events, event_count, event_api_version);
@@ -205,7 +217,6 @@ ocxl_err ocxl_afu_set_ppc64_amr(ocxl_afu_h afu, uint64_t amr);
 #endif
 
 /* mmio.c */
-size_t ocxl_afu_get_mmio_size(ocxl_afu_h afu, ocxl_mmio_type type);
 ocxl_err ocxl_mmio_map_advanced(ocxl_afu_h afu, ocxl_mmio_type type, size_t size, int prot, uint64_t flags,
                                 off_t offset, ocxl_mmio_h *region);
 ocxl_err ocxl_mmio_map(ocxl_afu_h afu, ocxl_mmio_type type, ocxl_mmio_h *region);
@@ -213,8 +224,8 @@ void ocxl_mmio_unmap(ocxl_mmio_h region);
 int ocxl_mmio_get_fd(ocxl_afu_h afu, ocxl_mmio_type type);
 size_t ocxl_mmio_size(ocxl_afu_h afu, ocxl_mmio_type type);
 ocxl_err ocxl_mmio_get_info(ocxl_mmio_h region, void **address, size_t *size);
-ocxl_err ocxl_mmio_read32(ocxl_mmio_h mmio, off_t offset, ocxl_endian endian, uint32_t * out);
-ocxl_err ocxl_mmio_read64(ocxl_mmio_h mmio, off_t offset, ocxl_endian endian, uint64_t * out);
+ocxl_err ocxl_mmio_read32(ocxl_mmio_h mmio, off_t offset, ocxl_endian endian, uint32_t *out);
+ocxl_err ocxl_mmio_read64(ocxl_mmio_h mmio, off_t offset, ocxl_endian endian, uint64_t *out);
 ocxl_err ocxl_mmio_write32(ocxl_mmio_h mmio, off_t offset, ocxl_endian endian, uint32_t value);
 ocxl_err ocxl_mmio_write64(ocxl_mmio_h mmio, off_t offset, ocxl_endian endian, uint64_t value);
 

@@ -224,7 +224,7 @@ static void test_ocxl_afu_alloc() {
 	afu_init(&template);
 
 	ocxl_afu_h afu = OCXL_INVALID_AFU;
-	ASSERT(OCXL_OK == ocxl_afu_alloc(&afu));
+	ASSERT(OCXL_OK == afu_alloc(&afu));
 	ASSERT(afu != 0);
 	ASSERT(ocxl_afu_get_device_path(afu) == NULL);
 	ASSERT(ocxl_afu_get_sysfs_path(afu) == NULL);
@@ -345,7 +345,7 @@ static void test_afu_open() {
 	ocxl_afu_h afu = OCXL_INVALID_AFU;
 
 	ASSERT(OCXL_OK == get_afu_by_path("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu));
-	ocxl_afu * my_afu = (ocxl_afu *)afu;
+	ocxl_afu *my_afu = (ocxl_afu *)afu;
 	ASSERT(my_afu->fd == -1);
 	ASSERT(my_afu->epoll_fd == -1);
 
@@ -390,7 +390,7 @@ static void test_ocxl_afu_open_specific() {
 	ASSERT(afu != OCXL_INVALID_AFU);
 	ASSERT(!strcmp(ocxl_afu_get_device_path(afu), "/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0"));
 
-	ocxl_afu * my_afu = (ocxl_afu *)afu;
+	ocxl_afu *my_afu = (ocxl_afu *)afu;
 	ASSERT(my_afu->version_major == 5);
 	ASSERT(my_afu->version_minor == 10);
 	ASSERT(my_afu->global_mmio.length == 32*1024*1024);
@@ -419,7 +419,7 @@ static void test_ocxl_afu_open_from_dev() {
 	ocxl_enable_messages(OCXL_ERRORS);
 
 	ASSERT(OCXL_OK == ocxl_afu_open_from_dev("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu));
-	ocxl_afu * my_afu = (ocxl_afu *)afu;
+	ocxl_afu *my_afu = (ocxl_afu *)afu;
 	ASSERT(my_afu->fd != -1);
 	ASSERT(my_afu->epoll_fd != -1);
 	ASSERT(!strcmp(ocxl_afu_get_device_path(afu), "/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0"));
@@ -480,7 +480,7 @@ static void test_ocxl_afu_open() {
 	ocxl_enable_messages(OCXL_ERRORS);
 
 	ASSERT(OCXL_OK == ocxl_afu_open("IBM,Dummy", &afu));
-	ocxl_afu * my_afu = (ocxl_afu *)afu;
+	ocxl_afu *my_afu = (ocxl_afu *)afu;
 	ASSERT(my_afu->fd != -1);
 	ASSERT(my_afu->epoll_fd != -1);
 	ASSERT(!strcmp(ocxl_afu_get_device_path(afu), "/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0"));
@@ -531,7 +531,7 @@ static void test_ocxl_afu_close() {
 	/* We deliberately dereference the freed ocxl_afu here to ensure the contents have
 	 * been cleared appropriately. The data should not have been reallocated and overwritten yet
 	 */
-	ocxl_afu * my_afu = (ocxl_afu *)afu;
+	ocxl_afu *my_afu = (ocxl_afu *)afu;
 	ASSERT(0 == my_afu->irq_count);
 	ASSERT(0 == my_afu->irq_max_count);
 	ASSERT(0 == my_afu->epoll_event_count);
@@ -557,7 +557,7 @@ static void test_ocxl_mmio_map() {
 	ocxl_afu_h afu = OCXL_INVALID_AFU;
 	ASSERT(OCXL_OK == ocxl_afu_open_from_dev("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu));
 	ocxl_afu_enable_messages(afu, OCXL_ERRORS);
-	ocxl_afu * my_afu = (ocxl_afu *)afu;
+	ocxl_afu *my_afu = (ocxl_afu *)afu;
 
 	ASSERT(my_afu->global_mmio_fd != -1);
 	ASSERT(my_afu->global_mmio.start == NULL);
@@ -597,7 +597,7 @@ static void test_mmio_check() {
 
 	ocxl_afu_h afu = OCXL_INVALID_AFU;
 	ASSERT(OCXL_OK == ocxl_afu_open_from_dev("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu));
-	ocxl_afu * my_afu = (ocxl_afu *)afu;
+	ocxl_afu *my_afu = (ocxl_afu *)afu;
 
 	ASSERT(my_afu->global_mmio_fd != -1);
 	ASSERT(my_afu->global_mmio.start == NULL);
@@ -837,7 +837,7 @@ static void test_read_afu_event() {
 	ocxl_afu_enable_messages(afu, OCXL_ERRORS);
 	ASSERT(OCXL_OK == ocxl_afu_attach(afu));
 
-	ocxl_afu * my_afu = (ocxl_afu *)afu;
+	ocxl_afu *my_afu = (ocxl_afu *)afu;
 	ocxl_event event;
 	int last = 0;
 	ASSERT(OCXL_EVENT_ACTION_NONE == read_afu_event(my_afu, 0, &event, &last));
@@ -977,7 +977,7 @@ static void test_ocxl_set_afu_error_message_handler() {
 
 	ocxl_afu_h afu = OCXL_INVALID_AFU;
 	ASSERT(OCXL_OK == ocxl_afu_open_from_dev("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu));
-	ocxl_afu * my_afu = (ocxl_afu *)afu;
+	ocxl_afu *my_afu = (ocxl_afu *)afu;
 
 	ocxl_afu_set_error_message_handler(afu, copy_to_err_buf_afu);
 	ocxl_afu_enable_messages(afu, OCXL_ERRORS);

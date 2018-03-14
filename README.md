@@ -42,20 +42,20 @@ areas on the the AFU. Endian conversion is handled automatically.
 # Usage
 A typical use of libocxl will follow this pattern:
 
-1. **Setup:** optionally turn on error reporting within the library: ocxl\_want\_verbose\_errors().
+1. **Setup:** optionally turn on error reporting for the open calls: ocxl\_enable\_messages().
 2. **Open the device:** ocxl\_afu\_open() if an AFU name is used, or ocxl\_afu\_open\_from\_dev() if
-   a device path is used.
-3. **Allocate IRQs:** ocxl\_afu\_irq\_alloc(). This returns a sequential per-AFU IRQ number.
+   a device path is used. Optionally turn on error reporting for the AFU: ocxl\_afu\_enable\_messages().
+3. **Allocate IRQs:** ocxl\_irq\_alloc(). This returns a sequential per-AFU IRQ number.
    An opaque pointer is associated with the
    handle in which the caller can store additional information. This is not used by OpenCAPI,
    but is passed as part of the event information to provide additional context to the IRQ handler.
 4. **Configure global MMIO:** Some AFUs may have a global MMIO area, which will contain configuration
-   information that will affect all PASIDs on the AFU. Use ocxl\_mmio\_map to make the area available,
+   information that will affect all PASIDs on the AFU. Use ocxl\_mmio\_map() to make the area available,
    then use ocxl\_mmio\_write32() and ocxl\_mmio\_write64() to write the information.
 5. **Configure the per-PASID MMIO:** Some AFUs support multiple contexts, and each context will
    get it's own MMIO area for configuration and communication. Typical information that may
    be communicated across the MMIO interface include IRQ handles (obtained with
-   ocxl\_afu\_irq\_get\_id()), and pointers to AFU-specific
+   ocxl\_irq\_get\_handle()), and pointers to AFU-specific
    data structures. Use ocxl\_mmio\_map to make the area available, then use
    ocxl\_mmio\_write32() and ocxl\_mmio\_write64() to write the information.
 6. **Attach the AFU context to the process:** Use ocxl\_afu\_attach() to make the process's address space available
@@ -68,7 +68,7 @@ A typical use of libocxl will follow this pattern:
    the MMIO area. Typically, bulk data should be written to a pointer passed to the AFU, however,
    small quantities of data may be read from an MMIO area using ocxl\_mmio\_read32() and
    ocxl\_mmio\_read64().
-10. **Termination:** ocxl\_afu\_free() will free all resources associated with an AFU handle.
+10. **Termination:** ocxl\_afu\_close() will free all resources associated with an AFU handle.
 
 # Development
 Patches may be submitted via Github pull requests. Please prepare your patches

@@ -182,10 +182,12 @@ bool afu_is_attached() {
 }
 
 /**
- * Create a new virtual OCXL device
+ * Create a new virtual OCXL device.
+ *
  * @param afu_name the name of the AFU
  * @param global_mmio_size the size of the global MMIO area
  * @param per_pasid_mmio_size the size of the per-PASID MMIO area
+ *
  * @return the thread for the device, or 0 on error
  */
 pthread_t create_ocxl_device(const char *afu_name, size_t global_mmio_size, size_t per_pasid_mmio_size) {
@@ -245,7 +247,8 @@ pthread_t create_ocxl_device(const char *afu_name, size_t global_mmio_size, size
 
 #ifdef _ARCH_PPC64
 /**
- * Force a translation fault, this should cause afu_poll() to register an event, and afu_read() to return the event
+ * Force a translation fault, this should cause afu_poll() to register an event, and afu_read() to return the event.
+ *
  * @param addr the address of the fault
  * @param dsisr the value of the PPC64 specific DSISR register
  * @param count the number of times the translation fault has triggered an error
@@ -257,7 +260,8 @@ void force_translation_fault(void *addr, uint64_t dsisr, uint64_t count) {
 }
 #else
 /**
- * Force a translation fault, this should cause afu_poll() to register an event, and afu_read() to return the event
+ * Force a translation fault, this should cause afu_poll() to register an event, and afu_read() to return the event.
+ *
  * @param addr the address of the fault
  * @param count the number of times the translation fault has triggered an error
  */

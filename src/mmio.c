@@ -30,9 +30,6 @@
  * The MMIO functions map the global and per-PASID MMIO spaces of the AFU into
  * the address space of the process, as well as moderating access to them.
  *
- * The endianess of an MMIO space is defined when mapped, and access via libocxl
- * will automatically translate host-endian data to the appropriate format.
- *
  * Only 32bit & 64bit accesses are supported.
  *
  * @{
@@ -41,13 +38,13 @@
 /**
  * @internal
  *
- * Save a mapped MMIO region against an AFU
+ * Save a mapped MMIO region against an AFU.
  *
  * @param afu the AFU to operate on
  * @param addr the address of the MMIO region
  * @param size the size of the MMIO region
  * @param type the type of the MMIO region
- * @param handle [out] the MMIO region handle
+ * @param[out] handle the MMIO region handle
  *
  * @retval OCXL_OK on success
  * @retval OCXL_NO_MEM if there is insufficient memory
@@ -87,9 +84,10 @@ static ocxl_err register_mmio(ocxl_afu *afu, void *addr, size_t size, ocxl_mmio_
 }
 
 /**
- * Open the global MMIO descriptor on an afu
+ * Open the global MMIO descriptor on an AFU.
  *
  * @param afu the AFU
+ *
  * @retval OCXL_NO_DEV if the MMIO descriptor could not be opened
  */
 ocxl_err global_mmio_open(ocxl_afu *afu)
@@ -117,19 +115,21 @@ ocxl_err global_mmio_open(ocxl_afu *afu)
 /**
  * @internal
  *
- * map the Global MMIO area of an AFU to memory
+ * map the Global MMIO area of an AFU to memory.
  *
  * Map the Global MMIO area of afu to the current process memory. The size and
  * contents of this area are specific each AFU. The size can be discovered with
- * ocxl_get_global_mmio_size().
+ * ocxl_mmio_size().
+ *
+ * @pre the AFU has been opened
  *
  * @param afu the AFU to operate on
  * @param size the size of the MMIO region to map (or 0 to map the full region)
  * @param prot the protection parameters as per mmap/mprotect
  * @param flags Additional flags to modify the map behavior (currently unused, must be 0)
  * @param offset the offset of the MMIO region to map (or 0 to map the full region), should be a multiple of PAGE_SIZE
- * @param region [out] the MMIO region handle
- * @pre the AFU has been opened
+ * @param[out] region the MMIO region handle
+ *
  * @retval OCXL_OK on success
  * @retval OCXL_NO_MEM if there is insufficient memory
  * @retval OCXL_NO_DEV if the MMIO device could not be opened
@@ -176,19 +176,21 @@ static ocxl_err global_mmio_map(ocxl_afu *afu, size_t size, int prot, uint64_t f
 /**
  * @internal
  *
- * map the per-PASID MMIO area of an AFU to memory
+ * Map the per-PASID MMIO area of an AFU to memory.
  *
- * Map the per-PASID MMIO area of afu to the current process memory, and
- * declares AFU endianness according to flag. The size  and contents of this
- * area are specific each AFU.
+ * Map the per-PASID MMIO area of afu to the current process memory. The size and
+ * contents of this area are specific each AFU. The size can be discovered with
+ * ocxl_mmio_size().
+ *
+ * @pre the AFU has been opened
  *
  * @param afu the AFU to operate on
  * @param size the size of the MMIO region to map (or 0 to map the full region)
  * @param prot the protection parameters as per mmap/mprotect
  * @param flags Additional flags to modify the map behavior (currently unused, must be 0)
  * @param offset the offset of the MMIO region to map (or 0 to map the full region), should be a multiple of PAGE_SIZE
- * @param region [out] the MMIO region handle
- * @pre the AFU has been opened
+ * @param[out] region the MMIO region handle
+ *
  * @retval OCXL_OK on success
  * @retval OCXL_NO_MEM if the map failed
  * @retval OCXL_NO_CONTEXT if the AFU has not been opened
@@ -229,10 +231,12 @@ static ocxl_err mmio_map(ocxl_afu *afu, size_t size, int prot, uint64_t flags, o
 }
 
 /**
- * Map an MMIO area of an AFU
+ * Map an MMIO area of an AFU.
  *
  * Provides finer grain control of MMIO region mapping. Allows for protection parameters
- * to be specified, as well as allowing partial mappings (with PAGE_SIZE granularity)
+ * to be specified, as well as allowing partial mappings (with PAGE_SIZE granularity).
+ *
+ * @pre the AFU has been opened
  *
  * @param afu the AFU to operate on
  * @param type the type of MMIO area to map
@@ -240,8 +244,8 @@ static ocxl_err mmio_map(ocxl_afu *afu, size_t size, int prot, uint64_t flags, o
  * @param prot the protection parameters as per mmap/mprotect
  * @param flags Additional flags to modify the map behavior (currently unused, must be 0)
  * @param offset the offset of the MMIO region to map (or 0 to map the full region), should be a multiple of PAGE_SIZE
- * @param region [out] the MMIO region handle
- * @pre the AFU has been opened
+ * @param[out] region the MMIO region handle
+ *
  * @retval OCXL_OK on success
  * @retval OCXL_NO_MEM if the map failed
  * @retval OCXL_NO_CONTEXT if the AFU has not been opened
@@ -269,12 +273,16 @@ ocxl_err ocxl_mmio_map_advanced(ocxl_afu_h afu, ocxl_mmio_type type, size_t size
 }
 
 /**
- * Map an MMIO area of an AFU
+ * Map an MMIO area of an AFU.
+ *
+ * Maps the entire global/per-PASID region of MMIO memory on the AFU with read/write access granted.
+ *
+ * @pre the AFU has been opened
  *
  * @param afu the AFU to operate on
  * @param type the type of MMIO area to map
  * @param region [out] the MMIO region handle
- * @pre the AFU has been opened
+ *
  * @retval OCXL_OK on success
  * @retval OCXL_NO_MEM if the map failed
  * @retval OCXL_NO_CONTEXT if the AFU has not been opened
@@ -286,9 +294,10 @@ ocxl_err ocxl_mmio_map(ocxl_afu_h afu, ocxl_mmio_type type, ocxl_mmio_h *region)
 }
 
 /**
- * Unmap an MMIO region from an AFU
+ * Unmap an MMIO region from an AFU.
  *
  * @pre the AFU has been opened, and the MMIO area mapped
+ *
  * @param region the MMIO region to unmap
  */
 void ocxl_mmio_unmap(ocxl_mmio_h region)
@@ -304,15 +313,17 @@ void ocxl_mmio_unmap(ocxl_mmio_h region)
 }
 
 /**
- * Get a file descriptor for an MMIO area of an AFU
+ * Get a file descriptor for an MMIO area of an AFU.
  *
- * Once obtained, the descriptor may be used to manually MMAP a section of the MMIO area
+ * Once obtained, the descriptor may be used to manually MMAP a section of the MMIO area.
  *
  * @see ocxl_mmio_size() to get the size of the MMIO areas
  *
+ * @pre the AFU has been opened
+ *
  * @param afu the AFU to operate on
  * @param type the type of MMIO area to map
- * @pre the AFU has been opened
+ *
  * @return the requested descriptor, or -1 if it is not available
  */
 int ocxl_mmio_get_fd(ocxl_afu_h afu, ocxl_mmio_type type)
@@ -335,10 +346,11 @@ int ocxl_mmio_get_fd(ocxl_afu_h afu, ocxl_mmio_type type)
 }
 
 /**
- * Get the size of an MMIO region for an AFU
+ * Get the size of an MMIO region for an AFU.
  *
  * @param afu the AFU to get the MMIO size of
  * @param type the type of the MMIO region
+ *
  * @return the size of the MMIO region in bytes
  */
 size_t ocxl_mmio_size(ocxl_afu_h afu, ocxl_mmio_type type)
@@ -360,12 +372,14 @@ size_t ocxl_mmio_size(ocxl_afu_h afu, ocxl_mmio_type type)
 
 
 /**
- * Get the details of an MMIO region
+ * Get the address & size of a mapped MMIO region.
  *
  * @pre the AFU has been opened, and the MMIO area mapped
+ *
  * @param region the MMIO region to get the details for
  * @param address [out] The address of the MMIO region
  * @param size [out] the size of the MMIO region in bytes
+ *
  * @retval OCXL_OK if the details were retrieved
  * @retval OCXL_INVALID_ARGS if the region is invalid
  */
@@ -387,10 +401,12 @@ ocxl_err ocxl_mmio_get_info(ocxl_mmio_h region, void **address, size_t *size)
 
 
 /**
- * Validate an MMIO operation
+ * Validate an MMIO operation.
+ *
  * @param region the MMIO region
  * @param offset the offset within the MMIO area
  * @param size the size of the operation
+ *
  * @retval OCXL_OK if the operation can proceed
  * @retval OCXL_INVALID_ARGS if the MMIO area is not mapped
  * @retval OCXL_OUT_OF_BOUNDS if the offset exceeds the available area
@@ -423,12 +439,14 @@ inline static ocxl_err mmio_check(ocxl_mmio_h region, off_t offset, size_t size)
 }
 
 /**
- * read a 32-bit value from an AFU's MMIO region
+ * Read a 32-bit value from an AFU's MMIO region.
  *
- * Read the 32-bit value at offset from the address of the mapped MMIO space, no endianess conversion will be performed.
+ * Read the 32-bit value at offset from the address of the mapped MMIO space,
+ * no endianess conversion will be performed.
  * Memory barriers are inserted before and after the MMIO operation.
  *
  * @pre the AFU has been opened, and the per-PASID MMIO area mapped
+ *
  * @param region the MMIO area to operate on
  * @param offset A byte address that is aligned on a word (4 byte) boundary. It
  * must be lower than the MMIO size (-4 bytes) reported by ocxl_mmio_size()
@@ -459,12 +477,14 @@ inline static ocxl_err mmio_read32_native(ocxl_mmio_h region, off_t offset, uint
 }
 
 /**
- * read a 64-bit value from an AFU's MMIO region
+ * Read a 64-bit value from an AFU's MMIO region.
  *
- * Read the 64-bit value at offset from the address of the mapped MMIO space, no endianess conversion will be performed.
+ * Read the 64-bit value at offset from the address of the mapped MMIO space,
+ * no endianess conversion will be performed.
  * Memory barriers are inserted before and after the MMIO operation.
  *
  * @pre the AFU has been opened, and the per-PASID MMIO area mapped
+ *
  * @param region the MMIO area to operate on
  * @param offset A byte address that is aligned on an 8 byte boundary. It
  * must be lower than the MMIO size (-8 bytes) reported by ocxl_afu_get_mmio_size()
@@ -495,12 +515,15 @@ inline static ocxl_err mmio_read64_native(ocxl_mmio_h region, off_t offset, uint
 }
 
 /**
- * write a 32-bit value to an AFU's MMIO region
+ * Write a 32-bit value to an AFU's MMIO region.
  *
- * Write the 32-bit word at offset from the address of the mapped MMIO space, no endianess conversion will be performed.
+ * Write the 32-bit word at offset from the address of the mapped MMIO space,
+ * no endianess conversion will be performed.
+ *
  * Memory barriers are inserted before and after the MMIO operation.
  *
  * @pre the AFU has been opened, and the MMIO area mapped
+ *
  * @param afu the AFU to operate on
  * @param region the MMIO area to operate on
  * @param offset A byte address that is aligned on a 4 byte boundary. It
@@ -534,12 +557,14 @@ inline static ocxl_err mmio_write32_native(ocxl_mmio_h region, off_t offset, uin
 }
 
 /**
- * write a 64-bit value to the mapped AFU per-PASID MMIO space
+ * Write a 64-bit value to the mapped AFU per-PASID MMIO space.
  *
- * Write the 64-bit value at offset from the address of the mapped MMIO space, no endianess conversion will be performed.
+ * Write the 64-bit value at offset from the address of the mapped MMIO space,
+ * no endianess conversion will be performed.
  * Memory barriers are inserted before and after the MMIO operation.
  *
  * @pre the AFU has been opened, and the MMIO area mapped
+ *
  * @param region the MMIO area to operate on
  * @param offset A byte address that is aligned on an 8 byte boundary. It
  * must be lower than the MMIO size (-8 bytes) reported by ocxl_afu_get_mmio_size()
@@ -572,24 +597,24 @@ inline static ocxl_err mmio_write64_native(ocxl_mmio_h region, off_t offset, uin
 }
 
 /**
- * read a 32-bit value from an AFU's MMIO region & convert endianess
+ * Read a 32-bit value from an AFU's MMIO region & convert endianess.
  *
  * Read the 32-bit value at offset from the address of the mapped MMIO space,
- * and convert it from big-endian to native.
+ * and convert endianess as specified by the endian parameter.
  * Memory barriers are inserted before and after the MMIO operation.
  *
  * @pre the AFU has been opened, and the MMIO area mapped
  * @param mmio the MMIO area to operate on
  * @param offset A byte address that is aligned on a word (4 byte) boundary. It
  * must be lower than the MMIO size (-4 bytes) reported by ocxl_mmio_size()
- * @param endian the endianess of the stored data
+ * @param endian the endianess of the stored data (will be converted to native)
  * @param[out] out the value that was read
  *
  * @retval OCXL_OK if the value was read
  * @retval OCXL_NO_CONTEXT if the MMIO area is not mapped
  * @retval OCXL_OUT_OF_BOUNDS if the offset exceeds the available area
  */
-ocxl_err ocxl_mmio_read32(ocxl_mmio_h mmio, off_t offset, ocxl_endian endian, uint32_t * out)
+ocxl_err ocxl_mmio_read32(ocxl_mmio_h mmio, off_t offset, ocxl_endian endian, uint32_t *out)
 {
 	uint32_t val;
 	ocxl_err ret = mmio_read32_native(mmio, offset, &val);
@@ -611,24 +636,25 @@ ocxl_err ocxl_mmio_read32(ocxl_mmio_h mmio, off_t offset, ocxl_endian endian, ui
 }
 
 /**
- * read a 64-bit value from an AFU's MMIO region & convert endianess
+ * Read a 64-bit value from an AFU's MMIO region & convert endianess.
  *
  * Read the 64-bit value at offset from the address of the mapped MMIO space,
- * and convert it from big-endian to native.
+ * and convert endianess as specified by the endian parameter.
  * Memory barriers are inserted before and after the MMIO operation.
  *
  * @pre the AFU has been opened, and the MMIO area mapped
+ *
  * @param mmio the MMIO area to operate on
  * @param offset A byte address that is aligned on an 8 byte boundary. It
  * must be lower than the MMIO size (-8 bytes) reported by ocxl_afu_get_mmio_size()
- * @param endian the endianess of the stored data
+ * @param endian the endianess of the stored data (will be converted to native)
  * @param[out] out the value that was read
  *
  * @retval OCXL_OK if the value was read
  * @retval OCXL_NO_CONTEXT if the MMIO area is not mapped
  * @retval OCXL_OUT_OF_BOUNDS if the offset exceeds the available area
  */
-ocxl_err ocxl_mmio_read64(ocxl_mmio_h mmio, off_t offset, ocxl_endian endian, uint64_t * out)
+ocxl_err ocxl_mmio_read64(ocxl_mmio_h mmio, off_t offset, ocxl_endian endian, uint64_t *out)
 {
 	uint64_t val;
 	ocxl_err ret = mmio_read64_native(mmio, offset, &val);
@@ -650,16 +676,18 @@ ocxl_err ocxl_mmio_read64(ocxl_mmio_h mmio, off_t offset, ocxl_endian endian, ui
 }
 
 /**
- * Convert endianess and write a 32-bit value to an AFU's MMIO region
+ * Convert endianess and write a 32-bit value to an AFU's MMIO region.
  *
  * Convert endianess and write the 32-bit word at offset from the address of the mapped MMIO space.
  * Memory barriers are inserted before and after the MMIO operation.
  *
  * @pre the AFU has been opened, and the MMIO area mapped
+ *
  * @param mmio the MMIO area to operate on
  * @param offset A byte address that is aligned on a 4 byte boundary. It
  * must be lower than the MMIO size (-4 bytes) reported by ocxl_mmio_size()
- * @param endian the endianess of the stored data
+ *
+ * @param endian the endianess of the stored data (value will be converted to this before storing it)
  * @param value the value to write
  *
  * @retval OCXL_OK if the value was written
@@ -684,16 +712,17 @@ ocxl_err ocxl_mmio_write32(ocxl_mmio_h mmio, off_t offset, ocxl_endian endian, u
 }
 
 /**
- * Convert endianess and write a 64-bit value to an AFU's MMIO region
+ * Convert endianess and write a 64-bit value to an AFU's MMIO region.
  *
  * Convert endianess and write the 32-bit word at offset from the address of the mapped MMIO space.
  * Memory barriers are inserted before and after the MMIO operation.
  *
  * @pre the AFU has been opened, and the MMIO area mapped
+ *
  * @param mmio the MMIO area to operate on
- * @param offset A byte address that is aligned on a 4 byte boundary. It
- * must be lower than the MMIO size (-4 bytes) reported by ocxl_mmio_size()
- * @param endian the endianess of the stored data
+ * @param offset A byte address that is aligned on an 8 byte boundary. It
+ * must be lower than the MMIO size (-8 bytes) reported by ocxl_mmio_size()
+ * @param endian the endianess of the stored data (value will be converted to this before storing it)
  * @param value the value to write
  *
  * @retval OCXL_OK if the value was written

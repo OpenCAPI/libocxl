@@ -19,16 +19,18 @@
 #include <stdlib.h>
 
 /**
- * @defgroup ocxl_setup OpenCAPI Library Setup Functions
+ * @defgroup ocxl_messages OpenCAPI Messages
+ *
+ * These functions control messages from libocxl, such as error messages and tracing.
  *
  * @{
  */
 
 #ifdef TEST_ENVIRONMENT
 /**
- * Set the directory used for the ocxl sysfs dir
+ * Set the directory used for the ocxl sysfs dir.
  *
- * Defaults to /sys/class/ocxl
+ * Defaults to /sys/class/ocxl.
  *
  * @param path the new path to use for sysfs
  */
@@ -38,9 +40,9 @@ __attribute__ ((used)) static void ocxl_set_sys_path(const char *path)
 }
 
 /**
- * Set the directory used for the ocxl dev dir
+ * Set the directory used for the ocxl dev dir.
  *
- * Defaults to /dev/ocxl
+ * Defaults to /dev/ocxl.
  *
  * @param path the new path to use for sysfs
  */
@@ -54,17 +56,16 @@ __attribute__ ((used)) static void ocxl_set_dev_path(const char *path)
 /**
  * Enable messages from libocxl open calls.
  *
- * Subsequent messages
- *
- * Error messages, if enabled, are emitted by default on STDERR. This behaviour may be
- * overidden by ocxl_afu_set_error_message_handler().
+ * Error messages, if enabled, are emitted by default on STDERR. This behavior may be
+ * overridden by ocxl_afu_set_error_message_handler().
  *
  * Tracing, if enabled, is always emitted on STDERR. It assists a developer by showing
- * detailed AFU information, as well as MMIO & IRQ interactions between the application
- * and the AFU. It does not show direct accesses to memory from the AFU.
+ * detailed AFU information.
+ *
+ * @see ocxl_set_error_message_handler()
+ * @see ocxl_afu_enable_messages()
  *
  * @param sources a bitwise OR of the message sources to enable (OCXL_ERRORS, OCXL_TRACING)
- * @see ocxl_afu_set_error_message_handler()
  */
 void ocxl_enable_messages(uint64_t sources)
 {
@@ -73,7 +74,7 @@ void ocxl_enable_messages(uint64_t sources)
 }
 
 /**
- * Override the default handler for emitting error messages from open calls
+ * Override the default handler for emitting error messages from open calls.
  *
  * The default error handler emits messages on STDERR, to override this behavior,
  * pass a callback to this function.
@@ -84,6 +85,9 @@ void ocxl_enable_messages(uint64_t sources)
  * logging/reporting mechanisms, and adding additional application-specific context
  * to the error messages.
  *
+ * @see ocxl_enable_messages()
+ * @see ocxl_err_to_string()
+ *
  * @param handler the new error message handler
  */
 void ocxl_set_error_message_handler(void (*handler)(ocxl_err error, const char *message))
@@ -92,9 +96,17 @@ void ocxl_set_error_message_handler(void (*handler)(ocxl_err error, const char *
 }
 
 /**
- * Convert an error value to a string
+ * Convert an error value to a string.
+ *
+ * When implementing an error message handler, it may be useful to decode the provided
+ * ocxl_err to a human readable string, before logging the message.
+ *
+ * @see ocxl_set_error_message_handler()
+ * @see ocxl_afu_set_error_message_handler()
+ *
  * @param err the error value
- * @return a string value of the error
+ *
+ * @return a string representing a human readable version of the error value
  */
 const char *ocxl_err_to_string(ocxl_err err)
 {
