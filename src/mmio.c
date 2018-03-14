@@ -68,7 +68,7 @@ static ocxl_err register_mmio(ocxl_afu *afu, void *addr, size_t size, ocxl_mmio_
 		if (afu->mmio_count == afu->mmio_max_count) {
 			ocxl_err rc = grow_buffer(afu, (void **)&afu->mmios, &afu->mmio_max_count, sizeof(ocxl_mmio_area), INITIAL_MMIO_COUNT);
 			if (rc != OCXL_OK) {
-				errmsg(afu, rc, "Could not grow MMIO buffer for AFU '%s'", afu->identifier.afu_name);
+				errmsg(afu, rc, "Could not grow MMIO buffer");
 				return rc;
 			}
 		}
@@ -98,14 +98,14 @@ ocxl_err global_mmio_open(ocxl_afu *afu)
 	int length = snprintf(path, sizeof(path), "%s/global_mmio_area", afu->sysfs_path);
 	if (length >= sizeof(path)) {
 		ocxl_err rc = OCXL_NO_DEV;
-		errmsg(afu, rc, "global MMIO path truncated for AFU '%s'", afu->identifier.afu_name);
+		errmsg(afu, rc, "global MMIO path truncated");
 		return rc;
 	}
 
 	int fd = open(path, O_RDWR | O_CLOEXEC);
 	if (fd < 0) {
 		ocxl_err rc = OCXL_NO_DEV;
-		errmsg(afu, rc, "Could not open global MMIO for AFU '%s': Error %d: %s", path, errno, strerror(errno));
+		errmsg(afu, rc, "Could not open global MMIO '%s': Error %d: %s", path, errno, strerror(errno));
 		return rc;
 	}
 
@@ -157,16 +157,14 @@ static ocxl_err global_mmio_map(ocxl_afu *afu, size_t size, int prot, uint64_t f
 	void *addr = mmap(NULL, size, prot, MAP_SHARED, afu->global_mmio_fd, offset);
 	if (addr == MAP_FAILED) {
 		ocxl_err rc = OCXL_NO_MEM;
-		errmsg(afu, rc, "Could not map global MMIO on AFU '%s', %d: %s",
-		       afu->identifier.afu_name, errno, strerror(errno));
+		errmsg(afu, rc, "Could not map global MMIO, %d: %s", errno, strerror(errno));
 		return rc;
 	}
 
 	ocxl_mmio_h mmio_region;
 	ocxl_err rc = register_mmio(afu, addr, size, OCXL_GLOBAL_MMIO, &mmio_region);
 	if (rc != OCXL_OK) {
-		errmsg(afu, rc, "Could not register global MMIO region with AFU '%s'",
-		       afu->identifier.afu_name);
+		errmsg(afu, rc, "Could not register global MMIO region");
 		return rc;
 	}
 
@@ -214,16 +212,14 @@ static ocxl_err mmio_map(ocxl_afu *afu, size_t size, int prot, uint64_t flags, o
 	void *addr = mmap(NULL, afu->per_pasid_mmio.length, prot, MAP_SHARED, afu->fd, 0);
 	if (addr == MAP_FAILED) {
 		ocxl_err rc = OCXL_NO_MEM;
-		errmsg(afu, rc, "Could not map per-PASID MMIO on AFU '%s', %d: %s",
-		       afu->identifier.afu_name, errno, strerror(errno));
+		errmsg(afu, rc, "Could not map per-PASID MMIO: %d: %s", errno, strerror(errno));
 		return rc;
 	}
 
 	ocxl_mmio_h mmio_region;
 	ocxl_err rc = register_mmio(afu, addr, size, OCXL_PER_PASID_MMIO, &mmio_region);
 	if (rc != OCXL_OK) {
-		errmsg(afu, rc, "Could not register global MMIO region with AFU '%s'",
-		       afu->identifier.afu_name);
+		errmsg(afu, rc, "Could not register global MMIO region", afu->identifier.afu_name);
 		return rc;
 	}
 

@@ -44,8 +44,8 @@ void irq_dealloc(ocxl_afu * afu, ocxl_irq * irq)
 {
 	if (irq->addr) {
 		if (munmap(irq->addr, afu->page_size)) {
-			errmsg(afu, OCXL_INTERNAL_ERROR, "Could not unmap IRQ page for AFU '%s': %d: '%s'",
-			       afu->identifier.afu_name, errno, strerror(errno));
+			errmsg(afu, OCXL_INTERNAL_ERROR, "Could not unmap IRQ page: %d: '%s'",
+			       errno, strerror(errno));
 		}
 		irq->addr = NULL;
 	}
@@ -108,8 +108,7 @@ static ocxl_err irq_allocate(ocxl_afu * afu, ocxl_irq * irq, void *info)
 
 	int fd = eventfd(0, EFD_CLOEXEC);
 	if (fd < 0) {
-		errmsg(afu, ret, "Could not open eventfd for AFU '%s': %d: '%s'",
-		       afu->identifier.afu_name, errno, strerror(errno));
+		errmsg(afu, ret, "Could not open eventfd : %d: '%s'", errno, strerror(errno));
 		goto errend;
 	}
 	irq->event.eventfd = fd;
@@ -129,7 +128,7 @@ static ocxl_err irq_allocate(ocxl_afu * afu, ocxl_irq * irq, void *info)
 	irq->addr = mmap(NULL, afu->page_size, PROT_WRITE, MAP_SHARED,
 	                 my_afu->fd, irq->event.irq_offset);
 	if (irq->addr == MAP_FAILED) {
-		errmsg(afu, ret, "mmap for IRQ for AFU '%s': %d: '%s'", afu->identifier.afu_name, errno, strerror(errno));
+		errmsg(afu, ret, "mmap for IRQ failed: %d: '%s'", errno, strerror(errno));
 		goto errend;
 	}
 
@@ -137,9 +136,8 @@ static ocxl_err irq_allocate(ocxl_afu * afu, ocxl_irq * irq, void *info)
 	ev.events = EPOLLIN;
 	ev.data.ptr = &irq->fd_info;
 	if (epoll_ctl(my_afu->epoll_fd, EPOLL_CTL_ADD, irq->event.eventfd, &ev) == -1) {
-		errmsg(afu, ret, "Could not add IRQ fd %d to epoll fd %d for AFU '%s': %d: '%s'",
-		       irq->event.eventfd, my_afu->epoll_fd, my_afu->identifier.afu_name,
-		       errno, strerror(errno));
+		errmsg(afu, ret, "Could not add IRQ fd %d to epoll fd %d: %d: '%s'",
+		       irq->event.eventfd, my_afu->epoll_fd, errno, strerror(errno));
 		goto errend;
 	}
 
@@ -166,14 +164,14 @@ ocxl_err ocxl_irq_alloc(ocxl_afu_h afu, void *info, ocxl_irq_h * irq)
 	if (my_afu->irq_count == my_afu->irq_max_count) {
 		ocxl_err rc = grow_buffer(my_afu, (void **)&my_afu->irqs, &my_afu->irq_max_count, sizeof(ocxl_irq), INITIAL_IRQ_COUNT);
 		if (rc != OCXL_OK) {
-			errmsg(my_afu, rc, "Could not grow IRQ buffer for AFU '%s'", my_afu->identifier.afu_name);
+			errmsg(my_afu, rc, "Could not grow IRQ buffer");
 			return rc;
 		}
 	}
 
 	ocxl_err rc = irq_allocate(my_afu, &my_afu->irqs[my_afu->irq_count], info);
 	if (rc != OCXL_OK) {
-		errmsg(my_afu, rc, "Could not allocate IRQ for AFU '%s'", my_afu->identifier.afu_name);
+		errmsg(my_afu, rc, "Could not allocate IRQ");
 		return rc;
 	}
 	my_afu->irqs[my_afu->irq_count].irq_number = my_afu->irq_count;
@@ -327,12 +325,11 @@ static ocxl_event_action read_afu_event(ocxl_afu_h afu, uint16_t event_api_versi
 			return OCXL_EVENT_ACTION_NONE;
 		}
 
-		errmsg(afu, OCXL_INTERNAL_ERROR, "read of event header from fd %d for AFU '%s' failed: %d: %s",
-		       my_afu->fd, my_afu->identifier.afu_name, errno, strerror(errno));
+		errmsg(afu, OCXL_INTERNAL_ERROR, "read of event header from fd %d failed: %d: %s",
+		       my_afu->fd, errno, strerror(errno));
 		return OCXL_EVENT_ACTION_FAIL;
 	} else if (buf_used < sizeof(ocxl_kernel_event_header)) {
-		errmsg(afu, OCXL_INTERNAL_ERROR, "short read of event header from fd %d for AFU '%s'",
-		       my_afu->fd, my_afu->identifier.afu_name);
+		errmsg(afu, OCXL_INTERNAL_ERROR, "short read of event header from fd %d", my_afu->fd);
 		return OCXL_EVENT_ACTION_FAIL;
 	}
 
@@ -401,8 +398,8 @@ int ocxl_afu_event_check_versioned(ocxl_afu_h afu, int timeout, ocxl_event *even
 
 	int count;
 	if ((count = epoll_wait(my_afu->epoll_fd, my_afu->epoll_events, event_count, timeout)) == -1) {
-		errmsg(my_afu, OCXL_INTERNAL_ERROR, "epoll_wait failed waiting for AFU events on AFU '%s': %d: '%s'",
-		       my_afu->identifier.afu_name, errno, strerror(errno));
+		errmsg(my_afu, OCXL_INTERNAL_ERROR, "epoll_wait failed waiting for AFU events: %d: '%s'",
+		       errno, strerror(errno));
 		return -1;
 	}
 
@@ -434,9 +431,8 @@ int ocxl_afu_event_check_versioned(ocxl_afu_h afu, int timeout, ocxl_event *even
 
 		case EPOLL_SOURCE_IRQ:
 			if (read(info->irq->event.eventfd, &count, sizeof(count)) < 0) {
-				errmsg(my_afu, OCXL_INTERNAL_ERROR, "read of eventfd %d for AFU '%s' IRQ %d failed: %d: %s",
-				       info->irq->event.eventfd, my_afu->identifier.afu_name,
-				       info->irq->irq_number, errno, strerror(errno));
+				errmsg(my_afu, OCXL_INTERNAL_ERROR, "read of eventfd %d IRQ %d failed: %d: %s",
+				       info->irq->event.eventfd, info->irq->irq_number, errno, strerror(errno));
 				continue;
 			}
 			events[triggered].type = OCXL_EVENT_IRQ;

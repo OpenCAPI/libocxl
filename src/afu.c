@@ -426,9 +426,8 @@ static ocxl_err afu_open(ocxl_afu *afu)
 	ev.data.ptr = &afu->fd_info; // Already set up in afu_init
 	if (epoll_ctl(afu->epoll_fd, EPOLL_CTL_ADD, afu->fd, &ev) == -1) {
 		ocxl_err rc = OCXL_NO_DEV;
-		errmsg(afu, rc, "Could not add device fd %d to epoll fd %d for AFU '%s': %d: '%s'",
-		       afu->fd, afu->epoll_fd, afu->identifier.afu_name,
-		       errno, strerror(errno));
+		errmsg(afu, rc, "Could not add device fd %d to epoll fd %d: %d: '%s'",
+		       afu->fd, afu->epoll_fd, errno, strerror(errno));
 		return rc;
 	}
 
