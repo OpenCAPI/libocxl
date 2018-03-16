@@ -13,26 +13,26 @@ SONAMEOPT = -Wl,-soname,$(LIBSONAME)
 
 DOCDIR = docs
 
-all: obj/$(LIBSONAME) obj/libocxl.so obj/libocxl.a
+all: check_ocxl_header obj/$(LIBSONAME) obj/libocxl.so obj/libocxl.a
 
 HAS_WGET = $(shell /bin/which wget > /dev/null 2>&1 && echo y || echo n)
 HAS_CURL = $(shell /bin/which curl > /dev/null 2>&1 && echo y || echo n)
 
 # Update this to test a single feature from the most recent header we require:
-#CHECK_CXL_HEADER_IS_UP_TO_DATE = $(shell /bin/echo -e \\\#include $(1)\\\nvoid test\(struct cxl_afu_id test\)\; | \
-#                 $(CC) $(CFLAGS) -Werror -x c -S -o /dev/null - > /dev/null 2>&1 && echo y || echo n)
-#
-#check_cxl_header:
-#ifeq ($(call CHECK_CXL_HEADER_IS_UP_TO_DATE,"<misc/cxl.h>"),n)
-#	mkdir -p include/misc
-#ifeq (${HAS_WGET},y)
-#	$(call Q,WGET include/misc/cxl.h, wget -O include/misc/cxl.h -q http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/plain/include/uapi/misc/cxl.h)
-#else ifeq (${HAS_CURL},y)
-#	$(call Q,CURL include/misc/cxl.h, curl -o include/misc/cxl.h -s http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/plain/include/uapi/misc/cxl.h)
-#else
-#	$(error 'cxl.h is non-existant or out of date, Download from http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/plain/include/uapi/misc/cxl.h and place in ${PWD}/include/misc/cxl.h')
-#endif
-#endif
+CHECK_OCXL_HEADER_IS_UP_TO_DATE = $(shell /bin/echo -e \\\#include \"$(1)\"\\\nvoid test\(struct ocxl_ioctl_metadata test\)\; | \
+	$(CC) $(CFLAGS) -Werror -x c -S -o /dev/null - > /dev/null 2>&1 && echo y || echo n)
+
+check_ocxl_header:
+ifeq ($(call CHECK_OCXL_HEADER_IS_UP_TO_DATE,"kernel/include/misc/ocxl.h"),n)
+	mkdir -p kernel/include/misc
+ifeq (${HAS_WGET},y)
+	$(call Q,WGET kernel/include/misc/ocxl.h, wget -O kernel/include/misc/ocxl.h -q http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/plain/include/uapi/misc/ocxl.h)
+else ifeq (${HAS_CURL},y)
+	$(call Q,CURL kernel/include/misc/ocxl.h, curl -o kernel/include/misc/ocxl.h -s http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/plain/include/uapi/misc/ocxl.h)
+else
+	$(error 'ocxl.h is non-existant or out of date, Download from http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/plain/include/uapi/misc/ocxl.h and place in ${PWD}/kernel/include/misc/ocxl.h')
+endif
+endif
 
 obj:
 	mkdir obj
@@ -61,7 +61,7 @@ testobj/libocxl.a: $(TEST_OBJS)
 testobj/unittests: testobj/unittests.o-test testobj/virtocxl.o-test
 	$(call Q,CC, $(CC) $(CFLAGS) $(LDFLAGS) -o testobj/unittests testobj/unittests.o-test testobj/virtocxl.o-test testobj/libocxl.a -lfuse -lpthread, testobj/unittests)
 
-test: testobj/unittests
+test: check_ocxl_header testobj/unittests
 	sudo testobj/unittests
 
 valgrind: testobj/unittests
@@ -106,4 +106,4 @@ dist:
 	tar Jcf $(VERSION_DIR).txz --exclude $(VERSION_DIR)/debian --exclude $(VERSION_DIR)/.git --exclude $(VERSION_DIR)/$(VERSION_DIR) $(VERSION_DIR)/*
 	rm $(VERSION_DIR)
 
-.PHONY: clean all install docs precommit cppcheck cppcheck-xml dist
+.PHONY: clean all install docs precommit cppcheck cppcheck-xml dist check_ocxl_header
