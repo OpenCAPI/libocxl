@@ -662,7 +662,7 @@ ocxl_err ocxl_afu_attach(ocxl_afu_h afu, __attribute__((unused)) uint64_t flags)
 	struct ocxl_ioctl_attach attach_args;
 	memset(&attach_args, '\0', sizeof(attach_args));
 #ifdef _ARCH_PPC64
-	attach_args.amr = my_afu->ppc64_amr;
+	attach_args.amr = afu->ppc64_amr;
 #endif
 
 	if (ioctl(afu->fd, OCXL_IOCTL_ATTACH, &attach_args)) {

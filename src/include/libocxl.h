@@ -195,12 +195,53 @@ int ocxl_afu_get_event_fd(ocxl_afu_h afu) LIBOCXL_WARN_UNUSED;
 int ocxl_irq_get_fd(ocxl_afu_h afu, ocxl_irq_h irq) LIBOCXL_WARN_UNUSED;
 int ocxl_afu_event_check_versioned(ocxl_afu_h afu, int timeout, ocxl_event *events, uint16_t event_count,
                                    uint16_t event_api_version) LIBOCXL_WARN_UNUSED;
-
+#ifdef _ARCH_PPC64
+ocxl_err ocxl_afu_get_p9_thread_id(ocxl_afu_h afu, uint16_t *thread_id);
+#endif
 
 /**
  * @addtogroup ocxl_irq
  * @{
  */
+
+#if defined(_ARCH_PPC64) && !defined(__STRICT_ANSI__)
+/**
+ * A wrapper around the the Power 9 wait instruction
+ *
+ * The notify/wait mechanism provide a low-latency way for an AFU to signal to the
+ * calling thread that a condition has been met (eg. work has been completed).
+ *
+ * This function will cause the thread to wait until woken by the AFU via as_notify.
+ * As the thread may be woken for reasons other than as_notify, a condition variable
+ * must be set by the AFU before issuing the notify.
+ *
+ * In order to successfully wake a waiting thread, the AFU must know the address of
+ * the condition variable, and the thread ID of the application (via ocxl_afu_get_p9_thread_id()).
+ *
+ * A typical usage will be:
+ * @code
+ *   while (!condition_variable_is_set()) {
+ *   	ocxl_wait();
+ *   } // Pause execution until the condition variable is set
+ *
+ *   clear_condition_variable();
+ *
+ *   // Execution continues here
+ * @endcode
+ *
+ * @see ocxl_afu_get_p9_thread_id()
+ */
+#ifndef _DOXYGEN_
+static
+#endif
+inline void ocxl_wait()
+{
+	/* This would be just 'asm volatile ("wait")', but clang produces invalid machine code */
+	asm volatile (".long 0x7c00003c");
+}
+#elif defined(_ARCH_PPC64) && !defined(LIBOCXL_SUPPRESS_INACCESSIBLE_WARNINGS)
+#warning LibOCXL ocxl_wait() will not be available while ANSI C mode is enabled
+#endif
 
 /**
  * Check for pending IRQs and other events.

@@ -39,3 +39,7 @@ LIBOCXL_0 {
 	local:
 		*;
 };
+
+LIBOCXL_1_1 {
+        ocxl_afu_get_p9_thread_id;
+};

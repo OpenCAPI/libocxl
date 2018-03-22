@@ -66,10 +66,11 @@ void irq_dealloc(ocxl_afu *afu, ocxl_irq *irq)
 }
 
 /**
- * @defgroup ocxl_irq OpenCAPI IRQ Functions
+ * @defgroup ocxl_irq OpenCAPI IRQ, Event & Wake Functions
  *
- * These functions allow the allocation and handling of AFU IRQs. IRQs can be
- * handled by requesting an array of triggered IRQ handles (via ocxl_afu_check).
+ * These functions allow the allocation and handling of AFU IRQs, OpenCAPI events, and wakes.
+ * IRQs can be handled either via requesting an array of triggered IRQ handles (via ocxl_afu_check),
+ * or by issuing callbacks via ocxl_afu_handle_callbacks().
  *
  * Each IRQ has an opaque pointer attached, which is communicated to the caller via the event struct
  * passed back from ocxl_afu_event_check(). This pointer can be used by the caller to
@@ -471,6 +472,58 @@ int ocxl_afu_event_check_versioned(ocxl_afu_h afu, int timeout, ocxl_event *even
 	TRACE(afu, "%u events reported", triggered);
 
 	return triggered;
+}
+
+/**
+ * Get the thread ID required to wake up a Power 9 wait instruction
+ *
+ * The thread ID should be provided to the AFU, along with a condition variable to
+ * indicate a true wake condition.
+ *
+ * Note that multiple AFU contexts within the same thread will share the same thread ID.
+ * Thread IDs are cached within a context, and are requested from the kernel the first time
+ * this function is called for an AFU context.
+ *
+ * If sharing AFU contexts between threads, the thread ID should be requested only in the thread
+ * that will be waiting for the AFU context.
+ *
+ * @param afu the AFU to get the thread ID for
+ * @param[out] thread_id the thread ID
+ * @retval OCXL_OK if the thread ID was retrieved successfully
+ * @retval OCXL_NO_DEV if the OpenCAPI device is not capable of Power 9 notify/wake
+ *
+ * @see ocxl_wait()
+ */
+ocxl_err ocxl_afu_get_p9_thread_id(ocxl_afu_h afu, uint16_t *thread_id)
+{
+	ocxl_afu *my_afu = (ocxl_afu *)afu;
+
+	struct ocxl_ioctl_features features;
+
+	int rc = ioctl(my_afu->fd, OCXL_IOCTL_GET_FEATURES, &features);
+	if (rc) {
+		errmsg(afu, OCXL_NO_DEV, "Could not identify platform: %d %s",
+		       errno, strerror(errno));
+		return OCXL_NO_DEV;
+	}
+
+	if (!(features.flags[0] & OCXL_IOCTL_FEATURES_FLAGS0_P9_WAIT)) {
+		errmsg(afu, OCXL_NO_DEV, "Power 9 wait is not available on this machine");
+		return OCXL_NO_DEV;
+	}
+
+	struct ocxl_ioctl_p9_wait wait_data;
+
+	rc = ioctl(my_afu->fd, OCXL_IOCTL_ENABLE_P9_WAIT, &wait_data);
+	if (rc) {
+		errmsg(afu, OCXL_NO_DEV, "Could not enable wait in kernel: %d %s",
+		       errno, strerror(errno));
+		return OCXL_NO_DEV;
+	}
+
+	*thread_id = wait_data.thread_id;
+
+	return OCXL_OK;
 }
 
 /**

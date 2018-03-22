@@ -78,7 +78,10 @@
 struct memcpy_work_element {
 	volatile uint8_t cmd; /* valid, wrap, cmd */
 	volatile uint8_t status;
-	uint16_t length;
+	union {
+		uint16_t length;
+		uint16_t tid;
+	};
 	uint8_t cmd_extra;
 	uint8_t reserved[3];
 	uint64_t atomic_op;
@@ -92,12 +95,6 @@ struct memcpy_weq {
 	struct memcpy_work_element *last;
 	int wrap;
 	int count;
-};
-
-struct memcpy_test_args {
-	bool enable_irq;
-	bool verbose;
-	int completion_timeout;
 };
 
 int memcpy3_queue_length(size_t queue_size)
@@ -118,19 +115,22 @@ void memcpy3_init_weq(struct memcpy_weq *weq, size_t queue_size)
 /*
  * Copies a work element into the queue, taking care to set the wrap
  * bit correctly.  Returns a pointer to the element in the queue.
+ *
+ * @param weq the work element queue to populate
+ * @param we the work element
  */
-struct memcpy_work_element *memcpy3_add_we(struct memcpy_weq *weq, struct memcpy_work_element we)
+struct memcpy_work_element *memcpy3_add_we(struct memcpy_weq *weq, struct memcpy_work_element *we)
 {
 	struct memcpy_work_element *new_we = weq->next;
 
-	new_we->status = we.status;
-	new_we->length = we.length;
-	new_we->cmd_extra = we.cmd_extra;
-	new_we->atomic_op = we.atomic_op;
-	new_we->src = we.src;
-	new_we->dst = we.dst;
+	new_we->status = we->status;
+	new_we->length = we->length;
+	new_we->cmd_extra = we->cmd_extra;
+	new_we->atomic_op = we->atomic_op;
+	new_we->src = we->src;
+	new_we->dst = we->dst;
 	__sync_synchronize();
-	new_we->cmd = (we.cmd & ~MEMCPY_WE_CMD_WRAP) | weq->wrap;
+	new_we->cmd = (we->cmd & ~MEMCPY_WE_CMD_WRAP) | weq->wrap;
 	weq->next++;
 	if (weq->next > weq->last) {
 		weq->wrap ^= MEMCPY_WE_CMD_WRAP;
@@ -266,7 +266,7 @@ static int wait_for_irq(int timeout, ocxl_afu_h afu, ocxl_mmio_h pp_mmio, uint64
  * 	0x04: An error occurred while accessing the AFU
  * 	0x08: A timeout occurred
  */
-static int wait_for_status(int timeout, struct memcpy_work_element *work_element, ocxl_afu_h afu, uint64_t err_ea)
+static int wait_for_status(int timeout, ocxl_afu_h afu, struct memcpy_work_element *work_element, uint64_t err_ea)
 {
 	struct timeval test_timeout, temp;
 
@@ -279,7 +279,7 @@ static int wait_for_status(int timeout, struct memcpy_work_element *work_element
 	for (;; gettimeofday(&temp, NULL)) {
 		if (timercmp(&temp, &test_timeout, >)) {
 			LOG_ERR("timeout polling for completion\n");
-			return -1;
+			return 0x08;
 		}
 
 		int ret = wait_for_irq(0, afu, 0, 0, err_ea);
@@ -293,6 +293,57 @@ static int wait_for_status(int timeout, struct memcpy_work_element *work_element
 	}
 	return 0;
 }
+
+#ifdef _ARCH_PPC64
+/**
+ * Wait for wake_host_thread to be issued by the AFU
+ *
+ * @param timeout the maximum amount of time to wait (seconds)
+ * @param work_element the work element to poll for completion
+ * @param afu the AFU that will be issuing the IRQ
+ * @param pp_mmio the per-PASID MMIO area of the AFU
+ * @param irq_ea the handle of the completion IRQ
+ * @param err_ea the handle of the error IRQ
+ *
+ * @return a bitwise OR of issues detected
+ * 	0x01: An AFU error was detected
+ * 	0x02: A translation fault was received
+ * 	0x04: An error occurred while accessing the AFU
+ * 	0x08: A timeout occurred
+ */
+int wait_for_wake_host_thread(int timeout, ocxl_afu_h afu, ocxl_mmio_h pp_mmio,
+                              struct memcpy_work_element *work_element, uint64_t irq_ea, uint64_t err_ea)
+{
+	struct timeval test_timeout, temp;
+
+	temp.tv_sec = timeout;
+	temp.tv_usec = 0;
+
+	gettimeofday(&test_timeout, NULL);
+	timeradd(&test_timeout, &temp, &test_timeout);
+
+	for (;;) {
+		ocxl_wait();
+
+		if (work_element->status) {
+			return 0;
+		}
+
+		gettimeofday(&temp, NULL);
+		if (timercmp(&temp, &test_timeout, >)) {
+			LOG_ERR("timeout waiting for wake_host_thread\n");
+			break;
+		}
+	}
+
+	int ret = wait_for_irq(0, afu, pp_mmio, irq_ea, err_ea);
+	if (ret) {
+		return ret;
+	}
+
+	return 8;
+}
+#endif
 
 /**
  * Fill a buffer with data
@@ -322,6 +373,7 @@ static void display_afu_status(ocxl_mmio_h pp_mmio)
 		LOG_INF("AFU Status register is %lx\n", status);
 	}
 }
+
 /**
  * Run a single memcpy operation
  *
@@ -329,17 +381,15 @@ static void display_afu_status(ocxl_mmio_h pp_mmio)
  * @param src the data source
  * @param dst where the dat should be copied to
  * @param size the number of bytes to copy
- * @param use_irq true if we should use AFU interrupts to signal completion, false for polling
+ * @param completion how to signal completion, 0 = poll, 1 = interrupt, 2 = notify/wait on Power9
  * @param timeout the timeout in seconds to wait for completion
  *
  * @return false on success
  */
-static bool afu_memcpy(ocxl_afu_h afu, const char *src, char *dst, size_t size, bool use_irq, int timeout)
+static bool afu_memcpy(ocxl_afu_h afu, const char *src, char *dst, size_t size, int completion, int timeout)
 {
 	uint64_t wed;
 	struct memcpy_weq weq;
-	struct memcpy_work_element memcpy_we, irq_we;
-	struct memcpy_work_element *first_we, *last_we;
 
 	memcpy3_init_weq(&weq, QUEUE_SIZE);
 
@@ -347,6 +397,7 @@ static bool afu_memcpy(ocxl_afu_h afu, const char *src, char *dst, size_t size, 
 	wed = MEMCPY_WED(weq.queue, QUEUE_SIZE / CACHELINESIZE);
 
 	// Setup a work element in the queue
+	struct memcpy_work_element memcpy_we;
 	memset(&memcpy_we, 0, sizeof(memcpy_we));
 	memcpy_we.cmd = MEMCPY_WE_CMD(0, MEMCPY_WE_CMD_COPY);
 	memcpy_we.length = htole16((uint16_t) size);
@@ -365,24 +416,6 @@ static bool afu_memcpy(ocxl_afu_h afu, const char *src, char *dst, size_t size, 
 		goto err;
 	}
 
-	ocxl_irq_h afu_irq;
-	uint64_t afu_irq_handle = 0;
-	if (use_irq) {
-		// Setup the interrupt work element
-
-		// Allocate an IRQ to use for AFU notifications
-		if (OCXL_OK != ocxl_irq_alloc(afu, NULL, &afu_irq)) {
-			goto err;
-		}
-
-		// Insert the IRQ handle into a work element
-		afu_irq_handle = ocxl_irq_get_handle(afu, afu_irq);
-		memset(&irq_we, 0, sizeof(irq_we));
-		irq_we.cmd = MEMCPY_WE_CMD(1, MEMCPY_WE_CMD_IRQ);
-		irq_we.src = htole64(afu_irq_handle);
-		LOG_INF("irq EA = %lx\n", afu_irq_handle);
-	}
-
 	// Allocate an IRQ to report errors
 	ocxl_irq_h err_irq;
 	if (OCXL_OK != ocxl_irq_alloc(afu, NULL, &err_irq)) {
@@ -396,23 +429,76 @@ static bool afu_memcpy(ocxl_afu_h afu, const char *src, char *dst, size_t size, 
 		goto err;
 	}
 
-	// memory barrier to ensure the descriptor is written to memory before we ask the AFU to use it
-	__sync_synchronize();
-
 	// Write the address of the work element descriptor to the AFU
 	if (OCXL_OK != ocxl_mmio_write64(pp_mmio, MEMCPY_AFU_PP_WED, OCXL_MMIO_LITTLE_ENDIAN, wed)) {
 		goto err;
 	}
 
 	// setup the work queue
-	first_we = last_we = memcpy3_add_we(&weq, memcpy_we);
-	if (use_irq) {
-		last_we = memcpy3_add_we(&weq, irq_we);
+	struct memcpy_work_element *memcpy_element = memcpy3_add_we(&weq, &memcpy_we);
+	struct memcpy_work_element *irq_element = NULL;
+	struct memcpy_work_element *wake_element = NULL;
+	struct memcpy_work_element *stop_element = NULL;
+
+	ocxl_irq_h afu_irq;
+	uint64_t afu_irq_handle = 0;
+	if (completion == 1) {
+		// Set up the interrupt work element
+
+		// Allocate an IRQ to use for AFU notifications
+		if (OCXL_OK != ocxl_irq_alloc(afu, NULL, &afu_irq)) {
+			goto err;
+		}
+
+		// Insert the IRQ handle into a work element
+		afu_irq_handle = ocxl_irq_get_handle(afu, afu_irq);
+		struct memcpy_work_element irq_we;
+		memset(&irq_we, 0, sizeof(irq_we));
+		irq_we.cmd = MEMCPY_WE_CMD(1, MEMCPY_WE_CMD_IRQ);
+		irq_we.src = htole64(afu_irq_handle);
+
+		LOG_INF("irq EA = %lx\n", afu_irq_handle);
+
+		irq_element = memcpy3_add_we(&weq, &irq_we);
+#ifdef _ARCH_PPC64
+	}  else if (completion == 2) {
+		// Set up the wake_host_thread work element
+
+		// Allocate an IRQ to use for AFU notifications if wake_host_thread fails
+		if (OCXL_OK != ocxl_irq_alloc(afu, NULL, &afu_irq)) {
+			goto err;
+		}
+		afu_irq_handle = ocxl_irq_get_handle(afu, afu_irq);
+
+		uint16_t tid;
+		if (OCXL_OK != ocxl_afu_get_p9_thread_id(afu, &tid)) {
+			goto err;
+		}
+
+		struct memcpy_work_element wake_we;
+		memset(&wake_we, 0, sizeof(wake_we));
+		wake_we.cmd = MEMCPY_WE_CMD(1, MEMCPY_WE_CMD_WAKE_HOST_THREAD);
+		wake_we.src = htole64(afu_irq_handle);
+		wake_we.tid = htole16(tid);
+		wake_we.cmd_extra = 0x01;
+
+		LOG_INF("TID for wake_host_thread/wait = 0x%x\n", tid);
+
+		wake_element = memcpy3_add_we(&weq, &wake_we);
+#endif
 	}
+
+	struct memcpy_work_element stop_we;
+	memset(&stop_we, 0, sizeof(stop_we));
+	stop_we.cmd = MEMCPY_WE_CMD(1, MEMCPY_WE_CMD_STOP);
+
+	stop_element = memcpy3_add_we(&weq, &stop_we);
+
+	// memory barrier to ensure the descriptor is written to memory before we ask the AFU to use it
 	__sync_synchronize();
 
 	// Initiate the memcpy
-	first_we->cmd |= MEMCPY_WE_CMD_VALID;
+	memcpy_element->cmd |= MEMCPY_WE_CMD_VALID;
 
 	/*
 	 * wait for the AFU to be done
@@ -420,23 +506,34 @@ static bool afu_memcpy(ocxl_afu_h afu, const char *src, char *dst, size_t size, 
 	 * if we're using an interrupt, we can go to sleep.
 	 * Otherwise, we poll the last work element status from memory
 	 */
-	int rc = use_irq ? wait_for_irq(timeout, afu, pp_mmio, afu_irq_handle, err_irq_handle) :
-	         wait_for_status(timeout, last_we, afu, err_irq_handle);
+	int rc = (completion == 1) ? wait_for_irq(timeout, afu, pp_mmio, afu_irq_handle, err_irq_handle) :
+#ifdef _ARCH_PPC64
+	         (completion == 2) ? wait_for_wake_host_thread(timeout, afu, pp_mmio, wake_element, afu_irq_handle, err_irq_handle) :
+#endif
+	         wait_for_status(timeout, afu, memcpy_element, err_irq_handle);
 	if (rc) {
 		goto err_status;
 	}
 
-	if (first_we->status != 1) {
-		LOG_ERR("unexpected status 0x%x for copy\n", first_we->status);
+	if (memcpy_element->status != 1) {
+		LOG_ERR("unexpected status 0x%x for copy\n", memcpy_element->status);
 		goto err_status;
 	}
 
-	if (last_we != first_we && last_we->status != 1) {
-		LOG_ERR("unexpected status 0x%x for last work element\n", last_we->status);
+	if (completion == 1 && irq_element->status != 1) {
+		LOG_ERR("unexpected status 0x%x for IRQ\n", irq_element->status);
 		goto err_status;
 	}
 
-	restart_afu_if_stopped(pp_mmio);
+	if (completion == 2 && wake_element->status != 1) {
+		LOG_ERR("unexpected status 0x%x for wake\n", wake_element->status);
+		goto err_status;
+	}
+
+	if (stop_element->status != 1) {
+		LOG_ERR("unexpected status 0x%x for stop\n", stop_element->status);
+		goto err_status;
+	}
 
 	return 0;
 
@@ -453,22 +550,38 @@ static void usage(char *name)
 	fprintf(stderr, "Usage: %s [ options ]\n", name);
 	fprintf(stderr, "Options:\n");
 	fprintf(stderr,
-	        "\t-i\t\tSend an interrupt after copy\n");
+	        "\t-i\t\tUse interrupts to indicate completion\n");
+#ifdef _ARCH_PPC64
+	fprintf(stderr,
+	        "\t-w\t\tUse wake_host_thread/wait to indicate completion\n");
+#endif
 	fprintf(stderr,
 	        "\t-t <timeout>\tSeconds to wait for the AFU to signal completion\n");
+	fprintf(stderr,
+	        "\t-v\t\tShow interactions with the AFU\n");
 	exit(1);
 }
+
+struct memcpy_test_args {
+	int completion; // 0 = Poll, 1 = IRQ, 2 = wake_host_thread/wait
+	bool verbose;
+	int completion_timeout;
+};
 
 int main(int argc, char *argv[])
 {
 	struct memcpy_test_args args;
 
-	args.enable_irq = false;
+	args.completion = 0;
 	args.completion_timeout = -1;
 	args.verbose = false;
 
 	while (1) {
-		int c = getopt(argc, argv, "+hs:it:v");
+		int c = getopt(argc, argv, "+hs:it:v"
+#ifdef _ARCH_PPC64
+		               "w"
+#endif
+		              );
 		if (c < 0)
 			break;
 		switch (c) {
@@ -477,8 +590,13 @@ int main(int argc, char *argv[])
 			usage(argv[0]);
 			break;
 		case 'i':
-			args.enable_irq = true;
+			args.completion = 1;
 			break;
+#ifdef _ARCH_PPC64
+		case 'w':
+			args.completion = 2;
+			break;
+#endif
 		case 't':
 			args.completion_timeout = atoi(optarg);
 			break;
@@ -529,7 +647,7 @@ int main(int argc, char *argv[])
 	fill_buffer(src, MEMCPY_SIZE);
 	memset(dst, '\0', MEMCPY_SIZE);
 
-	if (afu_memcpy(afu, src, dst, MEMCPY_SIZE, args.enable_irq, args.completion_timeout)) {
+	if (afu_memcpy(afu, src, dst, MEMCPY_SIZE, args.completion, args.completion_timeout)) {
 		ocxl_afu_close(afu);
 		LOG_ERR("memcpy failed\n");
 		return 1;
