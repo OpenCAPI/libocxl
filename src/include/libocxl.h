@@ -141,6 +141,8 @@ typedef struct ocxl_event {
 	};
 } ocxl_event;
 
+#define OCXL_ATTACH_FLAGS_NONE (0)
+
 /* setup.c */
 void ocxl_enable_messages(uint64_t sources);
 void ocxl_set_error_message_handler(void (*handler)(ocxl_err error, const char *message));
@@ -162,7 +164,7 @@ void ocxl_afu_enable_messages(ocxl_afu_h afu, uint64_t sources);
 void ocxl_afu_set_error_message_handler(ocxl_afu_h afu, void (*handler)(ocxl_afu_h afu, ocxl_err error,
                                         const char *message));
 ocxl_err ocxl_afu_close(ocxl_afu_h afu);
-ocxl_err ocxl_afu_attach(ocxl_afu_h afu);
+ocxl_err ocxl_afu_attach(ocxl_afu_h afu, uint64_t flags);
 
 /* irq.c */
 /* AFU IRQ functions */

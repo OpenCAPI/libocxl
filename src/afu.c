@@ -654,12 +654,14 @@ ocxl_err ocxl_afu_open(const char *name, ocxl_afu_h *afu)
  * @pre the AFU is opened
  *
  * @param afu the AFU to attach
+ * @param flags An ORed bitmask of flags
+ * 	OCXL_ATTACH_FLAGS_NONE		accept the default behavior
  *
  * @retval OCXL_OK if the AFU was successful attached
  * @retval OCXL_NO_CONTEXT if the AFU was not opened
  * @retval OCXL_INTERNAL_ERROR if the AFU was unable to attach (check dmesg)
  */
-ocxl_err ocxl_afu_attach(ocxl_afu_h afu)
+ocxl_err ocxl_afu_attach(ocxl_afu_h afu, uint64_t flags)
 {
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 
