@@ -471,13 +471,12 @@ static ocxl_err afu_open(ocxl_afu *afu)
 		return rc;
 	}
 
-	if (metadata.version >= 0) {
-		afu->version_major = metadata.afu_version_major;
-		afu->version_minor = metadata.afu_version_minor;
-		afu->per_pasid_mmio.length = metadata.pp_mmio_size;
-		afu->global_mmio.length = metadata.global_mmio_size;
-		afu->pasid = metadata.pasid;
-	}
+	// Metadata version 0, always available
+	afu->version_major = metadata.afu_version_major;
+	afu->version_minor = metadata.afu_version_minor;
+	afu->per_pasid_mmio.length = metadata.pp_mmio_size;
+	afu->global_mmio.length = metadata.global_mmio_size;
+	afu->pasid = metadata.pasid;
 
 	if (afu->tracing) {
 		trace_metadata(afu);
@@ -606,7 +605,7 @@ ocxl_err ocxl_afu_open_specific(const char *name, const char *physical_function,
 		goto end;
 	}
 
-	for (int dev = 0; dev < glob_data.gl_pathc; dev++) {
+	for (size_t dev = 0; dev < glob_data.gl_pathc; dev++) {
 		const char *dev_path = glob_data.gl_pathv[dev];
 		ret = ocxl_afu_open_from_dev(dev_path, afu);
 
@@ -661,7 +660,7 @@ ocxl_err ocxl_afu_open(const char *name, ocxl_afu_h *afu)
  * @retval OCXL_NO_CONTEXT if the AFU was not opened
  * @retval OCXL_INTERNAL_ERROR if the AFU was unable to attach (check dmesg)
  */
-ocxl_err ocxl_afu_attach(ocxl_afu_h afu, uint64_t flags)
+ocxl_err ocxl_afu_attach(ocxl_afu_h afu, __attribute__((unused)) uint64_t flags)
 {
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 

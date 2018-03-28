@@ -334,7 +334,7 @@ static ocxl_event_action read_afu_event(ocxl_afu_h afu, uint16_t event_api_versi
 
 	char buf[event_size];
 
-	int buf_used;
+	ssize_t buf_used;
 	if ((buf_used = read(my_afu->fd, buf, event_size)) < 0) {
 		if (errno == EAGAIN || errno == EWOULDBLOCK) {
 			*last = 1;
@@ -344,7 +344,7 @@ static ocxl_event_action read_afu_event(ocxl_afu_h afu, uint16_t event_api_versi
 		errmsg(afu, OCXL_INTERNAL_ERROR, "read of event header from fd %d failed: %d: %s",
 		       my_afu->fd, errno, strerror(errno));
 		return OCXL_EVENT_ACTION_FAIL;
-	} else if (buf_used < sizeof(ocxl_kernel_event_header)) {
+	} else if (buf_used < (ssize_t)sizeof(ocxl_kernel_event_header)) {
 		errmsg(afu, OCXL_INTERNAL_ERROR, "short read of event header from fd %d", my_afu->fd);
 		return OCXL_EVENT_ACTION_FAIL;
 	}

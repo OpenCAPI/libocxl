@@ -94,7 +94,7 @@ ocxl_err global_mmio_open(ocxl_afu *afu)
 {
 	char path[PATH_MAX + 1];
 	int length = snprintf(path, sizeof(path), "%s/global_mmio_area", afu->sysfs_path);
-	if (length >= sizeof(path)) {
+	if (length >= (int)sizeof(path)) {
 		ocxl_err rc = OCXL_NO_DEV;
 		errmsg(afu, rc, "global MMIO path truncated");
 		return rc;
@@ -211,7 +211,7 @@ static ocxl_err mmio_map(ocxl_afu *afu, size_t size, int prot, uint64_t flags, o
 		return rc;
 	}
 
-	void *addr = mmap(NULL, afu->per_pasid_mmio.length, prot, MAP_SHARED, afu->fd, 0);
+	void *addr = mmap(NULL, afu->per_pasid_mmio.length, prot, MAP_SHARED, afu->fd, offset);
 	if (addr == MAP_FAILED) {
 		ocxl_err rc = OCXL_NO_MEM;
 		errmsg(afu, rc, "Could not map per-PASID MMIO: %d: %s", errno, strerror(errno));
@@ -427,7 +427,7 @@ inline static ocxl_err mmio_check(ocxl_mmio_h region, off_t offset, size_t size)
 		return rc;
 	}
 
-	if (offset >= mmio->length - (size - 1)) {
+	if (offset >= (off_t)(mmio->length - (size - 1))) {
 		ocxl_err rc = OCXL_OUT_OF_BOUNDS;
 		errmsg(mmio->afu, rc, "%s MMIO access of 0x%016lx exceeds limit of 0x%016lx",
 		       mmio->type == OCXL_GLOBAL_MMIO ? "Global" : "Per-PASID",
