@@ -270,7 +270,7 @@ static void populate_xsl_fault_error(ocxl_afu *afu, ocxl_event *event, void *bod
 	event->translation_fault.addr = (void *)err->addr;
 #ifdef _ARCH_PPC64
 	event->translation_fault.dsisr = err->dsisr;
-	TRACE("Translation fault error received, addr=%p, dsisr=%llx, count=%llu",
+	TRACE(afu, "Translation fault error received, addr=%p, dsisr=%llx, count=%llu",
 	      event->translation_fault.addr, event->translation_fault.dsisr, err->count);
 #else
 	TRACE(afu, "Translation fault error received, addr=%p, count=%llu",
