@@ -18,7 +18,7 @@ HAS_WGET = $(shell /bin/which wget > /dev/null 2>&1 && echo y || echo n)
 HAS_CURL = $(shell /bin/which curl > /dev/null 2>&1 && echo y || echo n)
 
 # Update this to test a single feature from the most recent header we require:
-CHECK_OCXL_HEADER_IS_UP_TO_DATE = $(shell /bin/echo -e \\\#include \"$(1)\"\\\nvoid test\(struct ocxl_ioctl_metadata test\)\; | \
+CHECK_OCXL_HEADER_IS_UP_TO_DATE = $(shell /bin/echo -e \\\#include $(1)\\\nvoid test\(struct ocxl_ioctl_metadata test\)\; | \
 	$(CC) $(CFLAGS) -Werror -x c -S -o /dev/null - > /dev/null 2>&1 && echo y || echo n)
 
 check_ocxl_header:
@@ -92,13 +92,13 @@ install: all docs
 	mkdir -p $(DESTDIR)$(libdir)
 	mkdir -p $(DESTDIR)$(includedir)
 	mkdir -p $(DESTDIR)$(mandir)/man3
-	mkdir -p $(DESTDIR)$(datadir)/libocxl/search
-	install -m 0755 obj/$(LIBNAME) $(DESTDIR)$(libdir)/
+	mkdir -p $(DESTDIR)$(docdir)/libocxl/search
+	$(INSTALL) -m 0755 obj/$(LIBNAME) $(DESTDIR)$(libdir)/
 	ln -s $(LIBNAME) $(DESTDIR)$(libdir)/$(LIBSONAME)
 	ln -s $(LIBNAME) $(DESTDIR)$(libdir)/libocxl.so
-	install -m 0644 src/include/libocxl.h  $(DESTDIR)$(includedir)/
-	install -m 0644 -D docs/man/man3/* $(DESTDIR)$(mandir)/man3
-	install -m 0644 -D docs/html/*.* $(DESTDIR)$(datadir)/libocxl
-	install -m 0644 -D docs/html/search/* $(DESTDIR)$(datadir)/libocxl/search
+	$(INSTALL) -m 0644 src/include/libocxl.h  $(DESTDIR)$(includedir)/
+	$(INSTALL) -m 0644 -D docs/man/man3/* $(DESTDIR)$(mandir)/man3
+	$(INSTALL) -m 0644 -D docs/html/*.* $(DESTDIR)$(docdir)/libocxl
+	$(INSTALL) -m 0644 -D docs/html/search/* $(DESTDIR)$(docdir)/libocxl/search
 
 .PHONY: clean all install docs precommit cppcheck cppcheck-xml check_ocxl_header
