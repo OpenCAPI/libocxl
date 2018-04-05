@@ -22,7 +22,7 @@ CHECK_OCXL_HEADER_IS_UP_TO_DATE = $(shell /bin/echo -e \\\#include \"$(1)\"\\\nv
 	$(CC) $(CFLAGS) -Werror -x c -S -o /dev/null - > /dev/null 2>&1 && echo y || echo n)
 
 check_ocxl_header:
-ifeq ($(call CHECK_OCXL_HEADER_IS_UP_TO_DATE,"kernel/include/misc/ocxl.h"),n)
+ifeq ($(call CHECK_OCXL_HEADER_IS_UP_TO_DATE,'<misc/ocxl.h>'),n)
 	mkdir -p kernel/include/misc
 ifeq (${HAS_WGET},y)
 	$(call Q,WGET kernel/include/misc/ocxl.h, wget -O kernel/include/misc/ocxl.h -q http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/plain/include/uapi/misc/ocxl.h)
@@ -86,7 +86,7 @@ docs:
 	$(call Q,DOCS-HTML, doxygen Doxyfile-html,)
 
 clean:
-	rm -rf obj testobj sampleobj docs $(VERSION_DIR) $(VERSION_DIR).txz
+	rm -rf obj testobj sampleobj docs
 
 install: all docs
 	mkdir -p $(DESTDIR)$(libdir)
@@ -101,9 +101,4 @@ install: all docs
 	install -m 0644 -D docs/html/*.* $(DESTDIR)$(datadir)/libocxl
 	install -m 0644 -D docs/html/search/* $(DESTDIR)$(datadir)/libocxl/search
 
-dist:
-	ln -s . $(VERSION_DIR)
-	tar Jcf $(VERSION_DIR).txz --exclude $(VERSION_DIR)/packages --exclude $(VERSION_DIR)/.git --exclude $(VERSION_DIR)/$(VERSION_DIR) $(VERSION_DIR)/*
-	rm $(VERSION_DIR)
-
-.PHONY: clean all install docs precommit cppcheck cppcheck-xml dist check_ocxl_header
+.PHONY: clean all install docs precommit cppcheck cppcheck-xml check_ocxl_header
