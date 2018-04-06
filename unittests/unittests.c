@@ -505,7 +505,7 @@ static void test_ocxl_afu_attach() {
 	ASSERT(!afu_is_attached());
 	ASSERT(OCXL_OK == ocxl_afu_open_from_dev("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu));
 	ocxl_afu_enable_messages(afu, OCXL_ERRORS);
-	ASSERT(OCXL_OK == ocxl_afu_attach(afu));
+	ASSERT(OCXL_OK == ocxl_afu_attach(afu, OCXL_ATTACH_FLAGS_NONE));
 	ASSERT(afu_is_attached());
 
 	test_stop(SUCCESS);
@@ -642,7 +642,7 @@ static void test_ocxl_mmio_read32_native() {
 
 	bool good = true;
 
-	for (int offset = 0; offset < GLOBAL_MMIO_SIZE; offset += 4) {
+	for (uint32_t offset = 0; offset < GLOBAL_MMIO_SIZE; offset += 4) {
 		uint32_t val;
 		ASSERT(OCXL_OK == mmio_read32_native(global_mmio, offset, &val));
 		if (val != offset) {
@@ -682,7 +682,7 @@ static void test_ocxl_mmio_read64_native() {
 
 	bool good = true;
 
-	for (int offset = 0; offset < GLOBAL_MMIO_SIZE; offset += 8) {
+	for (uint64_t offset = 0; offset < GLOBAL_MMIO_SIZE; offset += 8) {
 		uint64_t val;
 		ASSERT(OCXL_OK == mmio_read64_native(global_mmio, offset, &val));
 		if (val != offset) {
@@ -721,7 +721,7 @@ static void test_ocxl_mmio_read32() {
 
 	bool good = true;
 
-	for (int offset = 0; offset < GLOBAL_MMIO_SIZE; offset += 4) {
+	for (uint32_t offset = 0; offset < GLOBAL_MMIO_SIZE; offset += 4) {
 		uint32_t val;
 		ASSERT(OCXL_OK == ocxl_mmio_read32(global_mmio, offset, OCXL_MMIO_BIG_ENDIAN, &val));
 		if (val != offset) {
@@ -738,7 +738,7 @@ static void test_ocxl_mmio_read32() {
 		ASSERT(OCXL_OK == ocxl_mmio_write32(global_mmio, offset, OCXL_MMIO_LITTLE_ENDIAN, offset));
 	}
 
-	for (int offset = 0; offset < GLOBAL_MMIO_SIZE; offset += 4) {
+	for (uint32_t offset = 0; offset < GLOBAL_MMIO_SIZE; offset += 4) {
 		uint32_t val;
 		ASSERT(OCXL_OK == ocxl_mmio_read32(global_mmio, offset, OCXL_MMIO_LITTLE_ENDIAN, &val));
 		if (val != offset) {
@@ -782,7 +782,7 @@ static void test_ocxl_mmio_read64() {
 
 	bool good = true;
 
-	for (int offset = 0; offset < GLOBAL_MMIO_SIZE; offset += 8) {
+	for (uint64_t offset = 0; offset < GLOBAL_MMIO_SIZE; offset += 8) {
 		uint64_t val;
 		ASSERT(OCXL_OK == ocxl_mmio_read64(global_mmio, offset, OCXL_MMIO_BIG_ENDIAN, &val));
 		if (val != offset) {
@@ -799,7 +799,7 @@ static void test_ocxl_mmio_read64() {
 		ASSERT(OCXL_OK == ocxl_mmio_write64(global_mmio, offset, OCXL_MMIO_LITTLE_ENDIAN, offset));
 	}
 
-	for (int offset = 0; offset < GLOBAL_MMIO_SIZE; offset += 8) {
+	for (uint64_t offset = 0; offset < GLOBAL_MMIO_SIZE; offset += 8) {
 		uint64_t val;
 		ASSERT(OCXL_OK == ocxl_mmio_read64(global_mmio, offset, OCXL_MMIO_LITTLE_ENDIAN, &val));
 		if (val != offset) {
@@ -835,7 +835,7 @@ static void test_read_afu_event() {
 
 	ASSERT(OCXL_OK == ocxl_afu_open_from_dev("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu));
 	ocxl_afu_enable_messages(afu, OCXL_ERRORS);
-	ASSERT(OCXL_OK == ocxl_afu_attach(afu));
+	ASSERT(OCXL_OK == ocxl_afu_attach(afu, OCXL_ATTACH_FLAGS_NONE));
 
 	ocxl_afu *my_afu = (ocxl_afu *)afu;
 	ocxl_event event;
@@ -898,7 +898,7 @@ static void test_ocxl_afu_event_check_versioned() {
 	ocxl_afu_h afu = OCXL_INVALID_AFU;
 
 	ASSERT(OCXL_OK == ocxl_afu_open_from_dev("/dev/ocxl-test/IBM,Dummy.0001:00:00.1.0", &afu));
-	ASSERT(OCXL_OK == ocxl_afu_attach(afu));
+	ASSERT(OCXL_OK == ocxl_afu_attach(afu, afu_attach));
 
 #define EVENT_COUNT 5
 	ocxl_event events[EVENT_COUNT];
@@ -1006,7 +1006,7 @@ static void exit_handler() {
 	}
 }
 
-int main(int args, const char **argv) {
+int main(__attribute__((unused)) int args, __attribute__((unused)) const char **argv) {
 	struct sigaction sa;
 	sa.sa_handler = exit_handler;
 	sigemptyset(&(sa.sa_mask));

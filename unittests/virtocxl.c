@@ -49,7 +49,7 @@ static void afu_open(fuse_req_t req, struct fuse_file_info *fi)
 	fuse_reply_open(req, fi);
 }
 
-static void afu_read(fuse_req_t req, size_t size, off_t off, struct fuse_file_info *fi)
+static void afu_read(fuse_req_t req, size_t size, off_t off, __attribute__((unused)) struct fuse_file_info *fi)
 {
 	char buf[KERNEL_EVENT_SIZE];
 	ocxl_kernel_event_header header = {
@@ -80,9 +80,10 @@ static void afu_read(fuse_req_t req, size_t size, off_t off, struct fuse_file_in
 	translation_fault.addr = 0;
 }
 
-static void afu_ioctl(fuse_req_t req, int cmd, void *arg,
-			  struct fuse_file_info *fi, unsigned flags,
-			  const void *in_buf, size_t in_bufsz, size_t out_bufsz)
+static void afu_ioctl(fuse_req_t req, int cmd, __attribute__((unused)) void *arg,
+		__attribute__((unused)) struct fuse_file_info *fi, __attribute__((unused)) unsigned flags,
+		__attribute__((unused)) const void *in_buf, __attribute__((unused)) size_t in_bufsz,
+		__attribute__((unused)) size_t out_bufsz)
 {
 	struct ocxl_ioctl_metadata ret;
 
@@ -112,7 +113,8 @@ static void afu_ioctl(fuse_req_t req, int cmd, void *arg,
 	}
 }
 
-static void afu_poll (fuse_req_t req, struct fuse_file_info *fi, struct fuse_pollhandle *ph)
+static void afu_poll (fuse_req_t req, __attribute__((unused)) struct fuse_file_info *fi,
+		__attribute__((unused)) struct fuse_pollhandle *ph)
 {
 	if (translation_fault.addr != 0) {
 		fuse_reply_poll(req, POLLIN | POLLRDNORM);
