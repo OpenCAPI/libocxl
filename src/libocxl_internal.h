@@ -34,8 +34,8 @@
  *   lwz/ld
  *   stw/std
  */
-#if !defined(__GNUC__) || __GNUC__ < 6
-#error LibOCXL is only tested with GCC 6 & GCC 7, remove this error at your own peril
+#if !defined(__GNUC__) || __GNUC__ < 4
+#error LibOCXL is only tested with GCC 4, 5, 6 & 7, remove this error at your own peril
 #endif
 
 #define LIKELY(condition) __builtin_expect((condition), 1)
