@@ -257,12 +257,35 @@ ocxl_err ocxl_mmio_map_advanced(ocxl_afu_h afu, ocxl_mmio_type type, size_t size
 	ocxl_afu *my_afu = (ocxl_afu *) afu;
 	ocxl_err rc = OCXL_INVALID_ARGS;
 
+	if (size == 0) {
+		switch (type) {
+		case OCXL_PER_PASID_MMIO:
+			size = my_afu->per_pasid_mmio.length;
+			break;
+		case OCXL_GLOBAL_MMIO:
+			size = my_afu->global_mmio.length;
+			break;
+		}
+	}
+
 	switch (type) {
 	case OCXL_GLOBAL_MMIO:
+		if (offset + size > my_afu->global_mmio.length) {
+			rc = OCXL_NO_MEM;
+			errmsg(my_afu, rc, "Offset(%x) + size(%x) of global MMIO map request exceeds available size of %x",
+					offset, size, my_afu->global_mmio.length);
+			return rc;
+		}
 		return global_mmio_map(my_afu, size, prot, flags, offset, region);
 		break;
 
 	case OCXL_PER_PASID_MMIO:
+		if (offset + size > my_afu->global_mmio.length) {
+			rc = OCXL_NO_MEM;
+			errmsg(my_afu, rc, "Offset(%x) + size(%x) of global MMIO map request exceeds available size of %x",
+					offset, size, my_afu->global_mmio.length);
+			return rc;
+		}
 		return mmio_map(my_afu, size, prot, flags, offset, region);
 		break;
 
