@@ -619,6 +619,10 @@ ocxl_err ocxl_mmio_read32(ocxl_mmio_h mmio, off_t offset, ocxl_endian endian, ui
 	uint32_t val;
 	ocxl_err ret = mmio_read32_native(mmio, offset, &val);
 
+	if (UNLIKELY(ret != OCXL_OK)) {
+		return ret;
+	}
+
 	switch (endian) {
 	case OCXL_MMIO_BIG_ENDIAN:
 		*out = be32toh(val);
@@ -632,7 +636,7 @@ ocxl_err ocxl_mmio_read32(ocxl_mmio_h mmio, off_t offset, ocxl_endian endian, ui
 		break;
 	}
 
-	return ret;
+	return OCXL_OK;
 }
 
 /**
@@ -659,6 +663,10 @@ ocxl_err ocxl_mmio_read64(ocxl_mmio_h mmio, off_t offset, ocxl_endian endian, ui
 	uint64_t val;
 	ocxl_err ret = mmio_read64_native(mmio, offset, &val);
 
+	if (UNLIKELY(ret != OCXL_OK)) {
+		return ret;
+	}
+
 	switch (endian) {
 	case OCXL_MMIO_BIG_ENDIAN:
 		*out = be64toh(val);
@@ -672,7 +680,7 @@ ocxl_err ocxl_mmio_read64(ocxl_mmio_h mmio, off_t offset, ocxl_endian endian, ui
 		break;
 	}
 
-	return ret;
+	return OCXL_OK;
 }
 
 /**
