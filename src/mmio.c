@@ -80,6 +80,9 @@ static ocxl_err register_mmio(ocxl_afu *afu, void *addr, size_t size, ocxl_mmio_
 
 	*handle = (ocxl_mmio_h)&afu->mmios[available_mmio];
 
+	TRACE(afu, "Mapped %ld bytes of %s MMIO at %p",
+	      size, type == OCXL_GLOBAL_MMIO ? "Global" : "Per-PASID", addr);
+
 	return OCXL_OK;
 }
 
@@ -278,7 +281,7 @@ ocxl_err ocxl_mmio_map_advanced(ocxl_afu_h afu, ocxl_mmio_type type, size_t size
 		if (offset + size > my_afu->global_mmio.length) {
 			rc = OCXL_NO_MEM;
 			errmsg(my_afu, rc, "Offset(%x) + size(%x) of global MMIO map request exceeds available size of %x",
-					offset, size, my_afu->global_mmio.length);
+			       offset, size, my_afu->global_mmio.length);
 			return rc;
 		}
 		return global_mmio_map(my_afu, size, prot, flags, offset, region);
@@ -288,7 +291,7 @@ ocxl_err ocxl_mmio_map_advanced(ocxl_afu_h afu, ocxl_mmio_type type, size_t size
 		if (offset + size > my_afu->global_mmio.length) {
 			rc = OCXL_NO_MEM;
 			errmsg(my_afu, rc, "Offset(%x) + size(%x) of global MMIO map request exceeds available size of %x",
-					offset, size, my_afu->global_mmio.length);
+			       offset, size, my_afu->global_mmio.length);
 			return rc;
 		}
 		return mmio_map(my_afu, size, prot, flags, offset, region);
@@ -305,7 +308,9 @@ ocxl_err ocxl_mmio_map_advanced(ocxl_afu_h afu, ocxl_mmio_type type, size_t size
  *
  * Maps the entire global/per-PASID region of MMIO memory on the AFU with read/write access granted.
  *
- * @pre the AFU has been opened
+ * @pre the AFU has been opened, and if a per-PASID region is to be mapped, the AFU has been attached
+ *
+ * @see ocxl_afu_attach()
  *
  * @param afu the AFU to operate on
  * @param type the type of MMIO area to map
@@ -575,7 +580,7 @@ inline static ocxl_err mmio_write32_native(ocxl_mmio_h region, off_t offset, uin
 	      mmio->type == OCXL_GLOBAL_MMIO ? "Global" : "Per-PASID",
 	      offset, value);
 
-	volatile uint32_t * addr = (uint32_t *)(mmio->start + offset);
+	volatile uint32_t *addr = (uint32_t *)(mmio->start + offset);
 
 	__sync_synchronize();
 	*addr = value;
@@ -615,7 +620,7 @@ inline static ocxl_err mmio_write64_native(ocxl_mmio_h region, off_t offset, uin
 	      mmio->type == OCXL_GLOBAL_MMIO ? "Global" : "Per-PASID",
 	      offset, value);
 
-	volatile uint64_t * addr = (uint64_t *)(mmio->start + offset);
+	volatile uint64_t *addr = (uint64_t *)(mmio->start + offset);
 
 	__sync_synchronize();
 	*addr = value;
