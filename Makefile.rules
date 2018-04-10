@@ -25,7 +25,10 @@ obj/%.o : src/%.c src/include/libocxl.h src/libocxl_internal.h | obj
 testobj/%.o : src/%.c src/include/libocxl.h src/libocxl_internal.h | testobj
 	$(call Q,CC, $(CC) $(CPPFLAGS) $(TESTCFLAGS) -c -o $@ $<, $@)
 
-testobj/%.o-test : unittests/%.c testobj/libocxl.a
+testobj/%.o-test : unittests/%.c testobj/libocxl.a | testobj
+	$(call Q,CC, $(CC) $(CPPFLAGS) $(TESTCFLAGS) -c -o $@ $<, $@)
+
+sampleobj/%.o-memcpy : samples/memcpy/%.c obj/libocxl.a | sampleobj
 	$(call Q,CC, $(CC) $(CPPFLAGS) $(TESTCFLAGS) -c -o $@ $<, $@)
 
 datadir    ?= $(PREFIX)/share

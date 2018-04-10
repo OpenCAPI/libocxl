@@ -12,7 +12,7 @@ SONAMEOPT = -Wl,-soname,$(LIBSONAME)
 
 DOCDIR = docs
 
-all: check_ocxl_header obj/$(LIBSONAME) obj/libocxl.so obj/libocxl.a
+all: check_ocxl_header obj/$(LIBSONAME) obj/libocxl.so obj/libocxl.a sampleobj/memcpy
 
 HAS_WGET = $(shell /bin/which wget > /dev/null 2>&1 && echo y || echo n)
 HAS_CURL = $(shell /bin/which curl > /dev/null 2>&1 && echo y || echo n)
@@ -48,8 +48,14 @@ obj/$(LIBNAME): $(OBJS) symver.map
 obj/libocxl.a: $(OBJS)
 	$(call Q,AR, $(AR) rcs obj/libocxl.a $(OBJS), obj/libocxl.a)
 
+sampleobj/memcpy: sampleobj/memcpy.o-memcpy
+	$(call Q,CC, $(CC) $(CFLAGS) $(LDFLAGS) -o sampleobj/memcpy sampleobj/memcpy.o-memcpy obj/libocxl.a, sampleobj/memcpy)
+
 testobj:
 	mkdir testobj
+
+sampleobj:
+	mkdir sampleobj
 
 testobj/libocxl.a: $(TEST_OBJS)
 	$(call Q,AR, $(AR) rcs testobj/libocxl-temp.a $(TEST_OBJS), testobj/libocxl-temp.a)
@@ -75,7 +81,7 @@ cppcheck-xml:
 	cppcheck --enable=all -j 4 -q  src/*.c src/include/libocxl.h --xml-version=2 2>cppcheck.xml
 
 precommit: clean all docs cppcheck
-	astyle --style=linux --indent=tab=8 --max-code-length=120 src/*.c src/*.h src/include/*.h
+	astyle --style=linux --indent=tab=8 --max-code-length=120 src/*.c src/*.h src/include/*.h samples/*/*.c
 	$(call Q, SYMVER-CHECK, nm obj/$(LIBNAME) | grep ' t ocxl' && (echo "Symbols are missing from symver.map" && exit 1) || true)
 
 docs:

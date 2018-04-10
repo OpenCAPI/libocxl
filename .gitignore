@@ -3,6 +3,7 @@
 .*.swp
 obj/*
 testobj/*
+sampleobj/*
 docs
 cppcheck.xml
 kernel/include/misc/ocxl.h
