@@ -171,6 +171,8 @@ struct ocxl_afu {
 	bool tracing;
 	pthread_mutex_t trace_mutex;
 
+	bool attached;
+
 #ifdef _ARCH_PPC64
 	uint64_t ppc64_amr;
 #endif

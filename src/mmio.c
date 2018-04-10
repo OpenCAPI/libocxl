@@ -182,7 +182,7 @@ static ocxl_err global_mmio_map(ocxl_afu *afu, size_t size, int prot, uint64_t f
  * contents of this area are specific each AFU. The size can be discovered with
  * ocxl_mmio_size().
  *
- * @pre the AFU has been opened
+ * @pre the AFU has been opened and attached
  *
  * @param afu the AFU to operate on
  * @param size the size of the MMIO region to map (or 0 to map the full region)
@@ -193,7 +193,7 @@ static ocxl_err global_mmio_map(ocxl_afu *afu, size_t size, int prot, uint64_t f
  *
  * @retval OCXL_OK on success
  * @retval OCXL_NO_MEM if the map failed
- * @retval OCXL_NO_CONTEXT if the AFU has not been opened
+ * @retval OCXL_NO_CONTEXT if the AFU has not been opened/attached
  * @retval OCXL_INVALID_ARGS if the flags are not valid
  */
 static ocxl_err mmio_map(ocxl_afu *afu, size_t size, int prot, uint64_t flags, off_t offset, ocxl_mmio_h *region)
@@ -206,12 +206,17 @@ static ocxl_err mmio_map(ocxl_afu *afu, size_t size, int prot, uint64_t flags, o
 
 	if (afu->fd < 0) {
 		ocxl_err rc = OCXL_NO_CONTEXT;
-		errmsg(afu, rc, "Could not map per-PASID MMIO on AFU '%s' as it has not been opened",
-		       afu->identifier.afu_name);
+		errmsg(afu, rc, "Could not map per-PASID MMIO as the AFU has not been opened");
 		return rc;
 	}
 
-	void *addr = mmap(NULL, afu->per_pasid_mmio.length, prot, MAP_SHARED, afu->fd, offset);
+	if (!afu->attached) {
+		ocxl_err rc = OCXL_NO_CONTEXT;
+		errmsg(afu, rc, "Could not map per-PASID MMIO as the AFU has not been attached");
+		return rc;
+	}
+
+	void *addr = mmap(NULL, size, prot, MAP_SHARED, afu->fd, offset);
 	if (addr == MAP_FAILED) {
 		ocxl_err rc = OCXL_NO_MEM;
 		errmsg(afu, rc, "Could not map per-PASID MMIO: %d: %s", errno, strerror(errno));

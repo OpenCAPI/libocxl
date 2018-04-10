@@ -259,6 +259,8 @@ static void afu_init(ocxl_afu *afu)
 
 	afu->tracing = false;
 
+	afu->attached = false;
+
 #ifdef _ARCH_PPC64
 	afu->ppc64_amr = 0;
 #endif
@@ -682,6 +684,8 @@ ocxl_err ocxl_afu_attach(ocxl_afu_h afu, __attribute__((unused)) uint64_t flags)
 		return rc;
 	}
 
+	my_afu->attached = true;
+
 	return OCXL_OK;
 }
 
@@ -736,6 +740,7 @@ ocxl_err ocxl_afu_close(ocxl_afu_h afu)
 
 	close(my_afu->fd);
 	my_afu->fd = -1;
+	my_afu->attached = false;
 
 	if (my_afu->device_path) {
 		free(my_afu->device_path);
