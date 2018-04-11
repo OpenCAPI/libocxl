@@ -69,8 +69,7 @@ void irq_dealloc(ocxl_afu *afu, ocxl_irq *irq)
  * @defgroup ocxl_irq OpenCAPI IRQ Functions
  *
  * These functions allow the allocation and handling of AFU IRQs. IRQs can be
- * handled either via requesting an array of triggered IRQ handles (via ocxl_afu_check),
- * or by issuing callbacks via ocxl_afu_handle_callbacks().
+ * handled by requesting an array of triggered IRQ handles (via ocxl_afu_check).
  *
  * Each IRQ has an opaque pointer attached, which is communicated to the caller via the event struct
  * passed back from ocxl_afu_event_check(). This pointer can be used by the caller to
