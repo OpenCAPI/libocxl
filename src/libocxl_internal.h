@@ -53,6 +53,13 @@ do {\
         } \
 } while (0)
 
+#define TRACE_OPEN(__trc_format, __trc_args...) \
+do {\
+        if (UNLIKELY(tracing)) { \
+        	trace_message("Trace", __FILE__, __LINE__, __FUNCTION__, __trc_format, ## __trc_args); \
+        } \
+} while (0)
+
 extern bool verbose_errors;
 extern bool tracing;
 extern void (*error_handler)(ocxl_err error, const char *message);

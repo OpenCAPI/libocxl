@@ -396,15 +396,15 @@ static bool populate_metadata(dev_t dev, ocxl_afu *afu)
  */
 static void trace_metadata(ocxl_afu *afu)
 {
-	TRACE(afu, "device path=\"%s\"", afu->device_path);
-	TRACE(afu, "sysfs path=\"%s\"", afu->sysfs_path);
-	TRACE(afu, "AFU Name=\"%s\"", afu->identifier.afu_name);
-	TRACE(afu, "AFU Index=%u", afu->identifier.afu_index);
-	TRACE(afu, "AFU Version=%u:%u", afu->version_major, afu->version_minor);
-	TRACE(afu, "Global MMIO size=%llu", afu->global_mmio.length);
-	TRACE(afu, "Per PASID MMIO size=%llu", afu->per_pasid_mmio.length);
-	TRACE(afu, "Page Size=%llu", afu->page_size);
-	TRACE(afu, "PASID=%lu", afu->pasid);
+	TRACE_OPEN("device path=\"%s\"", afu->device_path);
+	TRACE_OPEN("sysfs path=\"%s\"", afu->sysfs_path);
+	TRACE_OPEN("AFU Name=\"%s\"", afu->identifier.afu_name);
+	TRACE_OPEN("AFU Index=%u", afu->identifier.afu_index);
+	TRACE_OPEN("AFU Version=%u:%u", afu->version_major, afu->version_minor);
+	TRACE_OPEN("Global MMIO size=%llu", afu->global_mmio.length);
+	TRACE_OPEN("Per PASID MMIO size=%llu", afu->per_pasid_mmio.length);
+	TRACE_OPEN("Page Size=%llu", afu->page_size);
+	TRACE_OPEN("PASID=%lu", afu->pasid);
 }
 
 /**
@@ -429,13 +429,13 @@ static ocxl_err afu_open(ocxl_afu *afu)
 	if (fd < 0) {
 		if (errno == ENOSPC) {
 			rc = OCXL_NO_MORE_CONTEXTS;
-			errmsg(afu, rc, "Could not open AFU device '%s', the maximum number of contexts has been reached: Error %d: %s",
+			errmsg(NULL, rc, "Could not open AFU device '%s', the maximum number of contexts has been reached: Error %d: %s",
 			       afu->device_path, errno, strerror(errno));
 			return rc;
 		}
 
 		rc = OCXL_NO_DEV;
-		errmsg(afu, rc, "Could not open AFU device '%s': Error %d: %s", afu->device_path, errno, strerror(errno));
+		errmsg(NULL, rc, "Could not open AFU device '%s': Error %d: %s", afu->device_path, errno, strerror(errno));
 		return rc;
 	}
 
@@ -443,14 +443,14 @@ static ocxl_err afu_open(ocxl_afu *afu)
 
 	rc = global_mmio_open(afu);
 	if (rc != OCXL_OK) {
-		errmsg(afu, rc, "Could not open global MMIO descriptor");
+		errmsg(NULL, rc, "Could not open global MMIO descriptor");
 		return rc;
 	}
 
 	fd = epoll_create1(EPOLL_CLOEXEC);
 	if (fd < 0) {
 		ocxl_err rc = OCXL_NO_DEV;
-		errmsg(afu, rc, "Could not create epoll descriptor. Error %d: %s",
+		errmsg(NULL, rc, "Could not create epoll descriptor. Error %d: %s",
 		       errno, strerror(errno));
 		return rc;
 	}
@@ -461,7 +461,7 @@ static ocxl_err afu_open(ocxl_afu *afu)
 	ev.data.ptr = &afu->fd_info; // Already set up in afu_init
 	if (epoll_ctl(afu->epoll_fd, EPOLL_CTL_ADD, afu->fd, &ev) == -1) {
 		ocxl_err rc = OCXL_NO_DEV;
-		errmsg(afu, rc, "Could not add device fd %d to epoll fd %d: %d: '%s'",
+		errmsg(NULL, rc, "Could not add device fd %d to epoll fd %d: %d: '%s'",
 		       afu->fd, afu->epoll_fd, errno, strerror(errno));
 		return rc;
 	}
@@ -469,7 +469,7 @@ static ocxl_err afu_open(ocxl_afu *afu)
 	struct ocxl_ioctl_metadata metadata;
 	if (ioctl(afu->fd, OCXL_IOCTL_GET_METADATA, &metadata)) {
 		ocxl_err rc = OCXL_NO_DEV;
-		errmsg(afu, rc, "OCXL_IOCTL_GET_METADATA failed %d:%s", errno, strerror(errno));
+		errmsg(NULL, rc, "OCXL_IOCTL_GET_METADATA failed %d:%s", errno, strerror(errno));
 		return rc;
 	}
 
@@ -480,9 +480,7 @@ static ocxl_err afu_open(ocxl_afu *afu)
 	afu->global_mmio.length = metadata.global_mmio_size;
 	afu->pasid = metadata.pasid;
 
-	if (afu->tracing) {
-		trace_metadata(afu);
-	}
+	trace_metadata(afu);
 
 	return OCXL_OK;
 }
