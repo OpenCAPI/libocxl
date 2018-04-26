@@ -475,7 +475,7 @@ inline static ocxl_err mmio_check(ocxl_mmio_h region, off_t offset, size_t size)
  * Read a 32-bit value from an AFU's MMIO region.
  *
  * Read the 32-bit value at offset from the address of the mapped MMIO space,
- * no endianess conversion will be performed.
+ * no endianness conversion will be performed.
  * Memory barriers are inserted before and after the MMIO operation.
  *
  * @pre the AFU has been opened, and the per-PASID MMIO area mapped
@@ -513,7 +513,7 @@ inline static ocxl_err mmio_read32_native(ocxl_mmio_h region, off_t offset, uint
  * Read a 64-bit value from an AFU's MMIO region.
  *
  * Read the 64-bit value at offset from the address of the mapped MMIO space,
- * no endianess conversion will be performed.
+ * no endianness conversion will be performed.
  * Memory barriers are inserted before and after the MMIO operation.
  *
  * @pre the AFU has been opened, and the per-PASID MMIO area mapped
@@ -551,7 +551,7 @@ inline static ocxl_err mmio_read64_native(ocxl_mmio_h region, off_t offset, uint
  * Write a 32-bit value to an AFU's MMIO region.
  *
  * Write the 32-bit word at offset from the address of the mapped MMIO space,
- * no endianess conversion will be performed.
+ * no endianness conversion will be performed.
  *
  * Memory barriers are inserted before and after the MMIO operation.
  *
@@ -593,7 +593,7 @@ inline static ocxl_err mmio_write32_native(ocxl_mmio_h region, off_t offset, uin
  * Write a 64-bit value to the mapped AFU per-PASID MMIO space.
  *
  * Write the 64-bit value at offset from the address of the mapped MMIO space,
- * no endianess conversion will be performed.
+ * no endianness conversion will be performed.
  * Memory barriers are inserted before and after the MMIO operation.
  *
  * @pre the AFU has been opened, and the MMIO area mapped
@@ -630,17 +630,17 @@ inline static ocxl_err mmio_write64_native(ocxl_mmio_h region, off_t offset, uin
 }
 
 /**
- * Read a 32-bit value from an AFU's MMIO region & convert endianess.
+ * Read a 32-bit value from an AFU's MMIO region & convert endianness.
  *
  * Read the 32-bit value at offset from the address of the mapped MMIO space,
- * and convert endianess as specified by the endian parameter.
+ * and convert endianness as specified by the endian parameter.
  * Memory barriers are inserted before and after the MMIO operation.
  *
  * @pre the AFU has been opened, and the MMIO area mapped
  * @param mmio the MMIO area to operate on
  * @param offset A byte address that is aligned on a word (4 byte) boundary. It
  * must be lower than the MMIO size (-4 bytes) reported by ocxl_mmio_size()
- * @param endian the endianess of the stored data (will be converted to native)
+ * @param endian the endianness of the stored data (will be converted to native)
  * @param[out] out the value that was read
  *
  * @retval OCXL_OK if the value was read
@@ -673,10 +673,10 @@ ocxl_err ocxl_mmio_read32(ocxl_mmio_h mmio, off_t offset, ocxl_endian endian, ui
 }
 
 /**
- * Read a 64-bit value from an AFU's MMIO region & convert endianess.
+ * Read a 64-bit value from an AFU's MMIO region & convert endianness.
  *
  * Read the 64-bit value at offset from the address of the mapped MMIO space,
- * and convert endianess as specified by the endian parameter.
+ * and convert endianness as specified by the endian parameter.
  * Memory barriers are inserted before and after the MMIO operation.
  *
  * @pre the AFU has been opened, and the MMIO area mapped
@@ -684,7 +684,7 @@ ocxl_err ocxl_mmio_read32(ocxl_mmio_h mmio, off_t offset, ocxl_endian endian, ui
  * @param mmio the MMIO area to operate on
  * @param offset A byte address that is aligned on an 8 byte boundary. It
  * must be lower than the MMIO size (-8 bytes) reported by ocxl_afu_get_mmio_size()
- * @param endian the endianess of the stored data (will be converted to native)
+ * @param endian the endianness of the stored data (will be converted to native)
  * @param[out] out the value that was read
  *
  * @retval OCXL_OK if the value was read
@@ -717,9 +717,9 @@ ocxl_err ocxl_mmio_read64(ocxl_mmio_h mmio, off_t offset, ocxl_endian endian, ui
 }
 
 /**
- * Convert endianess and write a 32-bit value to an AFU's MMIO region.
+ * Convert endianness and write a 32-bit value to an AFU's MMIO region.
  *
- * Convert endianess and write the 32-bit word at offset from the address of the mapped MMIO space.
+ * Convert endianness and write the 32-bit word at offset from the address of the mapped MMIO space.
  * Memory barriers are inserted before and after the MMIO operation.
  *
  * @pre the AFU has been opened, and the MMIO area mapped
@@ -728,7 +728,7 @@ ocxl_err ocxl_mmio_read64(ocxl_mmio_h mmio, off_t offset, ocxl_endian endian, ui
  * @param offset A byte address that is aligned on a 4 byte boundary. It
  * must be lower than the MMIO size (-4 bytes) reported by ocxl_mmio_size()
  *
- * @param endian the endianess of the stored data (value will be converted to this before storing it)
+ * @param endian the endianness of the stored data (value will be converted to this before storing it)
  * @param value the value to write
  *
  * @retval OCXL_OK if the value was written
@@ -753,9 +753,9 @@ ocxl_err ocxl_mmio_write32(ocxl_mmio_h mmio, off_t offset, ocxl_endian endian, u
 }
 
 /**
- * Convert endianess and write a 64-bit value to an AFU's MMIO region.
+ * Convert endianness and write a 64-bit value to an AFU's MMIO region.
  *
- * Convert endianess and write the 32-bit word at offset from the address of the mapped MMIO space.
+ * Convert endianness and write the 32-bit word at offset from the address of the mapped MMIO space.
  * Memory barriers are inserted before and after the MMIO operation.
  *
  * @pre the AFU has been opened, and the MMIO area mapped
@@ -763,7 +763,7 @@ ocxl_err ocxl_mmio_write32(ocxl_mmio_h mmio, off_t offset, ocxl_endian endian, u
  * @param mmio the MMIO area to operate on
  * @param offset A byte address that is aligned on an 8 byte boundary. It
  * must be lower than the MMIO size (-8 bytes) reported by ocxl_mmio_size()
- * @param endian the endianess of the stored data (value will be converted to this before storing it)
+ * @param endian the endianness of the stored data (value will be converted to this before storing it)
  * @param value the value to write
  *
  * @retval OCXL_OK if the value was written
