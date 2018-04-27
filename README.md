@@ -71,6 +71,11 @@ A typical use of libocxl will follow this pattern:
 10. **Termination:** ocxl\_afu\_close() will free all resources associated with an AFU handle.
 
 # Development
+The following environment variables may be set (to 1 or "YES") to assist with development:
+**LIBOCXL_INFO** Print information about the LibOCXL build to stderr. This should be included in any bug reports.
+**LIBOCXL_TRACE_ALL** Force AFU interaction trace messages to be emitted for all AFUs unless explicitly disabled.
+**LIBOCXL_VERBOSE_ERRORS_ALL** Force verbose errors to be emitted for any failed LibOCXL calls, unless explicitly disabled.
+
 Patches may be submitted via Github pull requests. Please prepare your patches
 by running `make precommit` before committing your work, and addressing any warnings & errors reported.
 Patches must compile cleanly with the latest stable version of GCC to be accepted.

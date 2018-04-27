@@ -19,10 +19,10 @@ define Q
 endef
 endif
 
-obj/%.o : src/%.c src/include/libocxl.h src/libocxl_internal.h | obj
+obj/%.o : src/%.c src/include/libocxl.h src/libocxl_internal.h src/libocxl_info.h | obj
 	$(call Q,CC, $(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<, $@)
 
-testobj/%.o : src/%.c src/include/libocxl.h src/libocxl_internal.h | testobj
+testobj/%.o : src/%.c src/include/libocxl.h src/libocxl_internal.h src/libocxl_info.h | testobj
 	$(call Q,CC, $(CC) $(CPPFLAGS) $(TESTCFLAGS) -c -o $@ $<, $@)
 
 testobj/%.o-test : unittests/%.c testobj/libocxl.a | testobj

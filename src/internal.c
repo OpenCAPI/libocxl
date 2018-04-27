@@ -15,6 +15,7 @@
  */
 
 #include "libocxl_internal.h"
+#include "libocxl_info.h"
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdarg.h>
@@ -25,6 +26,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <string.h>
+#include <strings.h>
 #include <stdlib.h>
 
 /// The base sysfs path for OCXL devices
@@ -33,13 +35,57 @@ const char *sys_path = NULL;
 /// The base device path for OCXL devices
 const char *dev_path = NULL;
 
+bool libocxl_inited = false;
+pthread_mutex_t libocxl_inited_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 bool verbose_errors = false;
+bool verbose_errors_all = false;
 bool tracing = false;
+bool tracing_all = false;
 
 void ocxl_default_error_handler(ocxl_err error, const char *message);
 void (*error_handler)(ocxl_err error, const char *message) = ocxl_default_error_handler;
 
 pthread_mutex_t stderr_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+/**
+ * Executed on first afu_open
+ *  - Check the LIBOCXL_INFO environment variable and output the info string
+ *  - Check the LIBOCXL_TRACE_ALL environment variable and enable tracing_all
+ *  - Check the LIBOCXL_VERBOSE_ERRORS_ALL environment variable and enable verbose_errors_all
+ */
+void libocxl_init()
+{
+	const char *val;
+
+	pthread_mutex_lock(&libocxl_inited_mutex);
+	if (libocxl_inited) {
+		pthread_mutex_unlock(&libocxl_inited_mutex);
+		return;
+	}
+
+	val = getenv("LIBOCXL_INFO");
+	if (val && (!strcasecmp(val, "yes") || !strcmp(val, "1"))) {
+		fprintf(stderr, "%s", libocxl_info);
+	}
+
+	val = getenv("LIBOCXL_TRACE_ALL");
+	if (val && (!strcasecmp(val, "yes") || !strcmp(val, "1"))) {
+		tracing_all = true;
+		tracing = true;
+	}
+
+	val = getenv("LIBOCXL_VERBOSE_ERRORS_ALL");
+	if (val && (!strcasecmp(val, "yes") || !strcmp(val, "1"))) {
+		verbose_errors_all = true;
+		verbose_errors = true;
+	}
+
+	libocxl_inited = true;
+
+	pthread_mutex_unlock(&libocxl_inited_mutex);
+}
+
 
 /**
  * Output a trace message

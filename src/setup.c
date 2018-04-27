@@ -144,5 +144,18 @@ const char *ocxl_err_to_string(ocxl_err err)
 }
 
 /**
+ * Get version & compilation information about LibOCXL. This must be included with
+ * any bug report.
+ *
+ * The format and ordering of lines in this string may change.
+ *
+ * @return containing the version information
+ */
+const char *ocxl_info()
+{
+	return libocxl_info;
+}
+
+/**
  * @}
  */

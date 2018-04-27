@@ -33,6 +33,11 @@ else
 endif
 endif
 
+src/libocxl_info.h: version.pl
+	VERSION_MAJOR=${VERSION_MAJOR} VERSION_MINOR=${VERSION_MINOR} \
+	CC="${CC}" CFLAGS="${CFLAGS}" \
+	./version.pl > src/libocxl_info.h
+
 obj:
 	mkdir obj
 

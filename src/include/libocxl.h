@@ -152,6 +152,7 @@ typedef struct ocxl_event {
 void ocxl_enable_messages(uint64_t sources);
 void ocxl_set_error_message_handler(void (*handler)(ocxl_err error, const char *message));
 const char *ocxl_err_to_string(ocxl_err err);
+const char *ocxl_info();
 
 /* afu.c */
 /* AFU getters */

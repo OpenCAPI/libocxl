@@ -7,6 +7,7 @@ LIBOCXL_0 {
 		ocxl_enable_messages;
 		ocxl_set_error_message_handler;
 		ocxl_err_to_string;
+		ocxl_info;
 		ocxl_afu_get_identifier;
 		ocxl_afu_get_device_path;
 		ocxl_afu_get_sysfs_path;

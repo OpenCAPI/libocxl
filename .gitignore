@@ -1,6 +1,7 @@
 *~
 *.orig
 .*.swp
+src/libocxl_info.h
 obj/*
 testobj/*
 sampleobj/*

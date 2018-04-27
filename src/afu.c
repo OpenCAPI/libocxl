@@ -254,10 +254,10 @@ static void afu_init(ocxl_afu *afu)
 
 	afu->pasid = UINT32_MAX;
 
-	afu->verbose_errors = false;
+	afu->verbose_errors = verbose_errors_all;
 	afu->error_handler = ocxl_default_afu_error_handler;
 
-	afu->tracing = false;
+	afu->tracing = tracing_all;
 
 	afu->attached = false;
 
@@ -540,6 +540,8 @@ static ocxl_err get_afu_by_path(const char *path, ocxl_afu_h *afu)
  */
 ocxl_err ocxl_afu_open_from_dev(const char *path, ocxl_afu_h *afu)
 {
+	libocxl_init();
+
 	ocxl_err rc = get_afu_by_path(path, afu);
 
 	if (rc != OCXL_OK) {
@@ -576,6 +578,8 @@ ocxl_err ocxl_afu_open_specific(const char *name, const char *physical_function,
 	glob_t glob_data;
 	ocxl_err ret = OCXL_INTERNAL_ERROR;
 	*afu = OCXL_INVALID_AFU;
+
+	libocxl_init();
 
 	if (afu_index == -1) {
 		snprintf(pattern, sizeof(pattern), "%s/%s.%s.*",

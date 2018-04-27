@@ -61,8 +61,11 @@ do {\
 } while (0)
 
 extern bool verbose_errors;
+extern bool verbose_errors_all;
 extern bool tracing;
+extern bool tracing_all;
 extern void (*error_handler)(ocxl_err error, const char *message);
+extern const char *libocxl_info;
 
 typedef struct ocxl_afu ocxl_afu;
 
@@ -186,5 +189,6 @@ struct ocxl_afu {
 };
 
 void irq_dealloc(ocxl_afu *afu, ocxl_irq *irq);
+void libocxl_init();
 
 #endif				/* _LIBOCXL_INTERNAL_H */
