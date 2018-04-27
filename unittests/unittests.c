@@ -81,7 +81,11 @@ int current_test = -1;
 pthread_t create_ocxl_device(const char *afu_name, size_t global_mmio_size, size_t per_pasid_mmio_size);
 void stop_afu();
 void term_afu();
+#ifdef _ARCH_PPC64
+void force_translation_fault(void *addr, uint64_t dsisr, uint64_t count);
+#else
 void force_translation_fault(void *addr, uint64_t dsisr);
+#endif
 bool afu_is_attached();
 
 /**

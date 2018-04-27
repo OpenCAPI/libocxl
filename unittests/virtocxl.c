@@ -256,7 +256,7 @@ pthread_t create_ocxl_device(const char *afu_name, size_t global_mmio_size, size
  * @param count the number of times the translation fault has triggered an error
  */
 void force_translation_fault(void *addr, uint64_t dsisr, uint64_t count) {
-	translation_fault.addr = addr;
+	translation_fault.addr = (uint64_t)addr;
 	translation_fault.dsisr = dsisr;
 	translation_fault.count = count;
 }
