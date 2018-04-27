@@ -34,12 +34,12 @@ extern "C" {
 
 
 /**
- * Defines the endianess of an AFU MMIO area
+ * Defines the endianness of an AFU MMIO area
  */
 typedef enum {
 	OCXL_MMIO_BIG_ENDIAN = 0,		/**< AFU data is big-endian */
 	OCXL_MMIO_LITTLE_ENDIAN = 1,	/**< AFU data is little-endian */
-	OCXL_MMIO_HOST_ENDIAN = 2,		/**< AFU data is the same endianess as the host */
+	OCXL_MMIO_HOST_ENDIAN = 2,		/**< AFU data is the same endianness as the host */
 } ocxl_endian;
 
 /**
