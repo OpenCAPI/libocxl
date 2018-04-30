@@ -14,6 +14,11 @@
  * limitations under the License.
  */
 
+/**
+ * @file libocxl.h
+ * @brief library functions to implement userspace drivers for OpenCAPI accelerators
+ */
+
 #ifndef _LIBOCXL_H
 #define _LIBOCXL_H
 
