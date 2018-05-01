@@ -35,7 +35,7 @@ endif
 
 src/libocxl_info.h: version.pl
 	VERSION_MAJOR=${VERSION_MAJOR} VERSION_MINOR=${VERSION_MINOR} \
-	CC="${CC}" CFLAGS="${CFLAGS}" \
+	VERSION_PATCH=${VERSION_PATCH} CC="${CC}" CFLAGS="${CFLAGS}" \
 	./version.pl > src/libocxl_info.h
 
 obj:
@@ -97,7 +97,7 @@ docs:
 	$(call Q,DOCS-HTML, doxygen Doxyfile-html,)
 
 clean:
-	rm -rf obj testobj sampleobj docs
+	rm -rf obj testobj sampleobj docs src/libocxl_info.h
 
 install: all docs
 	mkdir -p $(DESTDIR)$(libdir)

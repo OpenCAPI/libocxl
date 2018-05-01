@@ -24,15 +24,15 @@ if ($git && -d '.git') {
     $gitHash = "\"Git hash: $hash$dirty\\n\"";
 }
 
-my $platform = `uname -a`;
+my $platform = `uname -srvmpio`;
 chomp $platform;
 
 print <<"EOF";
 const char *libocxl_info =
-    "LibOCXL Version: $ENV{VERSION_MAJOR}.$ENV{VERSION_MINOR}\\n"
+    "LibOCXL Version: $ENV{VERSION_MAJOR}.$ENV{VERSION_MINOR}.$ENV{VERSION_PATCH}\\n"
     "CC: $ENV{CC}\\n"
     "Compiler Version: $compilerLines[0]\\n"
     "CFLAGS: $ENV{CFLAGS}\\n"
     $gitHash
-    "Platform: $platform\\n\\n";
+    "Build platform: $platform\\n";
 EOF

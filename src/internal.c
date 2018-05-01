@@ -66,7 +66,7 @@ void libocxl_init()
 
 	val = getenv("LIBOCXL_INFO");
 	if (val && (!strcasecmp(val, "yes") || !strcmp(val, "1"))) {
-		fprintf(stderr, "%s", libocxl_info);
+		fprintf(stderr, "%s\n", libocxl_info);
 	}
 
 	val = getenv("LIBOCXL_TRACE_ALL");
