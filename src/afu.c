@@ -499,10 +499,8 @@ static ocxl_err get_afu_by_path(const char *path, ocxl_afu_h *afu)
 {
 	ocxl_afu_h afu_h;
 	ocxl_err rc = afu_alloc(&afu_h);
-	if (rc != OCXL_OK) {
-		*afu = OCXL_INVALID_AFU;
-		return rc;
-	}
+	if (rc != OCXL_OK)
+		goto err;
 
 	ocxl_afu *my_afu = (ocxl_afu *) afu_h;
 
@@ -510,21 +508,25 @@ static ocxl_err get_afu_by_path(const char *path, ocxl_afu_h *afu)
 	if (stat(path, &dev_stats)) {
 		ocxl_err rc = OCXL_NO_DEV;
 		errmsg(NULL, rc, "Could not stat AFU device '%s': Error %d: %s", path, errno, strerror(errno));
-		*afu = OCXL_INVALID_AFU;
-		return rc;
+		goto err_free;
 	}
 
 	if (!populate_metadata(dev_stats.st_rdev, my_afu)) {
 		ocxl_err rc = OCXL_NO_DEV;
 		errmsg(NULL, rc, "Could not find OCXL device for '%s', major=%d, minor=%d, device expected in '%s'",
 		       path, major(dev_stats.st_rdev), minor(dev_stats.st_rdev), DEVICE_PATH);
-		*afu = OCXL_INVALID_AFU;
-		return rc;
+		goto err_free;
 	}
 
 	*afu = afu_h;
 
 	return OCXL_OK;
+
+err_free:
+	free(my_afu);
+err:
+	*afu = OCXL_INVALID_AFU;
+	return rc;
 }
 
 /**
