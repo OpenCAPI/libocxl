@@ -435,6 +435,7 @@ int ocxl_afu_event_check_versioned(ocxl_afu_h afu, int timeout, ocxl_event *even
 	for (int event = 0; event < count; event++) {
 		epoll_fd_source *info = (epoll_fd_source *)my_afu->epoll_events[event].data.ptr;
 		ocxl_event_action ret;
+		ssize_t buf_used;
 		uint64_t count;
 		int last;
 
@@ -458,9 +459,13 @@ int ocxl_afu_event_check_versioned(ocxl_afu_h afu, int timeout, ocxl_event *even
 			break;
 
 		case EPOLL_SOURCE_IRQ:
-			if (read(info->irq->event.eventfd, &count, sizeof(count)) < 0) {
+			buf_used = read(info->irq->event.eventfd, &count, sizeof(count));
+			if (buf_used < 0) {
 				errmsg(my_afu, OCXL_INTERNAL_ERROR, "read of eventfd %d IRQ %d failed: %d: %s",
 				       info->irq->event.eventfd, info->irq->irq_number, errno, strerror(errno));
+				continue;
+			} else if (buf_used != (ssize_t)sizeof(count)) {
+				errmsg(my_afu, OCXL_INTERNAL_ERROR, "short read of eventfd %d IRQ %d");
 				continue;
 			}
 			events[triggered].type = OCXL_EVENT_IRQ;
