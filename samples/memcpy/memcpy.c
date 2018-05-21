@@ -144,7 +144,7 @@ struct memcpy_work_element *memcpy3_add_we(struct memcpy_weq *weq, struct memcpy
  * @param afu the AFU handle
  * @return false on success
  */
-bool global_setup(ocxl_afu_h afu)
+static bool global_setup(ocxl_afu_h afu)
 {
 	uint64_t cfg;
 	ocxl_mmio_h global;
@@ -177,7 +177,7 @@ bool global_setup(ocxl_afu_h afu)
  * @param pp_mmio the per-PASID MMIO area of the AFU to restart
  * @return false on success, true on failure
  */
-bool restart_afu_if_stopped(ocxl_mmio_h pp_mmio)
+static bool restart_afu_if_stopped(ocxl_mmio_h pp_mmio)
 {
 	// Allow the AFU to proceed
 	if (OCXL_OK != ocxl_mmio_write64(pp_mmio, MEMCPY_AFU_PP_CTRL, OCXL_MMIO_LITTLE_ENDIAN, MEMCPY_AFU_PP_CTRL_Restart)) {
@@ -203,7 +203,7 @@ bool restart_afu_if_stopped(ocxl_mmio_h pp_mmio)
  * 	0x04: An error occurred while accessing the AFU
  * 	0x08: A timeout occurred
  */
-int wait_for_irq(int timeout, ocxl_afu_h afu, ocxl_mmio_h pp_mmio, uint64_t irq_ea, uint64_t err_ea)
+static int wait_for_irq(int timeout, ocxl_afu_h afu, ocxl_mmio_h pp_mmio, uint64_t irq_ea, uint64_t err_ea)
 {
 	ocxl_event event;
 	int event_count;
@@ -264,7 +264,7 @@ int wait_for_irq(int timeout, ocxl_afu_h afu, ocxl_mmio_h pp_mmio, uint64_t irq_
  * 	0x04: An error occurred while accessing the AFU
  * 	0x08: A timeout occurred
  */
-int wait_for_status(int timeout, struct memcpy_work_element *work_element, ocxl_afu_h afu, uint64_t err_ea)
+static int wait_for_status(int timeout, struct memcpy_work_element *work_element, ocxl_afu_h afu, uint64_t err_ea)
 {
 	struct timeval test_timeout, temp;
 
@@ -298,7 +298,7 @@ int wait_for_status(int timeout, struct memcpy_work_element *work_element, ocxl_
  * @param buf the buffer to fill
  * @param size the size of the buffer
  */
-void fill_buffer(char *buf, size_t size)
+static void fill_buffer(char *buf, size_t size)
 {
 	/* Initialise source buffer */
 	for (size_t i = 0; i < size; i++) {
@@ -311,7 +311,7 @@ void fill_buffer(char *buf, size_t size)
  *
  * @param pp_mmio the per-PASID MMIO area of the AFU context
  */
-void display_afu_status(ocxl_mmio_h pp_mmio)
+static void display_afu_status(ocxl_mmio_h pp_mmio)
 {
 	uint64_t status = 0;
 	(void)ocxl_mmio_read64(pp_mmio, MEMCPY_AFU_PP_STATUS, OCXL_MMIO_LITTLE_ENDIAN, &status);
@@ -332,7 +332,7 @@ void display_afu_status(ocxl_mmio_h pp_mmio)
  *
  * @return false on success
  */
-bool afu_memcpy(ocxl_afu_h afu, const char *src, char *dst, size_t size, bool use_irq, int timeout)
+static bool afu_memcpy(ocxl_afu_h afu, const char *src, char *dst, size_t size, bool use_irq, int timeout)
 {
 	uint64_t wed;
 	struct memcpy_weq weq;
@@ -449,7 +449,7 @@ err:
 	return true;
 }
 
-void usage(char *name)
+static void usage(char *name)
 {
 	fprintf(stderr, "Usage: %s [ options ]\n", name);
 	fprintf(stderr, "Options:\n");
