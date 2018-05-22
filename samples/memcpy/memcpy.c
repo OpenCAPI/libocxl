@@ -436,8 +436,6 @@ static bool afu_memcpy(ocxl_afu_h afu, const char *src, char *dst, size_t size, 
 
 	restart_afu_if_stopped(pp_mmio);
 
-	ocxl_afu_close(afu);
-
 	return 0;
 
 err_status:
@@ -445,7 +443,6 @@ err_status:
 	goto err;
 
 err:
-	ocxl_afu_close(afu);
 	return true;
 }
 
@@ -531,6 +528,7 @@ int main(int argc, char *argv[])
 	memset(dst, '\0', MEMCPY_SIZE);
 
 	if (afu_memcpy(afu, src, dst, MEMCPY_SIZE, args.enable_irq, args.completion_timeout)) {
+		ocxl_afu_close(afu);
 		LOG_ERR("memcpy failed\n");
 		return 1;
 	}
@@ -541,6 +539,7 @@ int main(int argc, char *argv[])
 		LOG_INF("Memory contents match\n");
 	}
 
+	ocxl_afu_close(afu);
 
 	return 0;
 }
