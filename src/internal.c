@@ -174,7 +174,7 @@ void ocxl_default_afu_error_handler(ocxl_afu_h afu, ocxl_err error, const char *
 	const char *dev = ocxl_afu_get_device_path(afu);
 
 	pthread_mutex_lock(&stderr_mutex);
-	fprintf(stderr, "ERROR: %s\t%s: %s\n", dev, ocxl_err_to_string(error), message);
+	fprintf(stderr, "ERROR: %s\t%s: %s\n", dev ? dev : "No AFU", ocxl_err_to_string(error), message);
 	pthread_mutex_unlock(&stderr_mutex);
 }
 
