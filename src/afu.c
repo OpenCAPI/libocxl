@@ -506,13 +506,13 @@ static ocxl_err get_afu_by_path(const char *path, ocxl_afu_h *afu)
 
 	struct stat dev_stats;
 	if (stat(path, &dev_stats)) {
-		ocxl_err rc = OCXL_NO_DEV;
+		rc = OCXL_NO_DEV;
 		errmsg(NULL, rc, "Could not stat AFU device '%s': Error %d: %s", path, errno, strerror(errno));
 		goto err_free;
 	}
 
 	if (!populate_metadata(dev_stats.st_rdev, my_afu)) {
-		ocxl_err rc = OCXL_NO_DEV;
+		rc = OCXL_NO_DEV;
 		errmsg(NULL, rc, "Could not find OCXL device for '%s', major=%d, minor=%d, device expected in '%s'",
 		       path, major(dev_stats.st_rdev), minor(dev_stats.st_rdev), DEVICE_PATH);
 		goto err_free;
