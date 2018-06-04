@@ -331,20 +331,28 @@ static ocxl_event_action read_afu_event(ocxl_afu_h afu, uint16_t event_api_versi
 		return OCXL_EVENT_ACTION_FAIL;
 	}
 
-	char buf[event_size];
+	char *buf;
+	buf = malloc(event_size);
+	if (!buf) {
+		errmsg(afu, OCXL_INTERNAL_ERROR, "could not allocate event buffer of size %d", event_size);
+		return OCXL_EVENT_ACTION_FAIL;
+	}
 
 	ssize_t buf_used;
 	if ((buf_used = read(my_afu->fd, buf, event_size)) < 0) {
 		if (errno == EAGAIN || errno == EWOULDBLOCK) {
 			*last = 1;
+			free(buf);
 			return OCXL_EVENT_ACTION_NONE;
 		}
 
 		errmsg(afu, OCXL_INTERNAL_ERROR, "read of event header from fd %d failed: %d: %s",
 		       my_afu->fd, errno, strerror(errno));
+		free(buf);
 		return OCXL_EVENT_ACTION_FAIL;
 	} else if (buf_used < (ssize_t)sizeof(ocxl_kernel_event_header)) {
 		errmsg(afu, OCXL_INTERNAL_ERROR, "short read of event header from fd %d", my_afu->fd);
+		free(buf);
 		return OCXL_EVENT_ACTION_FAIL;
 	}
 
@@ -353,6 +361,7 @@ static ocxl_event_action read_afu_event(ocxl_afu_h afu, uint16_t event_api_versi
 	if (header->type > max_supported_event) {
 		TRACE(my_afu, "Unknown event received from kernel of type %u", header->type);
 		*last = !! (header->flags & OCXL_KERNEL_EVENT_FLAG_LAST);
+		free(buf);
 		return OCXL_EVENT_ACTION_IGNORE;
 	}
 
@@ -363,6 +372,7 @@ static ocxl_event_action read_afu_event(ocxl_afu_h afu, uint16_t event_api_versi
 			       "Incorrectly sized buffer received from kernel for XSL fault error, expected %d, got %d",
 			       sizeof(ocxl_kernel_event_header) + sizeof(ocxl_kernel_event_xsl_fault_error),
 			       buf_used);
+			free(buf);
 			return OCXL_EVENT_ACTION_FAIL;
 		}
 		populate_xsl_fault_error(afu, event, buf + sizeof(ocxl_kernel_event_header));
@@ -371,10 +381,12 @@ static ocxl_event_action read_afu_event(ocxl_afu_h afu, uint16_t event_api_versi
 	default:
 		errmsg(my_afu, OCXL_INTERNAL_ERROR, "Unknown event %d, max_supported_event %d",
 		       header->type, max_supported_event);
+		free(buf);
 		return OCXL_EVENT_ACTION_FAIL;
 	}
 
 	*last = !! (header->flags & OCXL_KERNEL_EVENT_FLAG_LAST);
+	free(buf);
 	return OCXL_EVENT_ACTION_SUCCESS;
 }
 
