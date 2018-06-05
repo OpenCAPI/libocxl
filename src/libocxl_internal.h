@@ -17,6 +17,10 @@
 #ifndef _LIBOCXL_INTERNAL_H
 #define _LIBOCXL_INTERNAL_H
 
+#define _ATFILE_SOURCE
+#define _POSIX_C_SOURCE 200809L
+#define _DEFAULT_SOURCE
+
 #include <misc/ocxl.h>
 #include "libocxl.h"
 #include <stdbool.h>

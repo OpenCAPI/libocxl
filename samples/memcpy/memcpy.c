@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#define _DEFAULT_SOURCE
+
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
