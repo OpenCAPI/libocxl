@@ -29,7 +29,7 @@ testobj/%.o-test : unittests/%.c testobj/libocxl.a | testobj
 	$(call Q,CC, $(CC) $(CPPFLAGS) $(TESTCFLAGS) -c -o $@ $<, $@)
 
 sampleobj/%.o-memcpy : samples/memcpy/%.c obj/libocxl.a | sampleobj
-	$(call Q,CC, $(CC) $(CPPFLAGS) $(TESTCFLAGS) -c -o $@ $<, $@)
+	$(call Q,CC, $(CC) $(CPPFLAGS) $(SAMPLECFLAGS) -c -o $@ $<, $@)
 
 datadir    ?= $(PREFIX)/share
 includedir ?= $(PREFIX)/include
