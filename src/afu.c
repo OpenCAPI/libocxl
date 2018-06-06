@@ -342,6 +342,7 @@ static bool populate_metadata(dev_t dev, ocxl_afu *afu)
 			return false;
 		}
 	} while (!device_matches(fd, dev_ent->d_name, dev));
+	closedir(dev_dir);
 
 	char *physical_function = strchr(dev_ent->d_name, '.');
 	if (physical_function == NULL) {
