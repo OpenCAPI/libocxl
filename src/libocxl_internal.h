@@ -27,19 +27,25 @@
 #include <pthread.h>
 
 /* LibOCXL is only tested with the following compilers:
- * GCC 6
- * GCC 7
+ * CLang 3.6.2, 3.7.1, 3.8.1, 3.9.1, 4.0.1, 5.0.2, 6.0.1
+ * GCC 4,5,6,7,8
  *
  * Use of other compilers may result in the MMIO functions emitting instructions
  * that do not result in a 32/64 bit transfer across the OpenCAPI link.
  *
  * The above compilers have been manually verified to produce the following
  * instructions in the mmio_*_native functions:
- *   lwz/ld
- *   stw/std
+ *   lwz(x)/ld(x)
+ *   stw(x)/std(x)
  */
-#if !defined(__GNUC__) || __GNUC__ < 4
-#error LibOCXL is only tested with GCC 4, 5, 6 & 7, remove this error at your own peril
+#if defined(__clang__)
+#if __clang_major__ < 3
+#error LibOCXL has not been tested with this compiler, remove this error at your own peril
+#elif __clang_major__ == 3 && __clang_minor__ < 6
+#error LibOCXL has not been tested with this compiler, remove this error at your own peril
+#endif // defined(__clang__)
+#elif !defined(__GNUC__) || __GNUC__ < 4
+#error LibOCXL has not been tested with this compiler, remove this error at your own peril
 #endif
 
 #define LIKELY(condition) __builtin_expect((condition), 1)
