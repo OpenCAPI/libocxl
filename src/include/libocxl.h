@@ -68,7 +68,7 @@ typedef struct ocxl_identifier {
 /**
  * A handle for an AFU
  */
-typedef void *ocxl_afu_h;
+typedef struct ocxl_afu *ocxl_afu_h;
 
 #define OCXL_INVALID_AFU NULL /**< An invalid AFU handle */
 
@@ -80,7 +80,7 @@ typedef uint16_t ocxl_irq_h;
 /**
  * A handle for an MMIO region on an AFU
  */
-typedef void *ocxl_mmio_h;
+typedef struct ocxl_mmio_area *ocxl_mmio_h;
 
 
 /**

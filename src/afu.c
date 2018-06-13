@@ -59,9 +59,7 @@
  */
 uint32_t ocxl_afu_get_pasid(ocxl_afu_h afu)
 {
-	ocxl_afu *my_afu = (ocxl_afu *) afu;
-
-	return my_afu->pasid;
+	return afu->pasid;
 }
 
 
@@ -76,9 +74,7 @@ uint32_t ocxl_afu_get_pasid(ocxl_afu_h afu)
  */
 const ocxl_identifier *ocxl_afu_get_identifier(ocxl_afu_h afu)
 {
-	ocxl_afu *my_afu = (ocxl_afu *) afu;
-
-	return &my_afu->identifier;
+	return &afu->identifier;
 }
 
 /**
@@ -94,9 +90,7 @@ const ocxl_identifier *ocxl_afu_get_identifier(ocxl_afu_h afu)
  */
 const char *ocxl_afu_get_device_path(ocxl_afu_h afu)
 {
-	ocxl_afu *my_afu = (ocxl_afu *) afu;
-
-	return my_afu->device_path;
+	return afu->device_path;
 }
 
 /**
@@ -110,9 +104,7 @@ const char *ocxl_afu_get_device_path(ocxl_afu_h afu)
  */
 const char *ocxl_afu_get_sysfs_path(ocxl_afu_h afu)
 {
-	ocxl_afu *my_afu = (ocxl_afu *) afu;
-
-	return my_afu->sysfs_path;
+	return afu->sysfs_path;
 }
 
 /**
@@ -128,10 +120,8 @@ const char *ocxl_afu_get_sysfs_path(ocxl_afu_h afu)
  */
 void ocxl_afu_get_version(ocxl_afu_h afu, uint8_t *major, uint8_t *minor)
 {
-	ocxl_afu *my_afu = (ocxl_afu *) afu;
-
-	*major = my_afu->version_major;
-	*minor = my_afu->version_minor;
+	*major = afu->version_major;
+	*minor = afu->version_minor;
 }
 
 /**
@@ -160,10 +150,8 @@ void ocxl_afu_get_version(ocxl_afu_h afu, uint8_t *major, uint8_t *minor)
  */
 void ocxl_afu_enable_messages(ocxl_afu_h afu, uint64_t sources)
 {
-	ocxl_afu *my_afu = (ocxl_afu *) afu;
-
-	my_afu->verbose_errors = !!(sources & OCXL_ERRORS);
-	my_afu->tracing = !!(sources & OCXL_TRACING);
+	afu->verbose_errors = !!(sources & OCXL_ERRORS);
+	afu->tracing = !!(sources & OCXL_TRACING);
 }
 
 /**
@@ -187,9 +175,7 @@ void ocxl_afu_enable_messages(ocxl_afu_h afu, uint64_t sources)
 void ocxl_afu_set_error_message_handler(ocxl_afu_h afu, void (*handler)(ocxl_afu_h afu, ocxl_err error,
                                         const char *message))
 {
-	ocxl_afu *my_afu = (ocxl_afu *) afu;
-
-	my_afu->error_handler = handler;
+	afu->error_handler = handler;
 }
 
 /**
@@ -287,7 +273,7 @@ static ocxl_err afu_alloc(ocxl_afu_h *afu_out)
 
 	afu_init(afu);
 
-	*afu_out = (ocxl_afu_h) afu;
+	*afu_out = afu;
 
 	return OCXL_OK;
 }
@@ -503,8 +489,6 @@ static ocxl_err get_afu_by_path(const char *path, ocxl_afu_h *afu)
 	if (rc != OCXL_OK)
 		goto err;
 
-	ocxl_afu *my_afu = (ocxl_afu *) afu_h;
-
 	struct stat dev_stats;
 	if (stat(path, &dev_stats)) {
 		rc = OCXL_NO_DEV;
@@ -512,7 +496,7 @@ static ocxl_err get_afu_by_path(const char *path, ocxl_afu_h *afu)
 		goto err_free;
 	}
 
-	if (!populate_metadata(dev_stats.st_rdev, my_afu)) {
+	if (!populate_metadata(dev_stats.st_rdev, afu_h)) {
 		rc = OCXL_NO_DEV;
 		errmsg(NULL, rc, "Could not find OCXL device for '%s', major=%d, minor=%d, device expected in '%s'",
 		       path, major(dev_stats.st_rdev), minor(dev_stats.st_rdev), DEVICE_PATH);
@@ -524,7 +508,7 @@ static ocxl_err get_afu_by_path(const char *path, ocxl_afu_h *afu)
 	return OCXL_OK;
 
 err_free:
-	free(my_afu);
+	free(afu_h);
 err:
 	*afu = OCXL_INVALID_AFU;
 	return rc;
@@ -669,11 +653,9 @@ ocxl_err ocxl_afu_open(const char *name, ocxl_afu_h *afu)
  */
 ocxl_err ocxl_afu_attach(ocxl_afu_h afu, __attribute__((unused)) uint64_t flags)
 {
-	ocxl_afu *my_afu = (ocxl_afu *) afu;
-
-	if (my_afu->fd == -1) {
+	if (afu->fd == -1) {
 		ocxl_err rc = OCXL_NO_CONTEXT;
-		errmsg(my_afu, rc, "Attempted to attach a closed AFU context");
+		errmsg(afu, rc, "Attempted to attach a closed AFU context");
 		return rc;
 	}
 
@@ -683,13 +665,13 @@ ocxl_err ocxl_afu_attach(ocxl_afu_h afu, __attribute__((unused)) uint64_t flags)
 	attach_args.amr = my_afu->ppc64_amr;
 #endif
 
-	if (ioctl(my_afu->fd, OCXL_IOCTL_ATTACH, &attach_args)) {
+	if (ioctl(afu->fd, OCXL_IOCTL_ATTACH, &attach_args)) {
 		ocxl_err rc = OCXL_INTERNAL_ERROR;
-		errmsg(my_afu, rc, "OCXL_IOCTL_ATTACH failed %d:%s", errno, strerror(errno));
+		errmsg(afu, rc, "OCXL_IOCTL_ATTACH failed %d:%s", errno, strerror(errno));
 		return rc;
 	}
 
-	my_afu->attached = true;
+	afu->attached = true;
 
 	return OCXL_OK;
 }
@@ -709,55 +691,53 @@ ocxl_err ocxl_afu_attach(ocxl_afu_h afu, __attribute__((unused)) uint64_t flags)
  */
 ocxl_err ocxl_afu_close(ocxl_afu_h afu)
 {
-	ocxl_afu *my_afu = (ocxl_afu *) afu;
-
-	if (my_afu->fd < 0) {
+	if (afu->fd < 0) {
 		return OCXL_ALREADY_DONE;
 	}
 
-	for (uint16_t mmio_idx = 0; mmio_idx < my_afu->mmio_count; mmio_idx++) {
-		ocxl_mmio_unmap((ocxl_mmio_h)&my_afu->mmios[mmio_idx]);
+	for (uint16_t mmio_idx = 0; mmio_idx < afu->mmio_count; mmio_idx++) {
+		ocxl_mmio_unmap((ocxl_mmio_h)&afu->mmios[mmio_idx]);
 	}
 
-	if (my_afu->global_mmio_fd) {
-		close(my_afu->global_mmio_fd);
-		my_afu->global_mmio_fd = -1;
+	if (afu->global_mmio_fd) {
+		close(afu->global_mmio_fd);
+		afu->global_mmio_fd = -1;
 	}
 
-	if (my_afu->irqs) {
-		for (uint16_t irq = 0; irq < my_afu->irq_count; irq++) {
-			irq_dealloc(my_afu, &my_afu->irqs[irq]);
+	if (afu->irqs) {
+		for (uint16_t irq = 0; irq < afu->irq_count; irq++) {
+			irq_dealloc(afu, &afu->irqs[irq]);
 		}
 
-		free(my_afu->irqs);
-		my_afu->irqs = NULL;
-		my_afu->irq_count = 0;
-		my_afu->irq_max_count = 0;
+		free(afu->irqs);
+		afu->irqs = NULL;
+		afu->irq_count = 0;
+		afu->irq_max_count = 0;
 	}
 
-	if (my_afu->epoll_events) {
-		free(my_afu->epoll_events);
-		my_afu->epoll_event_count = 0;
+	if (afu->epoll_events) {
+		free(afu->epoll_events);
+		afu->epoll_event_count = 0;
 	}
 
-	close(my_afu->epoll_fd);
-	my_afu->epoll_fd = -1;
+	close(afu->epoll_fd);
+	afu->epoll_fd = -1;
 
-	close(my_afu->fd);
-	my_afu->fd = -1;
-	my_afu->attached = false;
+	close(afu->fd);
+	afu->fd = -1;
+	afu->attached = false;
 
-	if (my_afu->device_path) {
-		free(my_afu->device_path);
-		my_afu->device_path = NULL;
+	if (afu->device_path) {
+		free(afu->device_path);
+		afu->device_path = NULL;
 	}
 
-	if (my_afu->sysfs_path) {
-		free(my_afu->sysfs_path);
-		my_afu->sysfs_path = NULL;
+	if (afu->sysfs_path) {
+		free(afu->sysfs_path);
+		afu->sysfs_path = NULL;
 	}
 
-	free(my_afu);
+	free(afu);
 
 	return OCXL_OK;
 }
@@ -788,9 +768,7 @@ ocxl_err ocxl_afu_close(ocxl_afu_h afu)
  */
 ocxl_err ocxl_afu_set_ppc64_amr(ocxl_afu_h afu, uint64_t amr)
 {
-	ocxl_afu *my_afu = (ocxl_afu *) afu;
-
-	my_afu->ppc64_amr = amr;
+	afu->ppc64_amr = amr;
 
 	return OCXL_OK;
 }

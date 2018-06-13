@@ -91,8 +91,6 @@ void irq_dealloc(ocxl_afu *afu, ocxl_irq *irq)
  */
 static ocxl_err irq_allocate(ocxl_afu *afu, ocxl_irq *irq, void *info)
 {
-	ocxl_afu *my_afu = (ocxl_afu *) afu;
-
 	irq->event.irq_offset = 0;
 	irq->event.eventfd = -1;
 	irq->event.reserved = 0;
@@ -117,14 +115,14 @@ static ocxl_err irq_allocate(ocxl_afu *afu, ocxl_irq *irq, void *info)
 		goto errend;
 	}
 
-	rc = ioctl(my_afu->fd, OCXL_IOCTL_IRQ_SET_FD, &irq->event);
+	rc = ioctl(afu->fd, OCXL_IOCTL_IRQ_SET_FD, &irq->event);
 	if (rc) {
 		errmsg(afu, ret, "Could not set event descriptor in kernel: %d", rc);
 		goto errend;
 	}
 
 	irq->addr = mmap(NULL, afu->page_size, PROT_WRITE, MAP_SHARED,
-	                 my_afu->fd, irq->event.irq_offset);
+	                 afu->fd, irq->event.irq_offset);
 	if (irq->addr == MAP_FAILED) {
 		errmsg(afu, ret, "mmap for IRQ failed: %d: '%s'", errno, strerror(errno));
 		goto errend;
@@ -133,16 +131,16 @@ static ocxl_err irq_allocate(ocxl_afu *afu, ocxl_irq *irq, void *info)
 	struct epoll_event ev;
 	ev.events = EPOLLIN;
 	ev.data.ptr = &irq->fd_info;
-	if (epoll_ctl(my_afu->epoll_fd, EPOLL_CTL_ADD, irq->event.eventfd, &ev) == -1) {
+	if (epoll_ctl(afu->epoll_fd, EPOLL_CTL_ADD, irq->event.eventfd, &ev) == -1) {
 		errmsg(afu, ret, "Could not add IRQ fd %d to epoll fd %d: %d: '%s'",
-		       irq->event.eventfd, my_afu->epoll_fd, errno, strerror(errno));
+		       irq->event.eventfd, afu->epoll_fd, errno, strerror(errno));
 		goto errend;
 	}
 
 	return OCXL_OK;
 
 errend:
-	irq_dealloc(my_afu, irq);
+	irq_dealloc(afu, irq);
 	return ret;
 }
 
@@ -164,25 +162,23 @@ errend:
  */
 ocxl_err ocxl_irq_alloc(ocxl_afu_h afu, void *info, ocxl_irq_h *irq)
 {
-	ocxl_afu *my_afu = (ocxl_afu *) afu;
-
-	if (my_afu->irq_count == my_afu->irq_max_count) {
-		ocxl_err rc = grow_buffer(my_afu, (void **)&my_afu->irqs, &my_afu->irq_max_count, sizeof(ocxl_irq), INITIAL_IRQ_COUNT);
+	if (afu->irq_count == afu->irq_max_count) {
+		ocxl_err rc = grow_buffer(afu, (void **)&afu->irqs, &afu->irq_max_count, sizeof(ocxl_irq), INITIAL_IRQ_COUNT);
 		if (rc != OCXL_OK) {
-			errmsg(my_afu, rc, "Could not grow IRQ buffer");
+			errmsg(afu, rc, "Could not grow IRQ buffer");
 			return rc;
 		}
 	}
 
-	ocxl_err rc = irq_allocate(my_afu, &my_afu->irqs[my_afu->irq_count], info);
+	ocxl_err rc = irq_allocate(afu, &afu->irqs[afu->irq_count], info);
 	if (rc != OCXL_OK) {
-		errmsg(my_afu, rc, "Could not allocate IRQ");
+		errmsg(afu, rc, "Could not allocate IRQ");
 		return rc;
 	}
-	my_afu->irqs[my_afu->irq_count].irq_number = my_afu->irq_count;
+	afu->irqs[afu->irq_count].irq_number = afu->irq_count;
 
-	*irq = (ocxl_irq_h)my_afu->irq_count;
-	my_afu->irq_count++;
+	*irq = (ocxl_irq_h)afu->irq_count;
+	afu->irq_count++;
 
 	return OCXL_OK;
 }
@@ -199,13 +195,11 @@ ocxl_err ocxl_irq_alloc(ocxl_afu_h afu, void *info, ocxl_irq_h *irq)
  */
 uint64_t ocxl_irq_get_handle(ocxl_afu_h afu, ocxl_irq_h irq)
 {
-	ocxl_afu *my_afu = (ocxl_afu *) afu;
-
-	if (irq > my_afu->irq_count) {
+	if (irq > afu->irq_count) {
 		return 0;
 	}
 
-	return (uint64_t)my_afu->irqs[irq].addr;
+	return (uint64_t)afu->irqs[irq].addr;
 }
 
 /**
@@ -220,13 +214,11 @@ uint64_t ocxl_irq_get_handle(ocxl_afu_h afu, ocxl_irq_h irq)
  */
 int ocxl_irq_get_fd(ocxl_afu_h afu, ocxl_irq_h irq)
 {
-	ocxl_afu *my_afu = (ocxl_afu *) afu;
-
-	if (irq > my_afu->irq_count) {
+	if (irq > afu->irq_count) {
 		return -1;
 	}
 
-	return my_afu->irqs[irq].event.eventfd;
+	return afu->irqs[irq].event.eventfd;
 }
 
 
@@ -245,9 +237,7 @@ int ocxl_irq_get_fd(ocxl_afu_h afu, ocxl_irq_h irq)
  */
 int ocxl_afu_get_event_fd(ocxl_afu_h afu)
 {
-	ocxl_afu *my_afu = (ocxl_afu *) afu;
-
-	return my_afu->fd;
+	return afu->fd;
 }
 
 typedef struct ocxl_kernel_event_header ocxl_kernel_event_header;
@@ -313,8 +303,6 @@ static void populate_xsl_fault_error(ocxl_afu *afu, ocxl_event *event, void *bod
  */
 static ocxl_event_action read_afu_event(ocxl_afu_h afu, uint16_t event_api_version, ocxl_event *event, int *last)
 {
-	ocxl_afu *my_afu = (ocxl_afu *) afu;
-
 	size_t event_size = sizeof(ocxl_kernel_event_header);
 	*last = 0;
 
@@ -334,24 +322,24 @@ static ocxl_event_action read_afu_event(ocxl_afu_h afu, uint16_t event_api_versi
 	char buf[event_size];
 
 	ssize_t buf_used;
-	if ((buf_used = read(my_afu->fd, buf, event_size)) < 0) {
+	if ((buf_used = read(afu->fd, buf, event_size)) < 0) {
 		if (errno == EAGAIN || errno == EWOULDBLOCK) {
 			*last = 1;
 			return OCXL_EVENT_ACTION_NONE;
 		}
 
 		errmsg(afu, OCXL_INTERNAL_ERROR, "read of event header from fd %d failed: %d: %s",
-		       my_afu->fd, errno, strerror(errno));
+		       afu->fd, errno, strerror(errno));
 		return OCXL_EVENT_ACTION_FAIL;
 	} else if (buf_used < (ssize_t)sizeof(ocxl_kernel_event_header)) {
-		errmsg(afu, OCXL_INTERNAL_ERROR, "short read of event header from fd %d", my_afu->fd);
+		errmsg(afu, OCXL_INTERNAL_ERROR, "short read of event header from fd %d", afu->fd);
 		return OCXL_EVENT_ACTION_FAIL;
 	}
 
 	ocxl_kernel_event_header *header = (ocxl_kernel_event_header *)buf;
 
 	if (header->type > max_supported_event) {
-		TRACE(my_afu, "Unknown event received from kernel of type %u", header->type);
+		TRACE(afu, "Unknown event received from kernel of type %u", header->type);
 		*last = !! (header->flags & OCXL_KERNEL_EVENT_FLAG_LAST);
 		return OCXL_EVENT_ACTION_IGNORE;
 	}
@@ -359,7 +347,7 @@ static ocxl_event_action read_afu_event(ocxl_afu_h afu, uint16_t event_api_versi
 	switch (header->type) {
 	case OCXL_AFU_EVENT_XSL_FAULT_ERROR:
 		if (buf_used != sizeof(ocxl_kernel_event_header) + sizeof(ocxl_kernel_event_xsl_fault_error)) {
-			errmsg(my_afu, OCXL_INTERNAL_ERROR,
+			errmsg(afu, OCXL_INTERNAL_ERROR,
 			       "Incorrectly sized buffer received from kernel for XSL fault error, expected %d, got %d",
 			       sizeof(ocxl_kernel_event_header) + sizeof(ocxl_kernel_event_xsl_fault_error),
 			       buf_used);
@@ -369,7 +357,7 @@ static ocxl_event_action read_afu_event(ocxl_afu_h afu, uint16_t event_api_versi
 		break;
 
 	default:
-		errmsg(my_afu, OCXL_INTERNAL_ERROR, "Unknown event %d, max_supported_event %d",
+		errmsg(afu, OCXL_INTERNAL_ERROR, "Unknown event %d, max_supported_event %d",
 		       header->type, max_supported_event);
 		return OCXL_EVENT_ACTION_FAIL;
 	}
@@ -406,34 +394,33 @@ static ocxl_event_action read_afu_event(ocxl_afu_h afu, uint16_t event_api_versi
 int ocxl_afu_event_check_versioned(ocxl_afu_h afu, int timeout, ocxl_event *events, uint16_t event_count,
                                    uint16_t event_api_version)
 {
-	ocxl_afu *my_afu = (ocxl_afu *) afu;
-	TRACE(my_afu, "Waiting up to %dms for AFU events", timeout);
+	TRACE(afu, "Waiting up to %dms for AFU events", timeout);
 
-	if (event_count > my_afu->epoll_event_count) {
-		free(my_afu->epoll_events);
-		my_afu->epoll_events = NULL;
-		my_afu->epoll_event_count = 0;
+	if (event_count > afu->epoll_event_count) {
+		free(afu->epoll_events);
+		afu->epoll_events = NULL;
+		afu->epoll_event_count = 0;
 
 		struct epoll_event *events = malloc(event_count * sizeof(*events));
 		if (events == NULL) {
-			errmsg(my_afu, OCXL_NO_MEM, "Could not allocate space for %d events", event_count);
+			errmsg(afu, OCXL_NO_MEM, "Could not allocate space for %d events", event_count);
 			return -1;
 		}
 
-		my_afu->epoll_events = events;
-		my_afu->epoll_event_count = event_count;
+		afu->epoll_events = events;
+		afu->epoll_event_count = event_count;
 	}
 
 	int count;
-	if ((count = epoll_wait(my_afu->epoll_fd, my_afu->epoll_events, event_count, timeout)) == -1) {
-		errmsg(my_afu, OCXL_INTERNAL_ERROR, "epoll_wait failed waiting for AFU events: %d: '%s'",
+	if ((count = epoll_wait(afu->epoll_fd, afu->epoll_events, event_count, timeout)) == -1) {
+		errmsg(afu, OCXL_INTERNAL_ERROR, "epoll_wait failed waiting for AFU events: %d: '%s'",
 		       errno, strerror(errno));
 		return -1;
 	}
 
 	uint16_t triggered = 0;
 	for (int event = 0; event < count; event++) {
-		epoll_fd_source *info = (epoll_fd_source *)my_afu->epoll_events[event].data.ptr;
+		epoll_fd_source *info = (epoll_fd_source *)afu->epoll_events[event].data.ptr;
 		ocxl_event_action ret;
 		ssize_t buf_used;
 		uint64_t count;
@@ -441,7 +428,7 @@ int ocxl_afu_event_check_versioned(ocxl_afu_h afu, int timeout, ocxl_event *even
 
 		switch (info->type) {
 		case EPOLL_SOURCE_OCXL:
-			while ((ret = read_afu_event(my_afu, event_api_version, &events[triggered], &last)),
+			while ((ret = read_afu_event(afu, event_api_version, &events[triggered], &last)),
 			       ret == OCXL_EVENT_ACTION_SUCCESS || ret == OCXL_EVENT_ACTION_IGNORE) {
 				if (ret == OCXL_EVENT_ACTION_SUCCESS) {
 					triggered++;
@@ -461,11 +448,11 @@ int ocxl_afu_event_check_versioned(ocxl_afu_h afu, int timeout, ocxl_event *even
 		case EPOLL_SOURCE_IRQ:
 			buf_used = read(info->irq->event.eventfd, &count, sizeof(count));
 			if (buf_used < 0) {
-				errmsg(my_afu, OCXL_INTERNAL_ERROR, "read of eventfd %d IRQ %d failed: %d: %s",
+				errmsg(afu, OCXL_INTERNAL_ERROR, "read of eventfd %d IRQ %d failed: %d: %s",
 				       info->irq->event.eventfd, info->irq->irq_number, errno, strerror(errno));
 				continue;
 			} else if (buf_used != (ssize_t)sizeof(count)) {
-				errmsg(my_afu, OCXL_INTERNAL_ERROR, "short read of eventfd %d IRQ %d");
+				errmsg(afu, OCXL_INTERNAL_ERROR, "short read of eventfd %d IRQ %d");
 				continue;
 			}
 			events[triggered].type = OCXL_EVENT_IRQ;
@@ -474,14 +461,14 @@ int ocxl_afu_event_check_versioned(ocxl_afu_h afu, int timeout, ocxl_event *even
 			events[triggered].irq.info = info->irq->info;
 			events[triggered++].irq.count = count;
 
-			TRACE(my_afu, "IRQ received, irq=%u id=%llx info=%p count=%llu",
+			TRACE(afu, "IRQ received, irq=%u id=%llx info=%p count=%llu",
 			      info->irq->irq_number, (uint64_t)info->irq->addr, info->irq->info, count);
 
 			break;
 		}
 	}
 
-	TRACE(my_afu, "%u events reported", triggered);
+	TRACE(afu, "%u events reported", triggered);
 
 	return triggered;
 }

@@ -78,7 +78,7 @@ static ocxl_err register_mmio(ocxl_afu *afu, void *addr, size_t size, ocxl_mmio_
 	afu->mmios[available_mmio].type = type;
 	afu->mmios[available_mmio].afu = afu;
 
-	*handle = (ocxl_mmio_h)&afu->mmios[available_mmio];
+	*handle = &afu->mmios[available_mmio];
 
 	TRACE(afu, "Mapped %ld bytes of %s MMIO at %p",
 	      size, type == OCXL_GLOBAL_MMIO ? "Global" : "Per-PASID", addr);
@@ -262,43 +262,42 @@ static ocxl_err mmio_map(ocxl_afu *afu, size_t size, int prot, uint64_t flags, o
 ocxl_err ocxl_mmio_map_advanced(ocxl_afu_h afu, ocxl_mmio_type type, size_t size, int prot, uint64_t flags,
                                 off_t offset, ocxl_mmio_h *region)
 {
-	ocxl_afu *my_afu = (ocxl_afu *) afu;
 	ocxl_err rc = OCXL_INVALID_ARGS;
 
 	if (size == 0) {
 		switch (type) {
 		case OCXL_PER_PASID_MMIO:
-			size = my_afu->per_pasid_mmio.length;
+			size = afu->per_pasid_mmio.length;
 			break;
 		case OCXL_GLOBAL_MMIO:
-			size = my_afu->global_mmio.length;
+			size = afu->global_mmio.length;
 			break;
 		}
 	}
 
 	switch (type) {
 	case OCXL_GLOBAL_MMIO:
-		if (offset + size > my_afu->global_mmio.length) {
+		if (offset + size > afu->global_mmio.length) {
 			rc = OCXL_NO_MEM;
-			errmsg(my_afu, rc, "Offset(%x) + size(%x) of global MMIO map request exceeds available size of %x",
-			       offset, size, my_afu->global_mmio.length);
+			errmsg(afu, rc, "Offset(%x) + size(%x) of global MMIO map request exceeds available size of %x",
+			       offset, size, afu->global_mmio.length);
 			return rc;
 		}
-		return global_mmio_map(my_afu, size, prot, flags, offset, region);
+		return global_mmio_map(afu, size, prot, flags, offset, region);
 		break;
 
 	case OCXL_PER_PASID_MMIO:
-		if (offset + size > my_afu->global_mmio.length) {
+		if (offset + size > afu->global_mmio.length) {
 			rc = OCXL_NO_MEM;
-			errmsg(my_afu, rc, "Offset(%x) + size(%x) of global MMIO map request exceeds available size of %x",
-			       offset, size, my_afu->global_mmio.length);
+			errmsg(afu, rc, "Offset(%x) + size(%x) of global MMIO map request exceeds available size of %x",
+			       offset, size, afu->global_mmio.length);
 			return rc;
 		}
-		return mmio_map(my_afu, size, prot, flags, offset, region);
+		return mmio_map(afu, size, prot, flags, offset, region);
 		break;
 
 	default:
-		errmsg(my_afu, rc, "Unknown MMIO type %d", type);
+		errmsg(afu, rc, "Unknown MMIO type %d", type);
 		return rc;
 	}
 }
@@ -335,14 +334,12 @@ ocxl_err ocxl_mmio_map(ocxl_afu_h afu, ocxl_mmio_type type, ocxl_mmio_h *region)
  */
 void ocxl_mmio_unmap(ocxl_mmio_h region)
 {
-	ocxl_mmio_area *mmio = (ocxl_mmio_area *)region;
-
-	if (!mmio->start) {
+	if (!region->start) {
 		return;
 	}
 
-	munmap(mmio->start, mmio->length);
-	mmio->start = NULL;
+	munmap(region->start, region->length);
+	region->start = NULL;
 }
 
 /**
@@ -361,19 +358,17 @@ void ocxl_mmio_unmap(ocxl_mmio_h region)
  */
 int ocxl_mmio_get_fd(ocxl_afu_h afu, ocxl_mmio_type type)
 {
-	ocxl_afu *my_afu = (ocxl_afu *) afu;
-
 	switch (type) {
 	case OCXL_GLOBAL_MMIO:
-		return my_afu->global_mmio_fd;
+		return afu->global_mmio_fd;
 		break;
 
 	case OCXL_PER_PASID_MMIO:
-		return my_afu->fd;
+		return afu->fd;
 		break;
 
 	default:
-		errmsg(my_afu, OCXL_INVALID_ARGS, "Unknown MMIO type %d", type);
+		errmsg(afu, OCXL_INVALID_ARGS, "Unknown MMIO type %d", type);
 		return -1;
 	}
 }
@@ -388,17 +383,15 @@ int ocxl_mmio_get_fd(ocxl_afu_h afu, ocxl_mmio_type type)
  */
 size_t ocxl_mmio_size(ocxl_afu_h afu, ocxl_mmio_type type)
 {
-	ocxl_afu *my_afu = (ocxl_afu *) afu;
-
 	switch(type) {
 	case OCXL_GLOBAL_MMIO:
-		return my_afu->global_mmio.length;
+		return afu->global_mmio.length;
 
 	case OCXL_PER_PASID_MMIO:
-		return my_afu->per_pasid_mmio.length;
+		return afu->per_pasid_mmio.length;
 
 	default:
-		errmsg(my_afu, OCXL_INVALID_ARGS, "Invalid MMIO area requested '%d'", type);
+		errmsg(afu, OCXL_INVALID_ARGS, "Invalid MMIO area requested '%d'", type);
 		return 0;
 	}
 }
@@ -418,16 +411,14 @@ size_t ocxl_mmio_size(ocxl_afu_h afu, ocxl_mmio_type type)
  */
 ocxl_err ocxl_mmio_get_info(ocxl_mmio_h region, void **address, size_t *size)
 {
-	ocxl_mmio_area *mmio = (ocxl_mmio_area *)region;
-
-	if (!mmio->start) {
+	if (!region->start) {
 		ocxl_err rc = OCXL_INVALID_ARGS;
-		errmsg(mmio->afu, rc, "MMIO region has already been unmapped");
+		errmsg(region->afu, rc, "MMIO region has already been unmapped");
 		return rc;
 	}
 
-	*address = mmio->start;
-	*size = mmio->length;
+	*address = region->start;
+	*size = region->length;
 
 	return OCXL_OK;
 }
@@ -452,19 +443,17 @@ inline static ocxl_err mmio_check(ocxl_mmio_h region, off_t offset, size_t size)
 		return rc;
 	}
 
-	ocxl_mmio_area *mmio = (ocxl_mmio_area *)region;
-
-	if (!mmio->start) {
+	if (!region->start) {
 		ocxl_err rc = OCXL_INVALID_ARGS;
-		errmsg(mmio->afu, rc, "MMIO region has already been unmapped");
+		errmsg(region->afu, rc, "MMIO region has already been unmapped");
 		return rc;
 	}
 
-	if (offset >= (off_t)(mmio->length - (size - 1))) {
+	if (offset >= (off_t)(region->length - (size - 1))) {
 		ocxl_err rc = OCXL_OUT_OF_BOUNDS;
-		errmsg(mmio->afu, rc, "%s MMIO access of 0x%016lx exceeds limit of 0x%016lx",
-		       mmio->type == OCXL_GLOBAL_MMIO ? "Global" : "Per-PASID",
-		       offset, mmio->length);
+		errmsg(region->afu, rc, "%s MMIO access of 0x%016lx exceeds limit of 0x%016lx",
+		       region->type == OCXL_GLOBAL_MMIO ? "Global" : "Per-PASID",
+		       offset, region->length);
 		return rc;
 	}
 
@@ -496,14 +485,12 @@ inline static ocxl_err mmio_read32_native(ocxl_mmio_h region, off_t offset, uint
 		return ret;
 	}
 
-	ocxl_mmio_area *mmio = (ocxl_mmio_area *)region;
-
 	__sync_synchronize();
-	*out = *(volatile uint32_t *)(mmio->start + offset);
+	*out = *(volatile uint32_t *)(region->start + offset);
 	__sync_synchronize();
 
-	TRACE(mmio->afu, "%s MMIO Read32@0x%04lx=0x%08x",
-	      mmio->type == OCXL_GLOBAL_MMIO ? "Global" : "Per-PASID",
+	TRACE(region->afu, "%s MMIO Read32@0x%04lx=0x%08x",
+	      region->type == OCXL_GLOBAL_MMIO ? "Global" : "Per-PASID",
 	      offset, *out);
 
 	return OCXL_OK;
@@ -534,14 +521,12 @@ inline static ocxl_err mmio_read64_native(ocxl_mmio_h region, off_t offset, uint
 		return ret;
 	}
 
-	ocxl_mmio_area *mmio = (ocxl_mmio_area *)region;
-
 	__sync_synchronize();
-	*out = *(volatile uint64_t *)(mmio->start + offset);
+	*out = *(volatile uint64_t *)(region->start + offset);
 	__sync_synchronize();
 
-	TRACE(mmio->afu, "%s MMIO Read64@0x%04lx=0x%016lx",
-	      mmio->type == OCXL_GLOBAL_MMIO ? "Global" : "Per-PASID",
+	TRACE(region->afu, "%s MMIO Read64@0x%04lx=0x%016lx",
+	      region->type == OCXL_GLOBAL_MMIO ? "Global" : "Per-PASID",
 	      offset, *out);
 
 	return OCXL_OK;
@@ -574,13 +559,11 @@ inline static ocxl_err mmio_write32_native(ocxl_mmio_h region, off_t offset, uin
 		return ret;
 	}
 
-	ocxl_mmio_area *mmio = (ocxl_mmio_area *)region;
-
-	TRACE(mmio->afu, "%s MMIO Write32@0x%04lx=0x%08x",
-	      mmio->type == OCXL_GLOBAL_MMIO ? "Global" : "Per-PASID",
+	TRACE(region->afu, "%s MMIO Write32@0x%04lx=0x%08x",
+	      region->type == OCXL_GLOBAL_MMIO ? "Global" : "Per-PASID",
 	      offset, value);
 
-	volatile uint32_t *addr = (uint32_t *)(mmio->start + offset);
+	volatile uint32_t *addr = (uint32_t *)(region->start + offset);
 
 	__sync_synchronize();
 	*addr = value;
@@ -614,13 +597,11 @@ inline static ocxl_err mmio_write64_native(ocxl_mmio_h region, off_t offset, uin
 		return ret;
 	}
 
-	ocxl_mmio_area *mmio = (ocxl_mmio_area *)region;
-
-	TRACE(mmio->afu, "%s MMIO Write64@0x%04lx=0x%016lx",
-	      mmio->type == OCXL_GLOBAL_MMIO ? "Global" : "Per-PASID",
+	TRACE(region->afu, "%s MMIO Write64@0x%04lx=0x%016lx",
+	      region->type == OCXL_GLOBAL_MMIO ? "Global" : "Per-PASID",
 	      offset, value);
 
-	volatile uint64_t *addr = (uint64_t *)(mmio->start + offset);
+	volatile uint64_t *addr = (uint64_t *)(region->start + offset);
 
 	__sync_synchronize();
 	*addr = value;
