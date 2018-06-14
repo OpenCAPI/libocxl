@@ -81,7 +81,7 @@ include Makefile.rules
 
 cppcheck:
 	cppcheck --enable=all -j 4 -q  src/*.c src/include/libocxl.h
-	
+
 cppcheck-xml:
 	cppcheck --enable=all -j 4 -q  src/*.c src/include/libocxl.h --xml-version=2 2>cppcheck.xml
 
