@@ -206,14 +206,14 @@ ocxl_err ocxl_afu_get_p9_thread_id(ocxl_afu_h afu, uint16_t *thread_id);
 
 #if defined(_ARCH_PPC64) && !defined(__STRICT_ANSI__)
 /**
- * A wrapper around the the Power 9 wait instruction
+ * A wrapper around the the POWER9 wait instruction
  *
- * The notify/wait mechanism provide a low-latency way for an AFU to signal to the
+ * The wake_host_thread/wait mechanism provide a low-latency way for an AFU to signal to the
  * calling thread that a condition has been met (eg. work has been completed).
  *
- * This function will cause the thread to wait until woken by the AFU via as_notify.
- * As the thread may be woken for reasons other than as_notify, a condition variable
- * must be set by the AFU before issuing the notify.
+ * This function will cause the thread to wait until woken by the AFU via wake_host_thread.
+ * As the thread may be woken for reasons other than wake_host_thread, a condition variable
+ * must be set by the AFU before issuing the wake.
  *
  * In order to successfully wake a waiting thread, the AFU must know the address of
  * the condition variable, and the thread ID of the application (via ocxl_afu_get_p9_thread_id()).
