@@ -1,5 +1,6 @@
 # 1.1.0
 ## User facing changes
+ - Requires Linux headers >= 4.18 to compile
  - Add support for POWER9 wake_host_thread/wait (requires a compiler with GNU extensions for inline assembler)
  - Generate warnings on ignored return values
  - Use opaque structs rather than void pointers for ocxl handles (this should be transparent to callers)
