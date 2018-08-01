@@ -284,7 +284,6 @@ ocxl_err ocxl_mmio_map_advanced(ocxl_afu_h afu, ocxl_mmio_type type, size_t size
 			return rc;
 		}
 		return global_mmio_map(afu, size, prot, flags, offset, region);
-		break;
 
 	case OCXL_PER_PASID_MMIO:
 		if (offset + size > afu->per_pasid_mmio.length) {
@@ -294,7 +293,6 @@ ocxl_err ocxl_mmio_map_advanced(ocxl_afu_h afu, ocxl_mmio_type type, size_t size
 			return rc;
 		}
 		return mmio_map(afu, size, prot, flags, offset, region);
-		break;
 
 	default:
 		errmsg(afu, rc, "Unknown MMIO type %d", type);
@@ -361,11 +359,9 @@ int ocxl_mmio_get_fd(ocxl_afu_h afu, ocxl_mmio_type type)
 	switch (type) {
 	case OCXL_GLOBAL_MMIO:
 		return afu->global_mmio_fd;
-		break;
 
 	case OCXL_PER_PASID_MMIO:
 		return afu->fd;
-		break;
 
 	default:
 		errmsg(afu, OCXL_INVALID_ARGS, "Unknown MMIO type %d", type);
