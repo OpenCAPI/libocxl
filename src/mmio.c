@@ -271,6 +271,8 @@ ocxl_err ocxl_mmio_map_advanced(ocxl_afu_h afu, ocxl_mmio_type type, size_t size
 			size = afu->global_mmio.length;
 			break;
 		}
+
+		size -= offset;
 	}
 
 	switch (type) {
