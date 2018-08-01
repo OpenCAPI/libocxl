@@ -164,6 +164,7 @@ static ocxl_err global_mmio_map(ocxl_afu *afu, size_t size, int prot, uint64_t f
 	ocxl_err rc = register_mmio(afu, addr, size, OCXL_GLOBAL_MMIO, &mmio_region);
 	if (rc != OCXL_OK) {
 		errmsg(afu, rc, "Could not register global MMIO region");
+		munmap(addr, size);
 		return rc;
 	}
 
@@ -177,7 +178,7 @@ static ocxl_err global_mmio_map(ocxl_afu *afu, size_t size, int prot, uint64_t f
  *
  * Map the per-PASID MMIO area of an AFU to memory.
  *
- * Map the per-PASID MMIO area of afu to the current process memory. The size and
+ * Map the per-PASID MMIO area of AFU to the current process memory. The size and
  * contents of this area are specific each AFU. The size can be discovered with
  * ocxl_mmio_size().
  *
@@ -226,6 +227,7 @@ static ocxl_err mmio_map(ocxl_afu *afu, size_t size, int prot, uint64_t flags, o
 	ocxl_err rc = register_mmio(afu, addr, size, OCXL_PER_PASID_MMIO, &mmio_region);
 	if (rc != OCXL_OK) {
 		errmsg(afu, rc, "Could not register global MMIO region", afu->identifier.afu_name);
+		munmap(addr, size);
 		return rc;
 	}
 
