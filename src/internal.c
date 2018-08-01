@@ -182,8 +182,8 @@ void ocxl_default_afu_error_handler(ocxl_afu_h afu, ocxl_err error, const char *
  * Grow a buffer geometrically
  *
  * @param afu the AFU that owns the buffer
- * @param buffer [in/out] the buffer to grow
- * @param [in/out] the number of elements in the buffer
+ * @param buffer [in,out] the buffer to grow
+ * @param [in,out] count the number of elements in the buffer
  * @param size the size of a buffer element
  * @param initial_count the initial number of elements in the buffer
  */
@@ -197,6 +197,8 @@ ocxl_err grow_buffer(ocxl_afu *afu, void **buffer, uint16_t *count, size_t size,
 		       new_count, size, new_count * size, errno, strerror(errno));
 		return rc;
 	}
+
+	memset((char *)temp + *count * size, '\0', new_count - *count);
 
 	*buffer = temp;
 	*count = new_count;
