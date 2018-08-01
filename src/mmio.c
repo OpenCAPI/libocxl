@@ -153,10 +153,6 @@ static ocxl_err global_mmio_map(ocxl_afu *afu, size_t size, int prot, uint64_t f
 		return rc;
 	}
 
-	if (size == 0) {
-		size = afu->global_mmio.length;
-	}
-
 	void *addr = mmap(NULL, size, prot, MAP_SHARED, afu->global_mmio_fd, offset);
 	if (addr == MAP_FAILED) {
 		ocxl_err rc = OCXL_NO_MEM;
