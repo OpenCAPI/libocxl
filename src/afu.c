@@ -699,7 +699,7 @@ ocxl_err ocxl_afu_close(ocxl_afu_h afu)
 		ocxl_mmio_unmap((ocxl_mmio_h)&afu->mmios[mmio_idx]);
 	}
 
-	if (afu->global_mmio_fd) {
+	if (afu->global_mmio_fd != -1) {
 		close(afu->global_mmio_fd);
 		afu->global_mmio_fd = -1;
 	}
