@@ -287,7 +287,7 @@ ocxl_err ocxl_mmio_map_advanced(ocxl_afu_h afu, ocxl_mmio_type type, size_t size
 		break;
 
 	case OCXL_PER_PASID_MMIO:
-		if (offset + size > afu->global_mmio.length) {
+		if (offset + size > afu->per_pasid_mmio.length) {
 			rc = OCXL_NO_MEM;
 			errmsg(afu, rc, "Offset(%#x) + size(%#x) of per-pasid MMIO map request exceeds available size of %#x",
 			       offset, size, afu->global_mmio.length);
