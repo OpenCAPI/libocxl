@@ -530,6 +530,8 @@ static bool afu_memcpy(ocxl_afu_h afu, const char *src, char *dst, size_t size, 
 		goto err_status;
 	}
 
+	wait_for_status(timeout, afu, stop_element, err_irq_handle);
+
 	if (stop_element->status != 1) {
 		LOG_ERR("unexpected status 0x%x for stop\n", stop_element->status);
 		goto err_status;
