@@ -1,5 +1,17 @@
 /*
- *(C) Copyright 2017 International Business Machines
+ * Copyright 2017 International Business Machines
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 #include <unistd.h>
@@ -14,14 +26,11 @@
 #include "libocxl.h"
 #define DEVICE "IBM,AFP3"
 
-//  CACHELINE_BYTES 64
 #define CACHELINE_BYTES 128
 #define PAGE_BYTES 4096
 #define AFU_MMIO_REG_SIZE 0x4000000
 #define BUF_512MB 536870912
 #define BUF_4MB 4194304
-
-//#define AFU_CONFIGURATION_USE_PE_WED 0x8000000000000000
 
 // global mmio registers
 #define AFUConfiguration_REGISTER     0x0000
@@ -53,7 +62,6 @@
 
 
 static int verbose;
-//static int buffer_cl = 64;
 static int timeout = 1;
 static int tags_ld = 0;
 static int tags_st = 0;
@@ -69,11 +77,9 @@ static uint64_t enableAfu   = 0x8000000000000000;
 static uint64_t disableAfu  = 0x0000000000000000;
 static uint64_t resetCnt    = 0x4000000000000000;
 
-// LGT can we do arbitrary byte lengths in mcp3 - no. multiples of 64B
 static void print_help(char *name)
 {
 	printf("Usage: %s [ options ]\n", name);
-//  printf("\t--cachelines\tCachelines to copy.  Default=%d\n", buffer_cl);
 	printf("\t--tags_ld   \tNumber of tags for loads.  Default=%d\n", tags_ld);
 	printf("\t--tags_st   \tNumber of tags for stores.  Default=%d\n", tags_st);
 	printf("\t            \t 0 -   0 tags (disabled)\n");
@@ -114,7 +120,6 @@ int main(int argc, char *argv[])
 
 	// Parse parameters
 	static struct option long_options[] = {
-//    {"cachelines", required_argument, 0       , 'c'},
 		{"tags_ld", required_argument, 0, 'a'},
 		{"tags_st", required_argument, 0, 'b'},
 		{"size_ld", required_argument, 0, 'y'},
@@ -135,9 +140,6 @@ int main(int argc, char *argv[])
 		case 0:
 		case 'v':
 			break;
-//      case 'c':
-//        buffer_cl = strtoul(optarg, NULL, 0);
-//        break;
 		case 'a':
 			tags_ld = strtoul(optarg, NULL, 0);
 			break;
@@ -261,7 +263,6 @@ int main(int argc, char *argv[])
 
 	ocxl_enable_messages(OCXL_ERRORS);
 
-	// open(context 0)
 	if (verbose) {
 		printf("Calling ocxl_afu_open\n");
 	}
@@ -383,11 +384,7 @@ int main(int argc, char *argv[])
 	double bw_tb_cnt0, bw_tb_cnt1, bw_tb_cnt2, bw_tb_cnt3, bw_tb_cnt4, bw_tb_cnt5, bw_tb_cnt6, bw_tb_cnt7;
 
 
-	//if (! mmio_mode) {
 	printf("Counter\t\tCurr Count (64B)\tPrev Count\tCount Difference\tBW (GB/s) using App clock\tBytes or Events per AFP cycle\t\tBW using 200MHz AFU clock (GB/s)\n");
-	//} else {  // Added for CAPI 2.0
-	//printf("Count 0\t\tBW (Billion MMIOs/s)\tCount 1\t\tBW (Billion MMIOs/s)\tCount 2\t\tBW (Billion MMIOs/s\n");
-	//}
 	printf("-----------------------------------------------------------------------------------------\n");
 
 	gettimeofday(&c0Time_prev, NULL);
@@ -509,12 +506,6 @@ int main(int argc, char *argv[])
 		bw_cnt6 = (double)(count6 - count6_prev) * (64 / (c0TimeElapsed / 1000000)) / 1000000000; //  convert B/s to GB/s
 		bw_cnt7 = (double)(count7 - count7_prev) * (1 / (c0TimeElapsed / 1000000)) / 1000000000; //  convert to Billion events
 
-		//if (mmio_mode) { // Added for CAPI 2.0
-		//    bw0 = (double)(count0 - count0_prev) * (1 / (c0TimeElapsed / 1000000)) / 1000000000; //  convert to Billion MMIO/s
-		//    bw1 = (double)(count1 - count1_prev) * (1 / (c1TimeElapsed / 1000000)) / 1000000000; //  convert to Billion MMIO/s
-		//    bw2 = (double)(count2 - count2_prev) * (1 / (c2TimeElapsed / 1000000)) / 1000000000; //  convert to Billion MMIO/s
-		//}
-
 		bpc_tb_cnt0 = (double)(count0 - count0_prev) *  1 / cyclesElapsed;
 		bpc_tb_cnt1 = (double)(count1 - count1_prev) * 64 / cyclesElapsed;
 		bpc_tb_cnt2 = (double)(count2 - count2_prev) * 64 / cyclesElapsed;
@@ -560,7 +551,6 @@ int main(int argc, char *argv[])
 		count7_prev = count7;
 		c0Time_prev = c0Time;
 
-		//printf("Counter\t\tCurr Count (64B)\t\tPrev Count\t\tCount Difference\t\tBW (GB/s) using App clock\t\tBytes or Events / AFP cycle\t\tBW using 200MHz AFU clock (GB/s)\n");
 		printf("Total Cycles    %016lx %016lx %016lx %#12.8f %#1.8f %#12.8f\n", count0, count0_prev,
 		       delta_cnt0,  bw_cnt0, bpc_tb_cnt0, bw_tb_cnt0);
 		printf("Good Resp Total %016lx %016lx %016lx %#12.8f %#1.8f %#12.8f\n", count1, count1_prev,
