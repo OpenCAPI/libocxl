@@ -17,14 +17,14 @@ Usage
 Usage: ocxl_afp3 [ options ]
     --tags_ld     Number of tags for loads.  Default=0
     --tags_st     Number of tags for stores.  Default=0
-         0 -   0 tags (disabled)
-         1 -   1 tag
-         2 -   2 tags
-         3 -   4 tags
-         4 -  16 tags
-         5 -  64 tags
-         6 - 256 tags
-         7 - 512 tags
+                  0 -   0 tags (disabled)
+                  1 -   1 tag
+                  2 -   2 tags
+                  3 -   4 tags
+                  4 -  16 tags
+                  5 -  64 tags
+                  6 - 256 tags
+                  7 - 512 tags
     --size_ld     Data size, in Bytes, for loads.
                   Supported values: 64, 128, 256.  Default=128
     --size_st     Data size, in Bytes, for stores.
