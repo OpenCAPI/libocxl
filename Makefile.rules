@@ -31,6 +31,12 @@ testobj/%.o-test : unittests/%.c testobj/libocxl.a | testobj
 sampleobj/%.o-memcpy : samples/memcpy/%.c obj/libocxl.a | sampleobj
 	$(call Q,CC, $(CC) $(CPPFLAGS) $(SAMPLECFLAGS) -c -o $@ $<, $@)
 
+afuobj/%.o-memcpy : afutests/memcpy/%.c obj/libocxl.a | afuobj
+	$(call Q,CC, $(CC) $(CPPFLAGS) $(AFUTESTCFLAGS) -c -o $@ $<, $@)
+
+afuobj/%.o-afp : afutests/afp/%.c obj/libocxl.a | afuobj
+	$(call Q,CC, $(CC) $(CPPFLAGS) $(AFUTESTCFLAGS) -c -o $@ $<, $@)
+
 datadir    ?= $(PREFIX)/share
 includedir ?= $(PREFIX)/include
 mandir     ?= $(datadir)/man
