@@ -94,8 +94,8 @@ cppcheck:
 cppcheck-xml:
 	cppcheck --enable=all -j 4 -q  src/*.c src/include/libocxl.h --xml-version=2 2>cppcheck.xml
 
-precommit: clean all docs cppcheck
-	astyle --style=linux --indent=tab=8 --max-code-length=120 src/*.c src/*.h src/include/*.h samples/*/*.c
+precommit: clean all docs cppcheck afutests
+	astyle --style=linux --indent=tab=8 --max-code-length=120 src/*.c src/*.h src/include/*.h samples/*/*.c afutests/*/*.c
 	$(call Q, SYMVER-CHECK, nm obj/$(LIBNAME) | grep ' t ocxl' && (echo "Symbols are missing from symver.map" && exit 1) || true)
 
 docs:

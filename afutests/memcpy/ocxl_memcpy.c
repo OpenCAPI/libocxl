@@ -125,8 +125,7 @@ void memcpy3_init_weq(struct memcpy_weq *weq, size_t queue_size)
  * Copies a work element into the queue, taking care to set the wrap
  * bit correctly.  Returns a pointer to the element in the queue.
  */
-struct memcpy_work_element *memcpy3_add_we(struct memcpy_weq *weq,
-                struct memcpy_work_element we)
+struct memcpy_work_element *memcpy3_add_we(struct memcpy_weq *weq, struct memcpy_work_element we)
 {
 	struct memcpy_work_element *new_we = weq->next;
 
@@ -214,7 +213,7 @@ int shm_create(struct memcpy_test_args *args)
 	if (args->lock == (char *)-1) {
 		perror("Unable to attach shared memory segment");
 		if (shmctl(args->shmid, IPC_RMID, NULL))
-                        perror("Error destroying shared memory segment");
+			perror("Error destroying shared memory segment");
 		return -1;
 	}
 	printf("Shared memory attached at: %p\n", args->lock);
@@ -255,8 +254,8 @@ int wait_for_status(struct memcpy_work_element *we, int timeout, pid_t pid)
 	return 0;
 }
 
-int wait_for_irq(struct memcpy_work_element *we, int timeout, pid_t pid,
-                 ocxl_afu_h afu_h, uint64_t irq_ea, uint64_t err_ea)
+int wait_for_irq(struct memcpy_work_element *we, int timeout, pid_t pid, ocxl_afu_h afu_h, uint64_t irq_ea,
+                 uint64_t err_ea)
 {
 	ocxl_event event;
 	int nevent;
@@ -278,8 +277,7 @@ int wait_for_irq(struct memcpy_work_element *we, int timeout, pid_t pid,
 		if (event.irq.handle == err_ea)
 			LOG_ERR(pid, "received error irq instead of AFU irq\n");
 		else
-			LOG_ERR(pid, "received unknown irq EA=0x%lx\n",
-			        event.irq.handle);
+			LOG_ERR(pid, "received unknown irq EA=0x%lx\n", event.irq.handle);
 		return -1;
 	}
 	/*
@@ -290,8 +288,7 @@ int wait_for_irq(struct memcpy_work_element *we, int timeout, pid_t pid,
 	return wait_for_status(we, timeout, pid);
 }
 
-int wait_fast(struct memcpy_work_element *we, int timeout, pid_t pid,
-              ocxl_afu_h afu_h, uint64_t irq_ea)
+int wait_fast(struct memcpy_work_element *we, int timeout, pid_t pid, ocxl_afu_h afu_h, uint64_t irq_ea)
 {
 	struct timeval test_timeout, temp;
 	ocxl_event event;
@@ -331,8 +328,7 @@ int wait_fast(struct memcpy_work_element *we, int timeout, pid_t pid,
 	if (we->status != 1) {
 		nevent = ocxl_afu_event_check(afu_h, 1000, &event, 1);
 		if (nevent == 1) {
-			if (event.type != OCXL_EVENT_IRQ ||
-			    event.irq.handle != irq_ea) {
+			if (event.type != OCXL_EVENT_IRQ || event.irq.handle != irq_ea) {
 				LOG_ERR(pid, "received unexpected event type %d while in 'wait' (handle=%#lx)\n", event.type, event.irq.handle);
 				return -1;
 			}
@@ -349,8 +345,7 @@ int restart_afu(pid_t pid, ocxl_mmio_h pp_mmio)
 	ocxl_err err;
 	uint64_t status;
 
-	err = ocxl_mmio_read64(pp_mmio, MEMCPY_AFU_PP_STATUS,
-	                       OCXL_MMIO_LITTLE_ENDIAN, &status);
+	err = ocxl_mmio_read64(pp_mmio, MEMCPY_AFU_PP_STATUS, OCXL_MMIO_LITTLE_ENDIAN, &status);
 	if (err != OCXL_OK) {
 		LOG_ERR(pid, "read of process status failed: %d\n", err);
 		return -1;
@@ -359,9 +354,7 @@ int restart_afu(pid_t pid, ocxl_mmio_h pp_mmio)
 	if (!(status & MEMCPY_AFU_PP_STATUS_Stopped))
 		return 0; /* not stopped */
 
-	err = ocxl_mmio_write64(pp_mmio, MEMCPY_AFU_PP_CTRL,
-	                        OCXL_MMIO_LITTLE_ENDIAN,
-	                        MEMCPY_AFU_PP_CTRL_Restart);
+	err = ocxl_mmio_write64(pp_mmio, MEMCPY_AFU_PP_CTRL, OCXL_MMIO_LITTLE_ENDIAN, MEMCPY_AFU_PP_CTRL_Restart);
 	if (err != OCXL_OK) {
 		LOG_ERR(pid, "couldn't restart process: %d\n", err);
 		return -1;
@@ -401,8 +394,7 @@ int test_afu_memcpy(struct memcpy_test_args *args)
 	if (args->atomic_cas) {
 		dst = args->lock;
 	} else {
-		dst = mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+		dst = mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 		if (dst == MAP_FAILED) {
 			LOG_ERR(pid, "mmap failed for destination buffer\n");
 			return -1;
@@ -512,9 +504,9 @@ int test_afu_memcpy(struct memcpy_test_args *args)
 
 	/* Initialise source buffer with unique(ish) per-process value */
 	if (args->atomic_cas) {
-		 memset(src, 0, args->size);
-		 increment_we.src = htole64((uintptr_t) args->counter);
-		 increment_we.dst = htole64((uintptr_t) args->counter);
+		memset(src, 0, args->size);
+		increment_we.src = htole64((uintptr_t) args->counter);
+		increment_we.dst = htole64((uintptr_t) args->counter);
 	} else if (args->increment) {
 		*(pid_t *)src = htole32(pid - 1);
 	} else {
@@ -567,30 +559,24 @@ int test_afu_memcpy(struct memcpy_test_args *args)
 		 * Otherwise, we poll the last work element status from memory
 		 */
 		if (args->irq)
-			rc = wait_for_irq(last_we, args->completion_timeout,
-			                  pid, afu_h, afu_irq_ea, err_irq_ea);
+			rc = wait_for_irq(last_we, args->completion_timeout, pid, afu_h, afu_irq_ea, err_irq_ea);
 		else if (args->wake_host_thread)
-			rc = wait_fast(last_we, args->completion_timeout,
-			               pid, afu_h, afu_irq_ea);
+			rc = wait_fast(last_we, args->completion_timeout, pid, afu_h, afu_irq_ea);
 		else
-			rc = wait_for_status(last_we, args->completion_timeout,
-			                     pid);
+			rc = wait_for_status(last_we, args->completion_timeout, pid);
 		if (rc)
 			goto err_status;
 		if (first_we->status != 1) {
-			LOG_ERR(pid, "unexpected status 0x%x for copy\n",
-			        first_we->status);
+			LOG_ERR(pid, "unexpected status 0x%x for copy\n", first_we->status);
 			goto err_status;
 		}
 		if (args->irq && last_we->status != 1) {
-			LOG_ERR(pid, "unexpected status 0x%x for irq\n",
-			        last_we->status);
+			LOG_ERR(pid, "unexpected status 0x%x for irq\n", last_we->status);
 			goto err_status;
 		}
 		if (args->wake_host_thread && (last_we->status != 1) &&
 		    (last_we->status != 0x11)) {
-			LOG_ERR(pid, "unexpected status 0x%x for wake_host_thread\n",
-			        last_we->status);
+			LOG_ERR(pid, "unexpected status 0x%x for wake_host_thread\n", last_we->status);
 			goto err_status;
 		}
 		if (args->atomic_cas) {
@@ -619,8 +605,7 @@ int test_afu_memcpy(struct memcpy_test_args *args)
 			 * and extra memory translation with each loop
 			 */
 			munmap(dst, getpagesize());
-			dst = mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE,
-			           MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+			dst = mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 			if (dst == MAP_FAILED) {
 				LOG_ERR(pid, "reallocation of destination buffer failed\n");
 				goto err;
@@ -651,8 +636,7 @@ int test_afu_memcpy(struct memcpy_test_args *args)
 		goto err_status;
 	}
 
-	LOG_INF(pid, "%d loops in %d uS (%0.2f uS per loop)\n",
-	        args->loop_count, t, ((float) t)/args->loop_count);
+	LOG_INF(pid, "%d loops in %d uS (%0.2f uS per loop)\n", args->loop_count, t, ((float) t)/args->loop_count);
 	ocxl_afu_close(afu_h);
 	return 0;
 
@@ -671,26 +655,16 @@ void usage(char *name)
 {
 	fprintf(stderr, "Usage: %s [ options ]\n", name);
 	fprintf(stderr, "Options:\n");
-	fprintf(stderr,
-	        "\t-A\t\tRun the atomic compare and swap test\n");
-	fprintf(stderr,
-	        "\t-a\t\tRun the increment test\n");
-	fprintf(stderr,
-	        "\t-d <device>\tUse this opencapi card\n");
-	fprintf(stderr,
-	        "\t-i\t\tSend an interrupt after copy\n");
-	fprintf(stderr,
-	        "\t-w\t\tSend a wake_host_thread command after copy\n");
-	fprintf(stderr,
-	        "\t-l <loops>\tRun this number of memcpy loops (default 1)\n");
-	fprintf(stderr,
-	        "\t-p <procs>\tFork this number of processes (default 1)\n");
-	fprintf(stderr,
-	        "\t-r\t\tReallocate the destination buffer in between 2 loops\n");
-	fprintf(stderr,
-	        "\t-s <bufsize>\tCopy this number of bytes (default 2048)\n");
-	fprintf(stderr,
-	        "\t-t <timeout>\tSeconds to wait for the AFU to signal completion\n");
+	fprintf(stderr, "\t-A\t\tRun the atomic compare and swap test\n");
+	fprintf(stderr, "\t-a\t\tRun the increment test\n");
+	fprintf(stderr, "\t-d <device>\tUse this opencapi card\n");
+	fprintf(stderr, "\t-i\t\tSend an interrupt after copy\n");
+	fprintf(stderr, "\t-w\t\tSend a wake_host_thread command after copy\n");
+	fprintf(stderr, "\t-l <loops>\tRun this number of memcpy loops (default 1)\n");
+	fprintf(stderr, "\t-p <procs>\tFork this number of processes (default 1)\n");
+	fprintf(stderr, "\t-r\t\tReallocate the destination buffer in between 2 loops\n");
+	fprintf(stderr, "\t-s <bufsize>\tCopy this number of bytes (default 2048)\n");
+	fprintf(stderr, "\t-t <timeout>\tSeconds to wait for the AFU to signal completion\n");
 	exit(1);
 }
 
@@ -762,20 +736,17 @@ int main(int argc, char *argv[])
 	}
 
 	if (argv[optind]) {
-		fprintf(stderr,
-		        "Error: Unexpected argument '%s'\n", argv[optind]);
+		fprintf(stderr, "Error: Unexpected argument '%s'\n", argv[optind]);
 		usage(argv[0]);
 	}
 
 	if (args.wake_host_thread && args.irq) {
-		fprintf(stderr,
-		        "Error: -i and -w are mutually exclusive\n");
+		fprintf(stderr, "Error: -i and -w are mutually exclusive\n");
 		usage(argv[0]);
 	}
 
 	if (args.atomic_cas && args.reallocate) {
-		fprintf(stderr,
-		        "Error: -A and -r are mutually exclusive\n");
+		fprintf(stderr, "Error: -A and -r are mutually exclusive\n");
 		usage(argv[0]);
 	}
 
@@ -810,20 +781,15 @@ int main(int argc, char *argv[])
 			fprintf(stderr,"Atomicity Error:\n");
 			fprintf(stderr,"  procs=%d\n", processes);
 			fprintf(stderr,"  loops=%d\n", args.loop_count);
-			fprintf(stderr,"  procs*loops=%d\n",
-				processes * args.loop_count);
-			fprintf(stderr,"  count=%d (should be %d)\n",
-				*(int *)args.counter,
-				processes * args.loop_count);
+			fprintf(stderr,"  procs*loops=%d\n", processes * args.loop_count);
+			fprintf(stderr,"  count=%d (should be %d)\n", *(int *)args.counter, processes * args.loop_count);
 			return -1;
 		}
 		shm_destroy(&args);
 	}
 
 	if (rc)
-		fprintf(stderr,
-		        "%d test(s) failed. Check process %d, maybe others\n",
-		        rc, failing);
+		fprintf(stderr, "%d test(s) failed. Check process %d, maybe others\n", rc, failing);
 	else
 		printf("Test successful\n");
 	return rc;

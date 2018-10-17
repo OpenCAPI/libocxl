@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 International Business Machines
+ * Copyright 2018 International Business Machines
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -134,8 +134,7 @@ int main(int argc, char *argv[])
 		{NULL, 0, 0, 0}
 	};
 
-	while ((opt = getopt_long(argc, argv, "avhc:t:", long_options, &option_index))
-	       >= 0) {
+	while ((opt = getopt_long(argc, argv, "avhc:t:", long_options, &option_index)) >= 0) {
 		switch (opt) {
 		case 0:
 		case 'v':
@@ -208,8 +207,7 @@ int main(int argc, char *argv[])
 				offsetmask = 0xFFFFF;
 				printf("Warning:  4G offsetmask is bigger than the 512MB memory buffer allocated by this app\n");
 			} else {
-				printf("Illegal value entered for --offsetmask argument = 0x%lx  Must be string: 4K-512M\n",
-				       offsetmask);
+				printf("Illegal value entered for --offsetmask argument = 0x%lx  Must be string: 4K-512M\n", offsetmask);
 				print_help(argv[0]);
 				return -1;
 			}
@@ -320,8 +318,8 @@ int main(int argc, char *argv[])
 	}
 
 	// Initialize WED value
-	wed_in = (uint64_t) buffer + (tags_ld * 512) + (size_enc_ld * 128) +
-	         (npu_ld * 64) + (tags_st * 8) + (size_enc_st * 2) + (npu_st);
+	wed_in = (uint64_t) buffer + (tags_ld * 512) + (size_enc_ld * 128) + (npu_ld * 64) + (tags_st * 8) +
+	         (size_enc_st * 2) + (npu_st);
 	if (verbose) {
 		printf("WED = %lu   0x%lx\n", wed_in, wed_in);
 	}
@@ -496,8 +494,7 @@ int main(int argc, char *argv[])
 
 		cyclesElapsed = count0 - count0_prev;
 
-		bw_cnt0 = (double)(count0 - count0_prev) * (1 / (c0TimeElapsed / 1000000)) /
-		          1000000000; //  convert to Billion cycles
+		bw_cnt0 = (double)(count0 - count0_prev) * (1 / (c0TimeElapsed / 1000000)) / 1000000000; //  convert to Billion cycles
 		bw_cnt1 = (double)(count1 - count1_prev) * (64 / (c0TimeElapsed / 1000000)) / 1000000000; //  convert B/s to GB/s
 		bw_cnt2 = (double)(count2 - count2_prev) * (64 / (c0TimeElapsed / 1000000)) / 1000000000; //  convert B/s to GB/s
 		bw_cnt3 = (double)(count3 - count3_prev) * (64 / (c0TimeElapsed / 1000000)) / 1000000000; //  convert B/s to GB/s
@@ -551,22 +548,22 @@ int main(int argc, char *argv[])
 		count7_prev = count7;
 		c0Time_prev = c0Time;
 
-		printf("Total Cycles    %016lx %016lx %016lx %#12.8f %#1.8f %#12.8f\n", count0, count0_prev,
-		       delta_cnt0,  bw_cnt0, bpc_tb_cnt0, bw_tb_cnt0);
-		printf("Good Resp Total %016lx %016lx %016lx %#12.8f %#1.8f %#12.8f\n", count1, count1_prev,
-		       delta_cnt1,  bw_cnt1, bpc_tb_cnt1, bw_tb_cnt1);
-		printf("Good Resp Load  %016lx %016lx %016lx %#12.8f %#1.8f %#12.8f\n", count2, count2_prev,
-		       delta_cnt2,  bw_cnt2, bpc_tb_cnt2, bw_tb_cnt2);
-		printf("Good Resp Store %016lx %016lx %016lx %#12.8f %#1.8f %#12.8f\n", count3, count3_prev,
-		       delta_cnt3,  bw_cnt3, bpc_tb_cnt3, bw_tb_cnt3);
-		printf("Retries - Total %016lx %016lx %016lx %#12.8f %#1.8f %#12.8f\n", count4, count4_prev,
-		       delta_cnt4,  bw_cnt4, bpc_tb_cnt4, bw_tb_cnt4);
-		printf("Retries - Loads %016lx %016lx %016lx %#12.8f %#1.8f %#12.8f\n", count5, count5_prev,
-		       delta_cnt5,  bw_cnt5, bpc_tb_cnt5, bw_tb_cnt5);
-		printf("Retries - Store %016lx %016lx %016lx %#12.8f %#1.8f %#12.8f\n", count6, count6_prev,
-		       delta_cnt6,  bw_cnt6, bpc_tb_cnt6, bw_tb_cnt6);
-		printf("No cred cycles  %016lx %016lx %016lx %#12.8f %#1.8f %#12.8f\n", count7, count7_prev,
-		       delta_cnt7,  bw_cnt7, bpc_tb_cnt7, bw_tb_cnt7);
+		printf("Total Cycles    %016lx %016lx %016lx %#12.8f %#1.8f %#12.8f\n", count0, count0_prev, delta_cnt0,  bw_cnt0,
+		       bpc_tb_cnt0, bw_tb_cnt0);
+		printf("Good Resp Total %016lx %016lx %016lx %#12.8f %#1.8f %#12.8f\n", count1, count1_prev, delta_cnt1,  bw_cnt1,
+		       bpc_tb_cnt1, bw_tb_cnt1);
+		printf("Good Resp Load  %016lx %016lx %016lx %#12.8f %#1.8f %#12.8f\n", count2, count2_prev, delta_cnt2,  bw_cnt2,
+		       bpc_tb_cnt2, bw_tb_cnt2);
+		printf("Good Resp Store %016lx %016lx %016lx %#12.8f %#1.8f %#12.8f\n", count3, count3_prev, delta_cnt3,  bw_cnt3,
+		       bpc_tb_cnt3, bw_tb_cnt3);
+		printf("Retries - Total %016lx %016lx %016lx %#12.8f %#1.8f %#12.8f\n", count4, count4_prev, delta_cnt4,  bw_cnt4,
+		       bpc_tb_cnt4, bw_tb_cnt4);
+		printf("Retries - Loads %016lx %016lx %016lx %#12.8f %#1.8f %#12.8f\n", count5, count5_prev, delta_cnt5,  bw_cnt5,
+		       bpc_tb_cnt5, bw_tb_cnt5);
+		printf("Retries - Store %016lx %016lx %016lx %#12.8f %#1.8f %#12.8f\n", count6, count6_prev, delta_cnt6,  bw_cnt6,
+		       bpc_tb_cnt6, bw_tb_cnt6);
+		printf("No cred cycles  %016lx %016lx %016lx %#12.8f %#1.8f %#12.8f\n", count7, count7_prev, delta_cnt7,  bw_cnt7,
+		       bpc_tb_cnt7, bw_tb_cnt7);
 
 		sleep(waitTime);
 	}
