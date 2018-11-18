@@ -538,16 +538,6 @@ int main(int argc, char *argv[])
 		delta_cnt6 = count6 - count6_prev;
 		delta_cnt7 = count7 - count7_prev;
 
-		count0_prev = count0;
-		count1_prev = count1;
-		count2_prev = count2;
-		count3_prev = count3;
-		count4_prev = count4;
-		count5_prev = count5;
-		count6_prev = count6;
-		count7_prev = count7;
-		c0Time_prev = c0Time;
-
 		printf("Total Cycles    %016lx %016lx %016lx %#12.8f %#1.8f %#12.8f\n", count0, count0_prev, delta_cnt0,  bw_cnt0,
 		       bpc_tb_cnt0, bw_tb_cnt0);
 		printf("Good Resp Total %016lx %016lx %016lx %#12.8f %#1.8f %#12.8f\n", count1, count1_prev, delta_cnt1,  bw_cnt1,
@@ -564,6 +554,16 @@ int main(int argc, char *argv[])
 		       bpc_tb_cnt6, bw_tb_cnt6);
 		printf("No cred cycles  %016lx %016lx %016lx %#12.8f %#1.8f %#12.8f\n", count7, count7_prev, delta_cnt7,  bw_cnt7,
 		       bpc_tb_cnt7, bw_tb_cnt7);
+
+		count0_prev = count0;
+		count1_prev = count1;
+		count2_prev = count2;
+		count3_prev = count3;
+		count4_prev = count4;
+		count5_prev = count5;
+		count6_prev = count6;
+		count7_prev = count7;
+		c0Time_prev = c0Time;
 
 		sleep(waitTime);
 	}
