@@ -53,13 +53,6 @@
 #define AFUPerfCnt6_AFP_REGISTER 0x00F0
 #define AFUPerfCnt7_AFP_REGISTER 0x00F8
 
-// per process mmio registers
-#define WED_REGISTER            0x0000
-#define ProcessHandle_REGISTER  0x0008
-#define ProcessStatus_REGISTER  0x0010
-#define ProcessControl_REGISTER 0x0018
-#define TimeBase_REGISTER       0x0040
-
 
 static int verbose;
 static int timeout = 1;
@@ -116,7 +109,7 @@ int main(int argc, char *argv[])
 	uint64_t *buffer;
 	ocxl_afu_h afu_h;
 	ocxl_err err;
-	ocxl_mmio_h pp_mmio, global;
+	ocxl_mmio_h global;
 
 	// Parse parameters
 	static struct option long_options[] = {
@@ -199,18 +192,17 @@ int main(int argc, char *argv[])
 				offsetmask = 0x1FFFF;
 			} else if (!strcasecmp(optarg, "1G")) {
 				offsetmask = 0x3FFFF;
-				printf("Warning:  1G offsetmask is bigger than the 512MB memory buffer allocated by this app\n");
 			} else if (!strcasecmp(optarg, "2G")) {
 				offsetmask = 0x7FFFF;
-				printf("Warning:  2G offsetmask is bigger than the 512MB memory buffer allocated by this app\n");
 			} else if (!strcasecmp(optarg, "4G")) {
 				offsetmask = 0xFFFFF;
-				printf("Warning:  4G offsetmask is bigger than the 512MB memory buffer allocated by this app\n");
 			} else {
 				printf("Illegal value entered for --offsetmask argument = 0x%lx  Must be string: 4K-512M\n", offsetmask);
 				print_help(argv[0]);
 				return -1;
 			}
+			if (offsetmask > 0x3FF)
+				printf("Warning: offsetmask is bigger than the 4MB memory buffer allocated by this app\n");
 			break;
 		case 't':
 			timeout = strtoul(optarg, NULL, 0);
@@ -264,7 +256,6 @@ int main(int argc, char *argv[])
 	if (verbose) {
 		printf("Calling ocxl_afu_open\n");
 	}
-
 	err = ocxl_afu_open(DEVICE, &afu_h);
 	if (err != OCXL_OK) {
 		printf(" Hit Error %d \n", err);
@@ -282,13 +273,7 @@ int main(int argc, char *argv[])
 		return err;
 	}
 
-	// map the mmio spaces
-	err = ocxl_mmio_map(afu_h, OCXL_PER_PASID_MMIO, &pp_mmio);
-	if (err != OCXL_OK) {
-		perror("per-process ocxl_mmio_map:"DEVICE);
-		return err;
-	}
-
+	// map the global mmio space
 	err = ocxl_mmio_map(afu_h, OCXL_GLOBAL_MMIO, &global);
 	if (err != OCXL_OK) {
 		perror("global ocxl_mmio_map:"DEVICE);
@@ -305,24 +290,16 @@ int main(int argc, char *argv[])
 	if (verbose)
 		printf("Allocated Buffer memory @ %p\n", buffer);
 
-
-	// init allocated memory if prefetch is enabled
-	// ??? Is 8kb still the right amount to prefetch?  Seems like we should initialize more than that if buffersize = 512MB.
-	// ??? How much can fit in cache?
 	if (prefetch) {
-		printf("Initializing allocated memory ..... \n");
-		int j;
-		for (j = 0; j < 64; j++) { // 8kb is 64 cache lines, need 64 writes to touch each line
-			buffer[j*16] = 0xDEADBEEF01234567;
-		}
+		printf("Initializing allocated memory\n");
+		memset(buffer, 0x66, BUF_4MB);
 	}
 
 	// Initialize WED value
 	wed_in = (uint64_t) buffer + (tags_ld * 512) + (size_enc_ld * 128) + (npu_ld * 64) + (tags_st * 8) +
 	         (size_enc_st * 2) + (npu_st);
-	if (verbose) {
-		printf("WED = %lu   0x%lx\n", wed_in, wed_in);
-	}
+	if (verbose)
+		printf("WED = 0x%lx\n", wed_in);
 
 	err = ocxl_mmio_write64(global, AFUWED_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, (uint64_t) wed_in);
 	if (err != OCXL_OK) {
@@ -330,14 +307,6 @@ int main(int argc, char *argv[])
 		return err;
 	}
 
-	struct timespec ts;
-	ts.tv_sec = 0;
-	ts.tv_nsec = 100000000;  // .1 sec
-	nanosleep(&ts, &ts);
-
-	// Initialize BUFMASK value
-	// ??? Hardcode for now - if (offsetmask_enabled)
-	//{
 	if (verbose)
 		printf("BUFMASK = %lx\n", offsetmask);
 	err = ocxl_mmio_write64(global, AFUBufmask_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, (uint64_t) offsetmask);
@@ -345,8 +314,6 @@ int main(int argc, char *argv[])
 		perror("ocxl_mmio_write64:"DEVICE);
 		return err;
 	}
-	nanosleep(&ts, &ts);
-	//}
 
 	if (verbose)
 		printf("CONTROL_REG(reset) = %lx\n", resetCnt);
@@ -355,7 +322,6 @@ int main(int argc, char *argv[])
 		perror("ocxl_mmio_write64:"DEVICE);
 		return err;
 	}
-	nanosleep(&ts, &ts);
 
 	// Set ENABLE value
 	if (verbose)
@@ -366,9 +332,9 @@ int main(int argc, char *argv[])
 		return err;
 	}
 
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////
 	// Measure bandwidth
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////
 	sleep(1);
 
 	uint16_t i;
@@ -382,7 +348,7 @@ int main(int argc, char *argv[])
 	double bw_tb_cnt0, bw_tb_cnt1, bw_tb_cnt2, bw_tb_cnt3, bw_tb_cnt4, bw_tb_cnt5, bw_tb_cnt6, bw_tb_cnt7;
 
 
-	printf("Counter\t\tCurr Count (64B)\tPrev Count\tCount Difference\tBW (GB/s) using App clock\tBytes or Events per AFP cycle\t\tBW using 200MHz AFU clock (GB/s)\n");
+	printf("Counter         Curr Count (64B) Prev Count       Count Diff.      BW (GB/s) using App clock\tBytes or Events per AFP cycle\t\tBW using 200MHz AFU clock (GB/s)\n");
 	printf("-----------------------------------------------------------------------------------------\n");
 
 	gettimeofday(&c0Time_prev, NULL);
@@ -392,49 +358,48 @@ int main(int argc, char *argv[])
 		perror("ocxl_mmio_read64:"DEVICE);
 		return err;
 	}
-	nanosleep(&ts, &ts);
+
 	err = ocxl_mmio_read64(global, AFUPerfCnt1_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, &count1_prev);
 	if (err != OCXL_OK) {
 		perror("ocxl_mmio_read64:"DEVICE);
 		return err;
 	}
-	nanosleep(&ts, &ts);
+
 	err = ocxl_mmio_read64(global, AFUPerfCnt2_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, &count2_prev);
 	if (err != OCXL_OK) {
 		perror("ocxl_mmio_read64:"DEVICE);
 		return err;
 	}
-	nanosleep(&ts, &ts);
+
 	err = ocxl_mmio_read64(global, AFUPerfCnt3_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, &count3_prev);
 	if (err != OCXL_OK) {
 		perror("ocxl_mmio_read64:"DEVICE);
 		return err;
 	}
-	nanosleep(&ts, &ts);
+
 	err = ocxl_mmio_read64(global, AFUPerfCnt4_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, &count4_prev);
 	if (err != OCXL_OK) {
 		perror("ocxl_mmio_read64:"DEVICE);
 		return err;
 	}
-	nanosleep(&ts, &ts);
+
 	err = ocxl_mmio_read64(global, AFUPerfCnt5_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, &count5_prev);
 	if (err != OCXL_OK) {
 		perror("ocxl_mmio_read64:"DEVICE);
 		return err;
 	}
-	nanosleep(&ts, &ts);
+
 	err = ocxl_mmio_read64(global, AFUPerfCnt6_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, &count6_prev);
 	if (err != OCXL_OK) {
 		perror("ocxl_mmio_read64:"DEVICE);
 		return err;
 	}
-	nanosleep(&ts, &ts);
+
 	err = ocxl_mmio_read64(global, AFUPerfCnt7_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, &count7_prev);
 	if (err != OCXL_OK) {
 		perror("ocxl_mmio_read64:"DEVICE);
 		return err;
 	}
-	nanosleep(&ts, &ts);
 
 	sleep(waitTime);
 	for (i=0; i<numLoops; i++) {
@@ -446,52 +411,50 @@ int main(int argc, char *argv[])
 			perror("ocxl_mmio_read64:"DEVICE);
 			return err;
 		}
-		nanosleep(&ts, &ts);
+
 		err = ocxl_mmio_read64(global, AFUPerfCnt1_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, &count1);
 		if (err != OCXL_OK) {
 			perror("ocxl_mmio_read64:"DEVICE);
 			return err;
 		}
-		nanosleep(&ts, &ts);
+
 		err = ocxl_mmio_read64(global, AFUPerfCnt2_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, &count2);
 		if (err != OCXL_OK) {
 			perror("ocxl_mmio_read64:"DEVICE);
 			return err;
 		}
-		nanosleep(&ts, &ts);
+
 		err = ocxl_mmio_read64(global, AFUPerfCnt3_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, &count3);
 		if (err != OCXL_OK) {
 			perror("ocxl_mmio_read64:"DEVICE);
 			return err;
 		}
-		nanosleep(&ts, &ts);
+
 		err = ocxl_mmio_read64(global, AFUPerfCnt4_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, &count4);
 		if (err != OCXL_OK) {
 			perror("ocxl_mmio_read64:"DEVICE);
 			return err;
 		}
-		nanosleep(&ts, &ts);
+
 		err = ocxl_mmio_read64(global, AFUPerfCnt5_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, &count5);
 		if (err != OCXL_OK) {
 			perror("ocxl_mmio_read64:"DEVICE);
 			return err;
 		}
-		nanosleep(&ts, &ts);
+
 		err = ocxl_mmio_read64(global, AFUPerfCnt6_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, &count6);
 		if (err != OCXL_OK) {
 			perror("ocxl_mmio_read64:"DEVICE);
 			return err;
 		}
-		nanosleep(&ts, &ts);
+
 		err = ocxl_mmio_read64(global, AFUPerfCnt7_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, &count7);
 		if (err != OCXL_OK) {
 			perror("ocxl_mmio_read64:"DEVICE);
 			return err;
 		}
-		nanosleep(&ts, &ts);
 
 		c0TimeElapsed = (c0Time.tv_sec - c0Time_prev.tv_sec) * 1000000 + c0Time.tv_usec - c0Time_prev.tv_usec;
-
 		cyclesElapsed = count0 - count0_prev;
 
 		bw_cnt0 = (double)(count0 - count0_prev) * (1 / (c0TimeElapsed / 1000000)) / 1000000000; //  convert to Billion cycles
@@ -554,6 +517,7 @@ int main(int argc, char *argv[])
 		       bpc_tb_cnt6, bw_tb_cnt6);
 		printf("No cred cycles  %016lx %016lx %016lx %#12.8f %#1.8f %#12.8f\n", count7, count7_prev, delta_cnt7,  bw_cnt7,
 		       bpc_tb_cnt7, bw_tb_cnt7);
+		printf("\n");
 
 		count0_prev = count0;
 		count1_prev = count1;
@@ -577,10 +541,8 @@ int main(int argc, char *argv[])
 		return err;
 	}
 
-	sleep(1);
-
-	printf("Free afu\n");
+	if (verbose)
+		printf("Free afu\n");
 	ocxl_afu_close(afu_h);
-
 	return 0;
 }
