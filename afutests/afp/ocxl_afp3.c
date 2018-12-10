@@ -105,6 +105,7 @@ int main(int argc, char *argv[])
 	int size_enc_st;
 	int option_index = 0;
 	int prefetch = 0;
+	uint64_t pasid;
 	uint64_t wed_in = 0;
 	uint64_t *buffer;
 	ocxl_afu_h afu_h;
@@ -293,6 +294,16 @@ int main(int argc, char *argv[])
 	if (prefetch) {
 		printf("Initializing allocated memory\n");
 		memset(buffer, 0x66, BUF_4MB);
+	}
+
+	// Get the PASID for the currently open context.
+	pasid = ocxl_afu_get_pasid(afu_h);
+	if (verbose)
+		printf("PASID = %ld\n", pasid);
+	err = ocxl_mmio_write64(global, AFUPASID_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, pasid);
+	if (err != OCXL_OK) {
+		perror("ocxl_mmio_write64:"DEVICE);
+		return err;
 	}
 
 	// Initialize WED value
