@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+// Needed for le32toh() and friends when building against glibc version < 2.20
+#define _BSD_SOURCE
+
 #include "libocxl_internal.h"
 #include "sys/mman.h"
 #include "errno.h"
