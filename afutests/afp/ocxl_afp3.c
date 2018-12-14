@@ -64,7 +64,7 @@ static int npu_ld = 0;
 static int npu_st = 0;
 static uint16_t numLoops = 3;
 static uint16_t waitTime = 2;
-static uint64_t offsetmask = 0x7f;   // Default to 512kB
+static uint64_t offsetmask = 0x3FF;   // Default to 4MB
 
 static uint64_t enableAfu   = 0x8000000000000000;
 static uint64_t disableAfu  = 0x0000000000000000;
