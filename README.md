@@ -17,6 +17,17 @@ to the IRQ.
 Functions are provide to allow 32 & 64 bit access to the global and per-PASID MMIO
 areas on the the AFU. Endian conversion is handled automatically.
 
+## Installation
+LibOCXL is available in popular Linux distributions for PPC64le. To install:
+### Redhat
+`yum install libocxl-devel`
+
+### Fedora
+`dnf install libocxl-devel`
+
+### Ubuntu/Debian
+`apt install libocxl-dev`
+
 # Building
 ## Prerequisites
 1. A GCC toolchain with libc (if cross compiling), crosstool-ng can build a suitable toolchain
