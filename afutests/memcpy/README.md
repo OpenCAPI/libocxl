@@ -16,6 +16,7 @@ Usage
     $ ../../afuobj/ocxl_memcpy -A  # Test memcpy AFU atomic compare and swap
     $ ../../afuobj/ocxl_memcpy -a  # Test memcpy AFU increment
 
+```
     Usage: ocxl_memcpy [ options ]
     Options:
         -A            Run the atomic compare and swap test
@@ -27,4 +28,4 @@ Usage
         -r            Reallocate the destination buffer in between 2 loops
         -s <bufsize>  Copy this number of bytes (default 2048)
         -t <timeout>  Seconds to wait for the AFU to signal completion
-
+```
