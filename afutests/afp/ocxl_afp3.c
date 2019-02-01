@@ -23,7 +23,7 @@
 #include <time.h>
 
 #include "libocxl.h"
-#define DEVICE "IBM,AFP3"
+#define AFU_NAME "IBM,AFP3"
 
 #define CACHELINE_BYTES 128
 #define PAGE_BYTES 4096
@@ -91,6 +91,7 @@ static void print_help(char *name)
 	printf("\t--prefetch  \tInitialize buffer memory\n");
 	printf("\t--offsetmask\tDetermines how much of buffer to use.  Default 512kB.  Valid Range: 4K-512M.  Format: NumberLetter, e.g. 4K, 512K, 1M, 512M\n");
 	printf("\t--timeout   \tDefault=%d seconds\n", timeout);
+	printf("\t--device    \tDevice to open instead of first AFP AFU found\n");
 	printf("\t--verbose   \tVerbose output\n");
 	printf("\t--help      \tPrint this message\n");
 	printf("\n");
@@ -110,6 +111,7 @@ int main(int argc, char *argv[])
 	ocxl_afu_h afu_h;
 	ocxl_err err;
 	ocxl_mmio_h global;
+	char *device = NULL;
 
 	// Parse parameters
 	static struct option long_options[] = {
@@ -124,10 +126,11 @@ int main(int argc, char *argv[])
 		{"timeout", required_argument, 0, 't'},
 		{"verbose", no_argument, &verbose,  1 },
 		{"help", no_argument, 0, 'h'},
+		{"device", required_argument, 0, 'd'},
 		{NULL, 0, 0, 0}
 	};
 
-	while ((opt = getopt_long(argc, argv, "avhc:t:", long_options, &option_index)) >= 0) {
+	while ((opt = getopt_long(argc, argv, "avhc:t:d:", long_options, &option_index)) >= 0) {
 		switch (opt) {
 		case 0:
 		case 'v':
@@ -207,6 +210,9 @@ int main(int argc, char *argv[])
 		case 't':
 			timeout = strtoul(optarg, NULL, 0);
 			break;
+		case 'd':
+			device = optarg;
+			break;
 		case 'h':
 			print_help(argv[0]);
 			return 0;
@@ -256,10 +262,13 @@ int main(int argc, char *argv[])
 	if (verbose) {
 		printf("Calling ocxl_afu_open\n");
 	}
-	err = ocxl_afu_open(DEVICE, &afu_h);
+	if (device)
+		err = ocxl_afu_open_from_dev(device, &afu_h);
+	else
+		err = ocxl_afu_open(AFU_NAME, &afu_h);
 	if (err != OCXL_OK) {
 		fprintf(stderr, "ocxl_afu_open() failed for %s, error %d\n",
-			DEVICE, err);
+			device ? device : AFU_NAME, err);
 		return err;
 	}
 
