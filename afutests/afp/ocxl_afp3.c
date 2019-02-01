@@ -15,7 +15,6 @@
  */
 
 #include <unistd.h>
-#include <errno.h>
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -198,7 +197,7 @@ int main(int argc, char *argv[])
 			} else if (!strcasecmp(optarg, "4G")) {
 				offsetmask = 0xFFFFF;
 			} else {
-				printf("Illegal value entered for --offsetmask argument = 0x%lx  Must be string: 4K-512M\n", offsetmask);
+				fprintf(stderr, "Illegal value entered for --offsetmask argument = 0x%lx  Must be string: 4K-512M\n", offsetmask);
 				print_help(argv[0]);
 				return -1;
 			}
@@ -231,7 +230,7 @@ int main(int argc, char *argv[])
 		size_enc_ld = 3;
 		break;
 	default:
-		printf("Illegal value entered for --size_ld argument = %d\n", size_ld);
+		fprintf(stderr, "Illegal value entered for --size_ld argument = %d\n", size_ld);
 		print_help(argv[0]);
 		return -1;
 	}
@@ -247,7 +246,7 @@ int main(int argc, char *argv[])
 		size_enc_st = 3;
 		break;
 	default:
-		printf("Illegal value entered for --size_st argument = %d\n", size_st);
+		fprintf(stderr, "Illegal value entered for --size_st argument = %d\n", size_st);
 		print_help(argv[0]);
 		return -1;
 	}
@@ -259,8 +258,8 @@ int main(int argc, char *argv[])
 	}
 	err = ocxl_afu_open(DEVICE, &afu_h);
 	if (err != OCXL_OK) {
-		printf(" Hit Error %d \n", err);
-		perror("ocxl_afu_open:"DEVICE);
+		fprintf(stderr, "ocxl_afu_open() failed for %s, error %d\n",
+			DEVICE, err);
 		return err;
 	}
 
@@ -270,14 +269,14 @@ int main(int argc, char *argv[])
 	}
 	err = ocxl_afu_attach(afu_h, OCXL_ATTACH_FLAGS_NONE);
 	if (err != OCXL_OK) {
-		perror("ocxl_afu_attach:"DEVICE);
+		fprintf(stderr, "ocxl_afu_attach: %d", err);
 		return err;
 	}
 
 	// map the global mmio space
 	err = ocxl_mmio_map(afu_h, OCXL_GLOBAL_MMIO, &global);
 	if (err != OCXL_OK) {
-		perror("global ocxl_mmio_map:"DEVICE);
+		fprintf(stderr, "global ocxl_mmio_map: %d", err);
 		return err;
 	}
 
@@ -285,7 +284,7 @@ int main(int argc, char *argv[])
 	// Allocate a buffer for "to" memory buffer. Force alignment of address on cacheline boundary.
 	rc = posix_memalign((void **) &buffer, BUF_4MB, BUF_4MB);
 	if (rc) {
-		fprintf(stderr, "Memory alloc failed for buffer: %d ", rc);
+		fprintf(stderr, "Memory alloc failed for buffer: %d", rc);
 		return rc;
 	}
 	if (verbose)
@@ -302,7 +301,7 @@ int main(int argc, char *argv[])
 		printf("PASID = %ld\n", pasid);
 	err = ocxl_mmio_write64(global, AFUPASID_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, pasid);
 	if (err != OCXL_OK) {
-		perror("ocxl_mmio_write64:"DEVICE);
+		fprintf(stderr, "ocxl_mmio_write64: %d", err);
 		return err;
 	}
 
@@ -314,7 +313,7 @@ int main(int argc, char *argv[])
 
 	err = ocxl_mmio_write64(global, AFUWED_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, (uint64_t) wed_in);
 	if (err != OCXL_OK) {
-		perror("ocxl_mmio_write64:"DEVICE);
+		fprintf(stderr, "ocxl_mmio_write64: %d", err);
 		return err;
 	}
 
@@ -322,7 +321,7 @@ int main(int argc, char *argv[])
 		printf("BUFMASK = %lx\n", offsetmask);
 	err = ocxl_mmio_write64(global, AFUBufmask_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, (uint64_t) offsetmask);
 	if (err != OCXL_OK) {
-		perror("ocxl_mmio_write64:"DEVICE);
+		fprintf(stderr, "ocxl_mmio_write64: %d", err);
 		return err;
 	}
 
@@ -330,7 +329,7 @@ int main(int argc, char *argv[])
 		printf("CONTROL_REG(reset) = %lx\n", resetCnt);
 	err = ocxl_mmio_write64(global, AFUControl_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, (uint64_t) resetCnt);
 	if (err != OCXL_OK) {
-		perror("ocxl_mmio_write64:"DEVICE);
+		fprintf(stderr, "ocxl_mmio_write64: %d", err);
 		return err;
 	}
 
@@ -339,7 +338,7 @@ int main(int argc, char *argv[])
 		printf("ENABLE_REG = %lx\n", enableAfu);
 	err = ocxl_mmio_write64(global, AFUEnable_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, (uint64_t) enableAfu);
 	if (err != OCXL_OK) {
-		perror("ocxl_mmio_write64:"DEVICE);
+		fprintf(stderr, "ocxl_mmio_write64: %d", err);
 		return err;
 	}
 
@@ -366,49 +365,49 @@ int main(int argc, char *argv[])
 
 	err = ocxl_mmio_read64(global, AFUPerfCnt0_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, &count0_prev);
 	if (err != OCXL_OK) {
-		perror("ocxl_mmio_read64:"DEVICE);
+		fprintf(stderr, "ocxl_mmio_read64: %d", err);
 		return err;
 	}
 
 	err = ocxl_mmio_read64(global, AFUPerfCnt1_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, &count1_prev);
 	if (err != OCXL_OK) {
-		perror("ocxl_mmio_read64:"DEVICE);
+		fprintf(stderr, "ocxl_mmio_read64: %d", err);
 		return err;
 	}
 
 	err = ocxl_mmio_read64(global, AFUPerfCnt2_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, &count2_prev);
 	if (err != OCXL_OK) {
-		perror("ocxl_mmio_read64:"DEVICE);
+		fprintf(stderr, "ocxl_mmio_read64: %d", err);
 		return err;
 	}
 
 	err = ocxl_mmio_read64(global, AFUPerfCnt3_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, &count3_prev);
 	if (err != OCXL_OK) {
-		perror("ocxl_mmio_read64:"DEVICE);
+		fprintf(stderr, "ocxl_mmio_read64: %d", err);
 		return err;
 	}
 
 	err = ocxl_mmio_read64(global, AFUPerfCnt4_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, &count4_prev);
 	if (err != OCXL_OK) {
-		perror("ocxl_mmio_read64:"DEVICE);
+		fprintf(stderr, "ocxl_mmio_read64: %d", err);
 		return err;
 	}
 
 	err = ocxl_mmio_read64(global, AFUPerfCnt5_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, &count5_prev);
 	if (err != OCXL_OK) {
-		perror("ocxl_mmio_read64:"DEVICE);
+		fprintf(stderr, "ocxl_mmio_read64: %d", err);
 		return err;
 	}
 
 	err = ocxl_mmio_read64(global, AFUPerfCnt6_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, &count6_prev);
 	if (err != OCXL_OK) {
-		perror("ocxl_mmio_read64:"DEVICE);
+		fprintf(stderr, "ocxl_mmio_read64: %d", err);
 		return err;
 	}
 
 	err = ocxl_mmio_read64(global, AFUPerfCnt7_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, &count7_prev);
 	if (err != OCXL_OK) {
-		perror("ocxl_mmio_read64:"DEVICE);
+		fprintf(stderr, "ocxl_mmio_read64: %d", err);
 		return err;
 	}
 
@@ -419,49 +418,49 @@ int main(int argc, char *argv[])
 
 		err = ocxl_mmio_read64(global, AFUPerfCnt0_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, &count0);
 		if (err != OCXL_OK) {
-			perror("ocxl_mmio_read64:"DEVICE);
+			fprintf(stderr, "ocxl_mmio_read64: %d", err);
 			return err;
 		}
 
 		err = ocxl_mmio_read64(global, AFUPerfCnt1_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, &count1);
 		if (err != OCXL_OK) {
-			perror("ocxl_mmio_read64:"DEVICE);
+			fprintf(stderr, "ocxl_mmio_read64: %d", err);
 			return err;
 		}
 
 		err = ocxl_mmio_read64(global, AFUPerfCnt2_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, &count2);
 		if (err != OCXL_OK) {
-			perror("ocxl_mmio_read64:"DEVICE);
+			fprintf(stderr, "ocxl_mmio_read64: %d", err);
 			return err;
 		}
 
 		err = ocxl_mmio_read64(global, AFUPerfCnt3_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, &count3);
 		if (err != OCXL_OK) {
-			perror("ocxl_mmio_read64:"DEVICE);
+			fprintf(stderr, "ocxl_mmio_read64: %d", err);
 			return err;
 		}
 
 		err = ocxl_mmio_read64(global, AFUPerfCnt4_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, &count4);
 		if (err != OCXL_OK) {
-			perror("ocxl_mmio_read64:"DEVICE);
+			fprintf(stderr, "ocxl_mmio_read64: %d", err);
 			return err;
 		}
 
 		err = ocxl_mmio_read64(global, AFUPerfCnt5_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, &count5);
 		if (err != OCXL_OK) {
-			perror("ocxl_mmio_read64:"DEVICE);
+			fprintf(stderr, "ocxl_mmio_read64: %d", err);
 			return err;
 		}
 
 		err = ocxl_mmio_read64(global, AFUPerfCnt6_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, &count6);
 		if (err != OCXL_OK) {
-			perror("ocxl_mmio_read64:"DEVICE);
+			fprintf(stderr, "ocxl_mmio_read64: %d", err);
 			return err;
 		}
 
 		err = ocxl_mmio_read64(global, AFUPerfCnt7_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, &count7);
 		if (err != OCXL_OK) {
-			perror("ocxl_mmio_read64:"DEVICE);
+			fprintf(stderr, "ocxl_mmio_read64: %d", err);
 			return err;
 		}
 
@@ -548,7 +547,7 @@ int main(int argc, char *argv[])
 	// stop afu
 	err = ocxl_mmio_write64(global, AFUEnable_AFP_REGISTER, OCXL_MMIO_LITTLE_ENDIAN, disableAfu);
 	if (err != OCXL_OK) {
-		perror("ocxl_mmio_write64:"DEVICE);
+		fprintf(stderr, "ocxl_mmio_write64: %d", err);
 		return err;
 	}
 
