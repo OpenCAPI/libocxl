@@ -663,7 +663,7 @@ void usage(char *name)
 	fprintf(stderr, "\t-w\t\tSend a wake_host_thread command after copy\n");
 	fprintf(stderr, "\t-l <loops>\tRun this number of memcpy loops (default 1)\n");
 	fprintf(stderr, "\t-p <procs>\tFork this number of processes (default 1)\n");
-	fprintf(stderr, "\t\t\tUse -p0 to fork as many of processes as permitted by AFU\n");
+	fprintf(stderr, "\t-p 0\t\tUse the maximum number of processes permitted by the AFU\n");
 	fprintf(stderr, "\t-r\t\tReallocate the destination buffer in between 2 loops\n");
 	fprintf(stderr, "\t-s <bufsize>\tCopy this number of bytes (default 2048)\n");
 	fprintf(stderr, "\t-t <timeout>\tSeconds to wait for the AFU to signal completion\n");
