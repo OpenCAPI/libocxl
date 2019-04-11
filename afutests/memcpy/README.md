@@ -25,6 +25,7 @@ Usage
         -i            Send an interrupt after copy
         -l <loops>    Run this number of memcpy loops (default 1)
         -p <procs>    Fork this number of processes (default 1)
+        -p 0          Use the maximum number of processes permitted by the AFU
         -r            Reallocate the destination buffer in between 2 loops
         -s <bufsize>  Copy this number of bytes (default 2048)
         -t <timeout>  Seconds to wait for the AFU to signal completion

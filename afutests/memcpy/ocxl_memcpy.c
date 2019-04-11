@@ -33,6 +33,7 @@
 #define LOG_INF(pid, fmt, x...) printf("Process %d: " fmt, pid, ##x)
 
 #define AFU_NAME "IBM,MEMCPY3"
+#define AFU_MAX_PROCESSES 512
 
 #define CACHELINESIZE	128
 /* Queue sizes other than 512kB don't seem to work (still true?) */
@@ -662,6 +663,7 @@ void usage(char *name)
 	fprintf(stderr, "\t-w\t\tSend a wake_host_thread command after copy\n");
 	fprintf(stderr, "\t-l <loops>\tRun this number of memcpy loops (default 1)\n");
 	fprintf(stderr, "\t-p <procs>\tFork this number of processes (default 1)\n");
+	fprintf(stderr, "\t-p 0\t\tUse the maximum number of processes permitted by the AFU\n");
 	fprintf(stderr, "\t-r\t\tReallocate the destination buffer in between 2 loops\n");
 	fprintf(stderr, "\t-s <bufsize>\tCopy this number of bytes (default 2048)\n");
 	fprintf(stderr, "\t-t <timeout>\tSeconds to wait for the AFU to signal completion\n");
@@ -728,6 +730,9 @@ int main(int argc, char *argv[])
 			break;
 		}
 	}
+
+	if (processes == 0)
+		processes = AFU_MAX_PROCESSES;
 
 	if (args.completion_timeout == -1) {
 		args.completion_timeout = processes / 5;
