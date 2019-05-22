@@ -97,10 +97,12 @@ struct memcpy_test_args {
 	int irq;
 	int completion_timeout;
 	int reallocate;
+	int initialize;
 	char *device;
 	int wake_host_thread;
 	int increment;
 	int atomic_cas;
+	int shared_mem;
 	/* global vars */
 	int shmid;
 	char *lock;
@@ -208,8 +210,6 @@ int shm_create(struct memcpy_test_args *args)
 		perror("Error getting shared memory segment");
 		return -1;
 	}
-	printf("Shared memory segment ID: %i\n", args->shmid);
-
 	args->lock = shmat(args->shmid, NULL, 0);
 	if (args->lock == (char *)-1) {
 		perror("Unable to attach shared memory segment");
@@ -217,12 +217,7 @@ int shm_create(struct memcpy_test_args *args)
 			perror("Error destroying shared memory segment");
 		return -1;
 	}
-	printf("Shared memory attached at: %p\n", args->lock);
-
-	/* initialize lock and counter */
-	memset(args->lock, 0, args->size);
 	args->counter = args->lock + args->size;
-	memset(args->counter, 0, args->size);
 	return 0;
 }
 
@@ -390,8 +385,17 @@ int test_afu_memcpy(struct memcpy_test_args *args)
 	pid = getpid();
 
 	/* Allocate memory areas for afu to copy to/from */
-	src = aligned_alloc(64, getpagesize());
-
+	if (args->shared_mem) {
+		rc = shm_create(args);
+		if (rc)
+			exit(1);
+		src = args->counter;
+		dst = args->lock;
+		memcpy_we.src = htole64((uintptr_t) src);
+		memcpy_we.dst = htole64((uintptr_t) dst);
+	} else {
+		src = aligned_alloc(64, getpagesize());
+	}
 	if (args->atomic_cas) {
 		dst = args->lock;
 	} else {
@@ -605,16 +609,25 @@ int test_afu_memcpy(struct memcpy_test_args *args)
 			 * unmap/remap the destination buffer to force a TLBI
 			 * and extra memory translation with each loop
 			 */
-			munmap(dst, getpagesize());
-			dst = mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-			if (dst == MAP_FAILED) {
-				LOG_ERR(pid, "reallocation of destination buffer failed\n");
-				goto err;
+			if (args->shared_mem) {
+				shm_destroy(args);
+				shm_create(args);
+				src = args->counter;
+				dst = args->lock;
+				memcpy_we.src = htole64((uintptr_t) src);
+			} else {
+				munmap(dst, getpagesize());
+				dst = mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+				if (dst == MAP_FAILED) {
+					LOG_ERR(pid, "reallocation of destination buffer failed\n");
+					goto err;
+				}
 			}
-			if (args->increment)
-				increment_we.dst = htole64((uintptr_t) dst);
-			else
-				memcpy_we.dst = htole64((uintptr_t) dst);
+			memcpy_we.dst = htole64((uintptr_t) dst);
+			if (args->initialize) {
+				/* let us fault in the destination buffer */
+				memset(dst, 0, args->size);
+			}
 		} else if (! args->atomic_cas) {
 			memset(dst, 0, args->size);
 		}
@@ -639,6 +652,8 @@ int test_afu_memcpy(struct memcpy_test_args *args)
 
 	LOG_INF(pid, "%d loops in %d uS (%0.2f uS per loop)\n", args->loop_count, t, ((float) t)/args->loop_count);
 	ocxl_afu_close(afu_h);
+	if (args->shared_mem)
+		shm_destroy(args);
 	return 0;
 
 err_status:
@@ -649,6 +664,8 @@ err_status:
 		LOG_ERR(pid, "process status at end of failed test=0x%lx\n", status);
 err:
 	ocxl_afu_close(afu_h);
+	if (args->shared_mem)
+		shm_destroy(args);
 	return -1;
 }
 
@@ -659,12 +676,14 @@ void usage(char *name)
 	fprintf(stderr, "\t-A\t\tRun the atomic compare and swap test\n");
 	fprintf(stderr, "\t-a\t\tRun the increment test\n");
 	fprintf(stderr, "\t-d <device>\tUse this opencapi card\n");
+	fprintf(stderr, "\t-I\t\tInitialize the destination buffer after each loop\n");
 	fprintf(stderr, "\t-i\t\tSend an interrupt after copy\n");
 	fprintf(stderr, "\t-w\t\tSend a wake_host_thread command after copy\n");
 	fprintf(stderr, "\t-l <loops>\tRun this number of memcpy loops (default 1)\n");
 	fprintf(stderr, "\t-p <procs>\tFork this number of processes (default 1)\n");
 	fprintf(stderr, "\t-p 0\t\tUse the maximum number of processes permitted by the AFU\n");
 	fprintf(stderr, "\t-r\t\tReallocate the destination buffer in between 2 loops\n");
+	fprintf(stderr, "\t-S\t\tOperate on shared memory\n");
 	fprintf(stderr, "\t-s <bufsize>\tCopy this number of bytes (default 2048)\n");
 	fprintf(stderr, "\t-t <timeout>\tSeconds to wait for the AFU to signal completion\n");
 	exit(1);
@@ -681,16 +700,18 @@ int main(int argc, char *argv[])
 	args.irq = 0;
 	args.completion_timeout = -1;
 	args.reallocate = 0;
+	args.initialize = 0;
 	args.device = NULL;
 	args.wake_host_thread = 0;
 	args.increment = 0;
 	args.atomic_cas = 0;
+	args.shared_mem = 0;
 	args.shmid = -1;
 	args.lock = NULL;
 	args.counter = NULL;
 
 	while (1) {
-		c = getopt(argc, argv, "+aAhl:p:s:it:rd:w");
+		c = getopt(argc, argv, "+aAhl:p:Ss:Iit:rd:w");
 		if (c < 0)
 			break;
 		switch (c) {
@@ -716,6 +737,9 @@ int main(int argc, char *argv[])
 		case 'r':
 			args.reallocate = 1;
 			break;
+		case 'I':
+			args.initialize = 1;
+			break;
 		case 'd':
 			args.device = optarg;
 			break;
@@ -727,6 +751,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'A':
 			args.atomic_cas = 1;
+			break;
+		case 'S':
+			args.shared_mem = 1;
 			break;
 		}
 	}
@@ -755,6 +782,21 @@ int main(int argc, char *argv[])
 		usage(argv[0]);
 	}
 
+	if (args.atomic_cas && args.shared_mem) {
+		fprintf(stderr, "Error: -A and -S are mutually exclusive\n");
+		usage(argv[0]);
+	}
+
+	if (args.increment && args.reallocate) {
+		fprintf(stderr, "Error: -a and -r are mutually exclusive\n");
+		usage(argv[0]);
+	}
+
+	if (args.increment && args.shared_mem) {
+		fprintf(stderr, "Error: -a and -S are mutually exclusive\n");
+		usage(argv[0]);
+	}
+
 	rc = global_setup(&args);
 	if (rc)
 		exit(1);
@@ -763,6 +805,11 @@ int main(int argc, char *argv[])
 		rc = shm_create(&args);
 		if (rc)
 			exit(1);
+
+		/* initialize lock and counter */
+		memset(args.lock, 0, args.size);
+		memset(args.counter, 0, args.size);
+		printf("Shared memory ID: %i attached at: %p\n", args.shmid, args.lock);
 	}
 
 	for (i = 0; i < processes; i++) {
