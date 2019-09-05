@@ -112,13 +112,13 @@ static ocxl_err irq_allocate(ocxl_afu *afu, ocxl_irq *irq, void *info)
 
 	int rc = ioctl(afu->fd, OCXL_IOCTL_IRQ_ALLOC, &irq->event.irq_offset);
 	if (rc) {
-		errmsg(afu, ret, "Could not allocate IRQ in kernel: %d", rc);
+		errmsg(afu, ret, "Could not allocate IRQ in kernel: %d: '%s'", errno, strerror(errno));
 		goto errend;
 	}
 
 	rc = ioctl(afu->fd, OCXL_IOCTL_IRQ_SET_FD, &irq->event);
 	if (rc) {
-		errmsg(afu, ret, "Could not set event descriptor in kernel: %d", rc);
+		errmsg(afu, ret, "Could not set event descriptor in kernel: %d: '%s'", errno, strerror(errno));
 		goto errend;
 	}
 
