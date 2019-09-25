@@ -25,11 +25,11 @@ check_ocxl_header:
 ifeq ($(call CHECK_OCXL_HEADER_IS_UP_TO_DATE,'<misc/ocxl.h>'),n)
 	mkdir -p kernel/include/misc
 ifeq (${HAS_WGET},y)
-	$(call Q,WGET kernel/include/misc/ocxl.h, wget -O kernel/include/misc/ocxl.h -q http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/plain/include/uapi/misc/ocxl.h)
+	$(call Q,WGET kernel/include/misc/ocxl.h, wget -O kernel/include/misc/ocxl.h -q https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/plain/include/uapi/misc/ocxl.h)
 else ifeq (${HAS_CURL},y)
-	$(call Q,CURL kernel/include/misc/ocxl.h, curl -o kernel/include/misc/ocxl.h -s http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/plain/include/uapi/misc/ocxl.h)
+	$(call Q,CURL kernel/include/misc/ocxl.h, curl -o kernel/include/misc/ocxl.h -s https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/plain/include/uapi/misc/ocxl.h)
 else
-	$(error 'ocxl.h is non-existant or out of date, Download from http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/plain/include/uapi/misc/ocxl.h and place in ${PWD}/kernel/include/misc/ocxl.h')
+	$(error 'ocxl.h is non-existant or out of date, Download from https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/plain/include/uapi/misc/ocxl.h and place in ${PWD}/kernel/include/misc/ocxl.h')
 endif
 endif
 
