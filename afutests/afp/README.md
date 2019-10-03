@@ -1,7 +1,7 @@
-ocxl_afp3
-=========
+ocxl_afp3, ocxl_afp3_latency
+============================
 
-`ocxl_afp3` is a test program for the OpenCAPI AFU IBM,AFP3 (used for
+`ocxl_afp3` and 'ocxl_afp3_latency' are test programs for the OpenCAPI AFU IBM,AFP3 (used for
 development).
 
 Requirements
@@ -40,6 +40,21 @@ Usage
                       Default 512kB.  Valid Range: 4K-512M.
                       Format: NumberLetter, e.g. 4K, 512K, 1M, 512M
         --timeout     Default=1 seconds
+	--device      Device to open instead of first AFP AFU found
         --verbose     Verbose output
         --help        Print this message
+```
+
+
+    $ ../../afuobj/ocxl_afp3_latency
+    
+```
+    Usage: /home/fbarrat/capi/libocxl/afuobj/ocxl_afp3_latency [ options ]
+        -i 10000     --iterations       Default=10000
+        -p 64 to 512 --pong             Pong size from card to host (Bytes) Default=64
+        -x           --extraread        Add an DMA extraread before the DMA Wr Default is no
+        -f           --forever          Run until CTRL+C, Default=no
+        -d           --device           Device to open instead of first AFP AFU found
+        -v           --verbose          Verbose output
+        -h           --help             Print this message
 ```

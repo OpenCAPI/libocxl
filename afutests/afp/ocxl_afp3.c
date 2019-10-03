@@ -23,6 +23,8 @@
 #include <time.h>
 
 #include "libocxl.h"
+#include "ocxl_afp3.h"
+
 #define AFU_NAME "IBM,AFP3"
 
 #define CACHELINE_BYTES 128
@@ -30,27 +32,6 @@
 #define AFU_MMIO_REG_SIZE 0x4000000
 #define BUF_512MB 536870912
 #define BUF_4MB 4194304
-
-// global mmio registers
-#define AFUConfiguration_REGISTER     0x0000
-#define AFUInternalError_REGISTER     0x0010
-#define AFUInternalErrorInfo_REGISTER 0x0018
-#define AFUTraceControl_REGISTER      0x0020
-
-// global AFP3 registers
-#define AFUWED_AFP_REGISTER     0x0040
-#define AFUBufmask_AFP_REGISTER 0x0048
-#define AFUPASID_AFP_REGISTER   0x0050
-#define AFUEnable_AFP_REGISTER  0x0060
-#define AFUControl_AFP_REGISTER 0x0068
-#define AFUPerfCnt0_AFP_REGISTER 0x00C0
-#define AFUPerfCnt1_AFP_REGISTER 0x00C8
-#define AFUPerfCnt2_AFP_REGISTER 0x00D0
-#define AFUPerfCnt3_AFP_REGISTER 0x00D8
-#define AFUPerfCnt4_AFP_REGISTER 0x00E0
-#define AFUPerfCnt5_AFP_REGISTER 0x00E8
-#define AFUPerfCnt6_AFP_REGISTER 0x00F0
-#define AFUPerfCnt7_AFP_REGISTER 0x00F8
 
 
 static int verbose;
