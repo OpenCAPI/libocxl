@@ -584,6 +584,14 @@ int test_afu_memcpy(struct memcpy_test_args *args)
 			LOG_ERR(pid, "unexpected status 0x%x for wake_host_thread\n", last_we->status);
 			goto err_status;
 		}
+
+		/*
+		 * The memory barrier is to avoid instructions
+		 * re-ordering and make sure no output addresses are
+		 * read before the work element status is complete
+		 */
+		__sync_synchronize();
+
 		if (args->atomic_cas) {
 			;	/* atomicity is checked at the end of main() */
 		} else if (args->increment && i) {
