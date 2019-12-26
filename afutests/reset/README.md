@@ -1,5 +1,5 @@
-ocxl_memcpy
-===========
+ocxl_reset_tests.sh
+===================
 
 `ocxl_reset_tests.sh` is a script for testing the reset of an OpenCAPI card.
 
