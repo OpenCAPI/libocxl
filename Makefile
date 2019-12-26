@@ -12,7 +12,7 @@ SONAMEOPT = -Wl,-soname,$(LIBSONAME)
 
 DOCDIR = docs
 
-all: check_ocxl_header obj/$(LIBSONAME) obj/libocxl.so obj/libocxl.a sampleobj/memcpy afuobj/ocxl_memcpy afuobj/ocxl_afp3
+all: check_ocxl_header obj/$(LIBSONAME) obj/libocxl.so obj/libocxl.a sampleobj/memcpy afuobj/ocxl_memcpy afuobj/ocxl_afp3 afuobj/ocxl_reset_tests.sh
 
 HAS_WGET = $(shell /bin/which wget > /dev/null 2>&1 && echo y || echo n)
 HAS_CURL = $(shell /bin/which curl > /dev/null 2>&1 && echo y || echo n)
@@ -61,6 +61,10 @@ afuobj/ocxl_memcpy: afuobj/ocxl_memcpy.o-memcpy
 
 afuobj/ocxl_afp3: afuobj/ocxl_afp3.o-afp
 	$(call Q,CC, $(CC) $(CFLAGS) $(LDFLAGS) -o afuobj/ocxl_afp3 afuobj/ocxl_afp3.o-afp obj/libocxl.a, afuobj/ocxl_afp3)
+
+afuobj/ocxl_reset_tests.sh: afutests/reset/ocxl_reset_tests.sh
+	cp afutests/reset/ocxl_reset_tests.sh afuobj/ocxl_reset_tests.sh
+	chmod +x afuobj/ocxl_reset_tests.sh
 
 testobj:
 	mkdir testobj
