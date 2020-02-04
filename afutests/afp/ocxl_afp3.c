@@ -37,7 +37,7 @@
 static int verbose;
 static int timeout = 1;
 static int tags_ld = 0;
-static int tags_st = 0;
+static int tags_st = 7;
 static int size_ld = 128;
 static int size_st = 128;
 static int npu_ld = 0;
@@ -331,6 +331,8 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "ocxl_mmio_write64: %d", err);
 		return err;
 	}
+	printf("Parameters used: tags_ld=%d - size_ld=%d - tags_st=%d - size_st=%d\n",
+	       tags_ld, size_ld, tags_st, size_st);
 
 	////////////////////////////////////////////////////////////////////////
 	// Measure bandwidth
