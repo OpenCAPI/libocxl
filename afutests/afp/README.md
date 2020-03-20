@@ -39,7 +39,6 @@ Usage
         --offsetmask  Determines how much of buffer to use.
                       Default 512kB.  Valid Range: 4K-512M.
                       Format: NumberLetter, e.g. 4K, 512K, 1M, 512M
-        --timeout     Default=1 seconds
 	--device      Device to open instead of first AFP AFU found
         --verbose     Verbose output
         --help        Print this message
