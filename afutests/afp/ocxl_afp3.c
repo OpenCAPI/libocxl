@@ -35,7 +35,6 @@
 
 
 static int verbose;
-static int timeout = 1;
 static int tags_ld = 0;
 static int tags_st = 7;
 static int size_ld = 128;
@@ -71,7 +70,6 @@ static void print_help(char *name)
 	printf("\t--wait      \tAmount of seconds to wait between perf count reads, default is %d\n", waitTime);
 	printf("\t--prefetch  \tInitialize buffer memory\n");
 	printf("\t--offsetmask\tDetermines how much of buffer to use.  Default 512kB.  Valid Range: 4K-512M.  Format: NumberLetter, e.g. 4K, 512K, 1M, 512M\n");
-	printf("\t--timeout   \tDefault=%d seconds\n", timeout);
 	printf("\t--device    \tDevice to open instead of first AFP AFU found\n");
 	printf("\t--verbose   \tVerbose output\n");
 	printf("\t--help      \tPrint this message\n");
@@ -104,14 +102,13 @@ int main(int argc, char *argv[])
 		{"wait", required_argument, 0, 'w'},
 		{"prefetch", no_argument, 0, 'p'},
 		{"offsetmask", required_argument, 0, 'o'},
-		{"timeout", required_argument, 0, 't'},
 		{"verbose", no_argument, &verbose,  1 },
 		{"help", no_argument, 0, 'h'},
 		{"device", required_argument, 0, 'd'},
 		{NULL, 0, 0, 0}
 	};
 
-	while ((opt = getopt_long(argc, argv, "avhc:t:d:", long_options, &option_index)) >= 0) {
+	while ((opt = getopt_long(argc, argv, "avhc:d:", long_options, &option_index)) >= 0) {
 		switch (opt) {
 		case 0:
 		case 'v':
@@ -187,9 +184,6 @@ int main(int argc, char *argv[])
 			}
 			if (offsetmask > 0x3FF)
 				printf("Warning: offsetmask is bigger than the 4MB memory buffer allocated by this app\n");
-			break;
-		case 't':
-			timeout = strtoul(optarg, NULL, 0);
 			break;
 		case 'd':
 			device = optarg;
