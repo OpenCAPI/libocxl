@@ -5,6 +5,7 @@ src/libocxl_info.h
 obj/*
 testobj/*
 sampleobj/*
+afuobj/
 docs
 cppcheck.xml
 kernel/include/misc/ocxl.h
