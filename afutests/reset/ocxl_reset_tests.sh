@@ -49,22 +49,14 @@ then
 		echo ocxl_reset_tests.sh: "$device": no such device >&2
 		exit 2
 	fi
-<<<<<<< HEAD
 	card=${device##*/}
-=======
-	card=${device##*/}	
->>>>>>> f2ad04f40dcceac9f4b2d7d6939e1963e6c2505d
 fi
 
 if [[ -z $card ]]
 then
 	# find first IBM,AFP3 or IBM,MEMCPY3 opencapi card
 	card=$(
-<<<<<<< HEAD
 		set -- $(ls /dev/ocxl/ 2>/dev/null)
-=======
-		set -- $(ls /dev/ocxl/$card 2>/dev/null)
->>>>>>> f2ad04f40dcceac9f4b2d7d6939e1963e6c2505d
 		for i
 		do
 			case $i in
@@ -88,7 +80,6 @@ then
 	exit 1
 fi
 
-<<<<<<< HEAD
 slot=$(ls /dev/ocxl/$card | awk -F"." '{ print $2 }' | sed s/$/.0/)
 slot=$(lspci -m -v -s $slot | awk '/^PhySlot:/ { print $2; exit }')
 if [[ -z $slot ]]
@@ -97,21 +88,12 @@ then
 	exit 1
 fi
 slot=/sys/bus/pci/slots/$slot
-=======
-slot=${card#*.}
-slot=${slot%%:*}
-slot=/sys/bus/pci/slots/OPENCAPI-$slot
->>>>>>> f2ad04f40dcceac9f4b2d7d6939e1963e6c2505d
 
 for ((i = 0; i < loops; i++))
 do
 	((loops > 1)) && echo Loop: $((i+1))/$loops
 
-<<<<<<< HEAD
 	echo ocxl_reset_tests.sh: resetting card $card in slot ${slot##*/}
-=======
-	echo ocxl_reset_tests.sh: resetting card $card
->>>>>>> f2ad04f40dcceac9f4b2d7d6939e1963e6c2505d
 	if ! echo 0 > $slot/power
 	then
 		echo ocxl_reset_tests.sh: could not write to $slot/power
@@ -124,11 +106,7 @@ do
 		exit 5
 	fi
 
-<<<<<<< HEAD
 	echo ocxl_reset_tests.sh: card $card has been reset
-=======
-	echo ocxl_reset_tests.sh: card $card has been reset 
->>>>>>> f2ad04f40dcceac9f4b2d7d6939e1963e6c2505d
 
 	case $card in
 	(*,AFP3.*)
