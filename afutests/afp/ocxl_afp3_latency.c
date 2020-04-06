@@ -103,7 +103,7 @@ static inline uint64_t ping_8B(uint64_t global_mmio_start,
 			break;
 
 		*flag = 0;
-
+		__sync_synchronize();
 		*afu_enable_reg_p = enable_in;
 		miso(); // force no gather
 
@@ -143,6 +143,7 @@ static inline uint64_t ping_OVER_8B(uint64_t global_mmio_start,
 		*(afu_large_data0_p + i) = 0xCEECEECEECEE0000 + i;
 
 	*flag = 0;
+	__sync_synchronize();
 	*afu_enable_reg_p = (uint64_t) enable_in;
 	miso(); // force no gather
 
@@ -161,6 +162,7 @@ static inline uint64_t ping_OVER_8B(uint64_t global_mmio_start,
 			break;
 
 		*flag = 0;
+		__sync_synchronize();
 		// Write the large_data0 128 register
 		// num_dw = 8 if m64, num_dw = 16 if m128
 		for (i = 0; i < num_dw; i++) {
