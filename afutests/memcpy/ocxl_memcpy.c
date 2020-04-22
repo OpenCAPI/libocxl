@@ -378,10 +378,6 @@ int test_afu_memcpy(struct memcpy_test_args *args)
 	ocxl_event event;
 	ocxl_mmio_h pp_mmio;
 
-	/* max buffer size supported by AFU */
-	if (args->size > 2048)
-		return -1;
-
 	pid = getpid();
 
 	/* Allocate memory areas for afu to copy to/from */
@@ -700,11 +696,11 @@ void usage(char *name)
 int main(int argc, char *argv[])
 {
 	struct memcpy_test_args args;
-	int rc, c, i, j, buflen = 2048, processes = 1;
+	int rc, c, i, j, processes = 1;
 	pid_t pid, failing;
 
 	args.loop_count = 1;
-	args.size = buflen;
+	args.size = 2048;
 	args.irq = 0;
 	args.completion_timeout = -1;
 	args.reallocate = 0;
@@ -734,7 +730,7 @@ int main(int argc, char *argv[])
 			processes = atoi(optarg);
 			break;
 		case 's':
-			buflen = atoi(optarg);
+			args.size = atoi(optarg);
 			break;
 		case 'i':
 			args.irq = 1;
@@ -803,6 +799,12 @@ int main(int argc, char *argv[])
 	if (args.increment && args.shared_mem) {
 		fprintf(stderr, "Error: -a and -S are mutually exclusive\n");
 		usage(argv[0]);
+	}
+
+	/* max buffer size supported by AFU */
+	if (args.size > 2048 || args.size % 64) {
+		fprintf(stderr, "invalid buffer size %d\n", args.size);
+		return -1;
 	}
 
 	rc = global_setup(&args);
