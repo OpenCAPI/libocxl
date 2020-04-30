@@ -516,18 +516,7 @@ int test_afu_memcpy(struct memcpy_test_args *args)
 	}
 	rc = 0;
 	gettimeofday(&start, NULL);
-	/*
-	 * AFU bug (?):
-	 * With -l2 or more, the AFU completes Increment #1,
-	 * but hangs instead of returning from Increment #2.
-	 *
-	 * Workaround:
-	 * If we insert a Copy command with the same dst address
-	 * before Increment #1, then the AFU behaves as expected
-	 * and completes any number of subsequent Increments.
-	 */
-	if (args->increment)
-		args->loop_count++;
+
 	for (i = 0; i < args->loop_count; i++) {
 
 		/* setup the work queue */
@@ -540,7 +529,7 @@ int test_afu_memcpy(struct memcpy_test_args *args)
 			/* release lock */
 			last_we = memcpy3_add_we(&weq, memcpy_we);
 			last_we->cmd |= MEMCPY_WE_CMD_VALID;
-		} else if (args->increment && i) {
+		} else if (args->increment) {
 			*(pid_t *)src = htole32(le32toh(*(pid_t *)src) + 1);
 			first_we = last_we = memcpy3_add_we(&weq, increment_we);
 		} else {
@@ -590,7 +579,7 @@ int test_afu_memcpy(struct memcpy_test_args *args)
 
 		if (args->atomic_cas) {
 			;	/* atomicity is checked at the end of main() */
-		} else if (args->increment && i) {
+		} else if (args->increment) {
 			if (le32toh(*(pid_t *)dst)-le32toh(*(pid_t *)src)-1) {
 				LOG_ERR(pid, "increment error on loop %d\n", i);
 				goto err_status;
