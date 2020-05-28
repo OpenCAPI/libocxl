@@ -3,7 +3,7 @@ include Makefile.vars
 
 OBJS = obj/afu.o obj/internal.o obj/irq.o obj/mmio.o obj/setup.o
 TEST_OBJS = testobj/afu.o testobj/internal.o testobj/irq.o testobj/mmio.o testobj/setup.o
-CFLAGS += -I src/include -I kernel/include -fPIC -D_FILE_OFFSET_BITS=64
+override CFLAGS += -I src/include -I kernel/include -fPIC -D_FILE_OFFSET_BITS=64
 
 VERS_LIB = $(VERSION_MAJOR).$(VERSION_MINOR)
 LIBNAME   = libocxl.so.$(VERS_LIB)
