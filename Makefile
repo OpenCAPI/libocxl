@@ -39,6 +39,7 @@ src/libocxl_info.h: version.pl
 	VERSION_MAJOR=${VERSION_MAJOR} VERSION_MINOR=${VERSION_MINOR} \
 	VERSION_PATCH=${VERSION_PATCH} CC="${CC}" CFLAGS="${CFLAGS}" \
 	./version.pl > src/libocxl_info.h
+	cat src/libocxl_info.h
 
 obj:
 	mkdir obj

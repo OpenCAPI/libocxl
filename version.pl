@@ -1,6 +1,5 @@
 #!/usr/bin/env perl
 
-use English;
 use strict;
 use warnings;
 
