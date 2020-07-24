@@ -19,12 +19,18 @@ all: check_ocxl_header obj/$(LIBSONAME) obj/libocxl.so obj/libocxl.a \
 HAS_WGET = $(shell /bin/which wget > /dev/null 2>&1 && echo y || echo n)
 HAS_CURL = $(shell /bin/which curl > /dev/null 2>&1 && echo y || echo n)
 
-# Update this to test a single feature from the most recent header we require:
-CHECK_OCXL_HEADER_IS_UP_TO_DATE = $(shell /bin/echo -e \\\#include $(1)\\\nvoid test\(struct ocxl_ioctl_features test\)\; | \
+# Update this to test a single feature from the most recent header we require.
+#
+# Note that a backward-incompatible change in make 4.3 modified the
+# handling \# in a function invocation, so we define the test code in
+# a separate variable to work around it and keep consistent behavior
+# across all versions of make
+TEST_CODE = '\#include <misc/ocxl.h>\nvoid test(struct ocxl_ioctl_features test);'
+CHECK_OCXL_HEADER_IS_UP_TO_DATE = $(shell /bin/echo -e $(TEST_CODE) | \
 	$(CC) $(CFLAGS) -Werror -x c -S -o /dev/null - > /dev/null 2>&1 && echo y || echo n)
 
 check_ocxl_header:
-ifeq ($(call CHECK_OCXL_HEADER_IS_UP_TO_DATE,'<misc/ocxl.h>'),n)
+ifeq (${CHECK_OCXL_HEADER_IS_UP_TO_DATE},n)
 	mkdir -p kernel/include/misc
 ifeq (${HAS_WGET},y)
 	$(call Q,WGET kernel/include/misc/ocxl.h, wget -O kernel/include/misc/ocxl.h -q https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/plain/include/uapi/misc/ocxl.h)
