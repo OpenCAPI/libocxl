@@ -343,9 +343,9 @@ static bool populate_metadata(dev_t dev, ocxl_afu *afu)
 	}
 
 	physical_function++;
-	uint16_t domain;
+	uint32_t domain;
 	uint8_t bus, device, function;
-	int found = sscanf(physical_function, "%hu:%hhu:%hhu.%hhu.%hhu",
+	int found = sscanf(physical_function, "%x:%hhu:%hhu.%hhu.%hhu",
 	                   &domain, &bus, &device, &function, &afu->identifier.afu_index);
 
 	if (found != 5) {
