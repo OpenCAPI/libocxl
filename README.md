@@ -98,6 +98,11 @@ The following environment variables may be set (to 1 or "YES") to assist with de
 
 **LIBOCXL_VERBOSE_ERRORS_ALL** Force verbose errors to be emitted for any failed LibOCXL calls, unless explicitly disabled.
 
+
+For testing and/or assist in various environments, the following environment variable can also be set:
+
+**LIBOCXL_SYSPATH** Override the default path (/sys/class/ocxl) used by the library to read driver information.
+
 Patches may be submitted via Github pull requests. Please prepare your patches
 by running `make precommit` before committing your work, and addressing any warnings & errors reported.
 Patches must compile cleanly with the latest stable version of GCC to be accepted.
