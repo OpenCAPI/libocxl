@@ -53,6 +53,7 @@ pthread_mutex_t stderr_mutex = PTHREAD_MUTEX_INITIALIZER;
  *  - Check the LIBOCXL_INFO environment variable and output the info string
  *  - Check the LIBOCXL_TRACE_ALL environment variable and enable tracing_all
  *  - Check the LIBOCXL_VERBOSE_ERRORS_ALL environment variable and enable verbose_errors_all
+ *  - Check the LIBOCXL_SYSPATH environment variable and override sys_path
  */
 void libocxl_init()
 {
@@ -80,6 +81,10 @@ void libocxl_init()
 		verbose_errors_all = true;
 		verbose_errors = true;
 	}
+
+	val = getenv("LIBOCXL_SYSPATH");
+	if (val)
+		sys_path = val;
 
 	libocxl_inited = true;
 
