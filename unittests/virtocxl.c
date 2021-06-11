@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
+#include "libocxl_internal.h"
 #include <fuse/cuse_lowlevel.h>
 #include <fuse/fuse_lowlevel.h>
 #include <linux/poll.h>
-#include "libocxl_internal.h"
 #include <misc/ocxl.h>
 #include <errno.h>
 #include <sys/types.h>
@@ -26,7 +26,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <pthread.h>
-
 #include <stdlib.h>
 
 typedef struct ocxl_kernel_event_header ocxl_kernel_event_header;
@@ -193,7 +192,7 @@ bool afu_is_attached() {
  * @return the thread for the device, or 0 on error
  */
 pthread_t create_ocxl_device(const char *afu_name, size_t global_mmio_size, size_t per_pasid_mmio_size) {
-	char sysfs_base[PATH_MAX];
+	char sysfs_base[PATH_MAX - 20];
 	char tmp[PATH_MAX];
 	char buf[BUF_SIZE];
 
