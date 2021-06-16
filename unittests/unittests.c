@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include "libocxl_internal.h"
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
@@ -24,13 +25,8 @@
 #include <pthread.h>
 #include <signal.h>
 #include <fcntl.h>
-
 #include <misc/ocxl.h>
-
-#include "libocxl_internal.h"
 #include "static.h"
-
-#include <stdlib.h>
 
 static const char *ocxl_sysfs_path = "/tmp/ocxl-test";
 static const char *ocxl_dev_path = "/dev/ocxl-test";

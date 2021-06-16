@@ -1,3 +1,16 @@
+# 1.2.1
+ - Set library version correctly
+ - Fix test build
+
+# 1.2.0
+This is mostly a bug fix release, there's no major new feature:
+ - Fix to support devices names with a hexadecimal domain name
+ - Allow to override path to read driver info (LIBOCXL_SYSPATH)
+ - Documentation enhancements
+ - Makefile/build enhancements
+ - Add tests for debug AFUs (memcpy, afp)
+
+
 # 1.1.0
 ## User facing changes
  - Requires Linux headers >= 4.18 to compile
