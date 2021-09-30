@@ -492,7 +492,7 @@ static ocxl_err get_afu_by_path(const char *path, ocxl_afu_h *afu)
 	struct stat dev_stats;
 	if (stat(path, &dev_stats)) {
 		rc = OCXL_NO_DEV;
-		errmsg(NULL, rc, "Could not stat AFU device '%s': Error %d: %s", path, errno, strerror(errno));
+		errmsg(NULL, rc, "Could not start AFU device '%s': Error %d: %s", path, errno, strerror(errno));
 		goto err_free;
 	}
 
